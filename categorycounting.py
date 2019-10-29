@@ -45,13 +45,12 @@ def count_categories(catdict, metric):
 	
 	return(counts)
 
-def assess_failures(counts, threshold):
+def reject(counts, threshold, anythreshold):
 	
 	# Work through sets of scores
-	failures = {name for name, count in counts.items() if min(count) < threshold}
+	reject = {name for name, count in counts.items() if (anythreshold and min(count) < threshold) or (not anythreshold and all(c < threshold for c in count))}
 	
-	return(failures)
-
+	return(reject)
 
 
 def multicategory(count_dict, other_dicts_tuple):
@@ -110,7 +109,35 @@ def multicategory(count_dict, other_dicts_tuple):
 	
 	return(multi_dict)
 
+def write_count_dict(count_dict, asvs, path):
+	""
+	
+	# TODO: Check the count dict is of the right structure
+	
+	# Order asvs name
+	
+	asvs_sort = sorted(asvs)
+	
+	# Write to file
+	
+	with open(path, 'w') as o:
+		
+		# Write header
+		
+		o.write(",".join([""]+asvs_sort)+"\n")
+		
+		# Write data lines
+		
+		for lib, counts in count_dict.items():
+			values = [str(count_dict[lib][asv]) if asv in count_dict[lib].keys() else str(0) for asv in asvs_sort]
+			o.write(",".join([lib]+values)+"\n")
+
+
+
 #x = {"l1" : { "A" : 3, "B" : 2}, "l2" : { "B" : 1, "C" : 3}, "l3" : { "A" : 2, "C" : 1, "D" : 4}}
 #y = {"t1" : { "A" : 5}, "t2" : { "B" : 3, "C" : 4}, "t3" : {"D" : 4}}
 #z = {"c1" : { "A" , "B" }, "c2" : {"C"}, "c3" : {"D"}}
 #xyz = multicategory(x,(y,z))
+#path = "test.csv"
+#asvs = ["A", "B", "C", "D"]
+#count_dict = x

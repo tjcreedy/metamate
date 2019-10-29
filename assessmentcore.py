@@ -48,34 +48,7 @@ import sys
 
 # Function definitions
 
-def calc_score(incorrect_known_good, total_known_good, incorrect_known_bad, total_known_bad, score_type, weight = 0.5):
-	if(score_type == "standardised"):
-		return(2 * weight * (incorrect_known_good / total_known_good) + 2 * (1-weight) * (incorrect_known_bad / total_known_bad))
-	elif(score_type == "unstandardised"):
-		return( ( weight * incorrect_known_good + (1 - weight) * incorrect_known_bad ) / ( weight * total_known_good + (1 - weight) * total_known_bad ) )
-	else:
-		sys.ext("Error: unknown score_type value passed to calc_score")
-
-def check_good(failures, good):
-	incorrect = failures.intersection(good)
-	return(len(incorrect))
-
-def check_bad(failures, bad):
-	incorrect = bad - failures
-	return(len(incorrect))
-
-def resolve_ranges(range_string):
-	# Split into segments
-	ranges = re.split(",", range_string)
-	# Separate parts of any range specifications
-	ranges = [re.split("[-/]", r) for r in ranges]
-	# TODO: add check for range specifications being complete
-	# Convert any range specifications to full list
-	ranges = [numpy.linspace(float(r[0]), float(r[1]), int(r[2])) if len(r) > 1 else [float(r[0]),] for r in ranges ]
-	# Collapse list of lists
-	return(list(itertools.chain(*ranges)))
-
-def parse_spec(specfile):
+def parse_spec(specfile, addnull):
 	"Parse through the specification to expand terms and thresholds"
 	
 	# Open specifications file and remove comments
@@ -84,42 +57,65 @@ def parse_spec(specfile):
 		lines = fh.read().splitlines()
 	
 	commentline_filter = re.compile(r'^\s*$|^\s*#')
-	lines_use = [l for l in lines if not commentline_filter.search(l)]
-	lines_clean = [re.sub(r'#.*$', '', l) for l in lines_use]
-	
+
 	# Parse lines into specifications
-	
 	spec = {}
-	thresh_list = [None] * len(lines_clean)
+	thresh_list = []
 	thresh_total = 1
-	spectext = [None] * len(lines_clean)
+	spectext = []
 	
-	for i, v in enumerate(lines_clean):
-		
-		# Clean and split up
-		v = v.replace(" ","")
-		values = re.split("\t+", v)
-		
-		# TODO: check there are 3 values!
-		
-		# Split terms into parts
-		spectext[i] = values[0]
-		values[0]  = re.split("[\|\+]", values[0])
-		
-		# TODO: check metric is n or p
-		
-		# Expand thresholds to list
-		values[2] = resolve_ranges(values[2])
-		
-		# Add to list of thresholds
-		thresh_total *= len(values[2])
-		thresh_list[i] = values[2]
-		
-		# Add to dict
-		spec[i] = dict(zip(['terms', 'metric', 'thresholds'], values))
+	for i, l in enumerate(lines):
+		if(commentline_filter.search(l)):
+			next
+		else:
+			# Clean and split up
+			v = l.replace('#.*$| ', '')
+			values = re.split("\t+", v)
+			
+			# Set up error
+			err = "Error, malformed specification in " + specfile + " line " + i+1
+			
+			# Check there are 3 values
+			if(len(values) != 3):
+				errlen = err + ": specification line should have three tab-separated entries"
+				sys.exit(errlen)
+			
+			# Split terms into parts
+			spectext.append(values[0]+"("+values[1]+")")
+			values[0]  = re.split("[\|\+]", values[0])
+			
+			# Check terms are formed correctly
+			if(not values[0][0] in ['library', 'total']):
+				errterm = err + ": first term must be \'library\' or \'total\'"
+				sys.exit(errterm)
+			
+			if(not all(t in ['taxa', 'clade'] for t in values[0][1:])):
+				errterm = err + ": secondary term(s) must be \'clade\' or \'taxon\'"
+				sys.exit(errterm)
+			
+			# Check metric is n or p
+			if(not values[1] in ['n', 'p']):
+				errmet = err = ": metric should be \'n\' or \'p\'"
+				sys.exit(errmet)
+			
+			# Expand thresholds to list
+			values[2] = resolve_ranges(values[2])
+			
+			# Add null value if requested
+			if(addnull):
+				if(values[1] == 'p' and not 1 in values[2]):
+					values[2].append(1)
+				elif(values[1] == 'n'):
+					values[2].append(9999999999)
+			
+			# Add to list of thresholds
+			thresh_total *= len(values[2])
+			thresh_list.append(values[2])
+			
+			# Add to dict
+			spec[i] = dict(zip(['terms', 'metric', 'thresholds'], values))
 	
 	# TODO: Check thresh_total against maximum
-	
 	
 	thresh_combos = list(itertools.product(*thresh_list))
 	
@@ -143,21 +139,71 @@ def counts_from_spec(spec, data):
 	
 	return(counts)
 
-def calc_combo_score(counts, thresholds, good, bad, score_type, weight = 0.5):
-	"Finds failures and calculates score for a given set of category counts and a given set of thresholds. Counts and thresholds should be in two lists of equal lengths, where the nth item of the thresholds should be the threshold count for the nth counts"
+def calc_stats(counts, thresholds, asvs, target, nontarget, anythreshold, score_type, weight = 0.5):
+	"For a given set of category counts and a given set of thresholds, counts retention, calculates scores and estimates statistics. Counts and thresholds should be in two lists of equal lengths, where the nth item of the thresholds should be the threshold count for the nth counts"
 	
-	# Find all failures across counts
-	failures = set(itertools.chain.from_iterable([ categorycounting.assess_failures(counts[i], t) for i, t in enumerate(thresholds) ]))
+	# Find all rejected_asvs across counts
+	rejectedasvs = set(itertools.chain.from_iterable([ categorycounting.reject(counts[i], t, anythreshold) for i, t in enumerate(thresholds) ]))
 	
-	# Get score
-	score = calc_score(check_good(failures, good), len(good), check_bad(failures, bad), len(bad), score_type, weight)
+	# Input counts
+	inputs = [len(asvs), len(target), len(nontarget), len(rejectedasvs)]
+	inputs.append(inputs[0]-inputs[3])
 	
-	return(score, len(failures), len(good), len(bad), check_good(failures, good)/len(good), check_bad(failures, bad)/len(bad))
+	# Calculate number of retained target and nontarget asvs, plus number of actual retentions 
+	retained_vals = [retained_target(rejectedasvs, target), retained_nontarget(rejectedasvs, nontarget), len(rejectedasvs - target)]
+	
+	# Calculate score
+	score = calc_score(retained_vals[0], inputs[1], retained_vals[1], inputs[2], score_type, weight)
+	
+	# Calculate estimates of total input true targets, total input true nontargets, total output true targets, total output true nontargets
+	estimates = estimate_true_values(inputs[0], inputs[4], retained_vals[0], inputs[1], retained_vals[1], inputs[3])
+	
+	# score, asvs, target, nontarget, rejectedasvs, retainedasvs, retained_target, retained_nontarget, actual_retainedasvs, true_target, true_nontarget, true_retained_target, true_retained_nontarget
+	return([score].extend(inputs.extend[retained_vals.extend(estimates)]))
+
+def write_specs_and_stats(specs, thresholds, scores, path):
+	
+	with open(path, "w") as o:
+		
+		# Write header
+		
+		scorehead = ["score", "asvs", "target", "nontarget", "rejectedasvs", "retainedasvs", "retained_target", "retained_nontarget", "actual_retainedasvs", "est_true_target", "est_true_nontarget", "est_true_retained_target", "est_true_retained_nontarget"]
+		
+		o.write(",".join(specs + scorehead) + '\n')
+		
+		# Write lines
+		
+		for thresh, score in zip(thresholds, scores):
+			o.write(",".join(thresh + score)+'\n')
+
+
+def retained_target(rejected, target):
+	retained = target - rejected
+	return(len(retained))
+
+def retained_nontarget(rejected, nontarget):
+	retained = nontarget - rejected
+	return(len(retained))
+
+def calc_score(retained_target, target, retained_nontarget, nontarget, score_type, weight = 0.5):
+	if(score_type == "standardised"):
+		return(2 * ( weight * (1 - retained_target/target) + (1-weight) * retained_nontarget/nontarget))
+	elif(score_type == "unstandardised"):
+		return( ( weight * (target - retained_target) + (1 - weight) * (nontarget - retained_target)) / ( weight * target + (1 - weight) * nontarget) )
+	else:
+		sys.ext("Error: unknown score_type value passed to calc_score")
+
+def estimate_true_values(asvs, retained_asvs, retained_target, target, retained_nontarget, nontarget):
+	true_target = ( retained_asvs - asvs * (retained_nontarget / nontarget) ) / (retained_target / target - retained_nontarget / nontarget )
+	true_nontarget = asvs - true_target
+	true_retained_target = true_target * (retained_target / target)
+	true_retained_nontarget = (retained_nontarget / nontarget) * (asvs - true_target)
+	return([true_target, true_nontarget, true_retained_target, true_retained_nontarget])
 
 def get_minimum_thresholds(scores, threshold_combinations, spec):
 	
 	# Get list of scores only 
-	score_list = [ score for score, failure_n, good_n, bad_n, good_fail_rate, bad_fail_rate in scores ]
+	score_list = [ s[0] for s in scores ]
 	
 	# Find minimum and indices
 	minscore = min(score_list)
@@ -192,14 +238,27 @@ def get_minimum_thresholds(scores, threshold_combinations, spec):
 			
 			outtext += " = " + str(v) + "\n"
 		
-		outtext += "\tPreliminary number of putative exclusions: " + str(scores[min_index][1]) + "\n"
-		outtext += "\tProportion of \'good\' haplotypes incorrectly excluded: " + str(scores[min_index][4]) + "\n"
-		outtext += "\tProportion of \'bad\' haplotypes incorrectly included: " + str(scores[min_index][5]) + "\n"
-		outtext += "\tFinal number of exclusions: " + str(int(scores[min_index][1] + scores[min_index][5] * scores[min_index][3] - scores[min_index][4] * scores[min_index][2])) + "\n"
+		outtext += "\tPreliminary number of putative exclusions: " + str(scores[min_index][4]) + "\n"
+		outtext += "\tProportion of \'verified target\' ASVs retained: " + str(scores[min_index][6]/scores[min_index][2]) + "\n"
+		outtext += "\tProportion of \'verified non-target\' ASVs retained: " + str(scores[min_index][7]/scores[min_index][3]) + "\n"
+		outtext += "\tFinal number of exclusions: " + str(scores[min_index][8]) + "\n"
 		
 		n += 1
 	
 	return(minscore, min_thresholds, outtext)
+
+
+def resolve_ranges(range_string):
+	# Split into segments
+	ranges = re.split(",", range_string)
+	# Separate parts of any range specifications
+	ranges = [re.split("[-/]", r) for r in ranges]
+	# TODO: add check for range specifications being complete
+	# Convert any range specifications to full list
+	ranges = [numpy.linspace(float(r[0]), float(r[1]), int(r[2])) if len(r) > 1 else [float(r[0]),] for r in ranges ]
+	# Collapse list of lists
+	return(list(itertools.chain(*ranges)))
+
 
 def output_filtered_haplotypes(counts, min_thresholds, good, bad, file, filename, outdir):
 	

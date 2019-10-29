@@ -40,17 +40,17 @@ parser.add_argument("-T", "--threads",			help = "number of threads to use", defa
 def do_alignment(fasta, threads):
 	# Run MAFFT alignment
 	align_cmd = MafftCommandline(input = fasta, retree = 2, maxiterate = 2, threads = threads)	# Construct MAFFT commandline object
-	align_so, align_se = align_cmd()					# Run the commandline object
-	align = AlignIO.read(StringIO(align_so), "fasta")			# Parse the standardout into alignment object
+	align_so, align_se = align_cmd()															# Run the commandline object
+	align = AlignIO.read(StringIO(align_so), "fasta")											# Parse the standardout into alignment object
 	
 	return (align)
 
 def make_dist_and_tree_py(align):
 	# Build tree
-	distance_calc = DistanceCalculator('identity')			# Construct distance calculator object
-	dist = distance_calc.get_distance(align)			# Build distance matrix
+	distance_calc = DistanceCalculator('identity')					# Construct distance calculator object
+	dist = distance_calc.get_distance(align)						# Build distance matrix
 	tree_builder = DistanceTreeConstructor(distance_calc, 'upgma')	# Construct tree builder object
-	tree = tree_builder.build_tree(align)				# Build the tree
+	tree = tree_builder.build_tree(align)							# Build the tree
 	
 	return (dist, tree)
 
@@ -94,16 +94,16 @@ def make_tree_mafft(path):
 #def phylo_to_nwkstring(tree):
 	
 
-def make_tree_R(alignpath):
+def make_tree_R(alignpath, model):
 	# Run R script
-	maketreecommand = subprocess.run(['./maketree.R', '-a', alignpath], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+	maketreecommand = subprocess.run(['./maketree.R', '-a', alignpath, '-m', model], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 	
 	# Check for errors
 	mtcstderr = maketreecommand.stderr.decode("utf-8")
 	
 	if("Error" in mtcstderr):
 		if('NA/NaN/Inf in foreign function call (arg 11)' in mtcstderr):
-			sys.exit("Error: UPGMA tree building failed because the aligned sequences are too different and the distance matrix computation failed. The alignment is probably too gappy, try making your own alignment and re-running.")
+			sys.exit("Error, UPGMA tree building failed because the aligned sequences are too different and the distance matrix computation failed. The alignment is probably too gappy, try making your own alignment and re-running.")
 		else:
 			sys.exit("Error in R UPGMA tree construction: \n" + mtcstderr)
 	elif("Warning" in mtcstderr):
@@ -123,7 +123,7 @@ def get_clades_R(tree, height):
 	
 	if("Error" in getcladecommand.stderr.decode("utf-8")):
 		if('the tree is not ultrametric' in getcladecommand.stderr.decode("utf-8")):
-			sys.exit("Error: the supplied tree is not ultrametric so clades cannot be reliably found")
+			sys.exit("Error, the supplied tree is not ultrametric so clades cannot be found")
 		else:
 			sys.exit("Error in R UPGMA tree construction: \n" + getcladecommand.stderr.decode("utf-8"))
 	
@@ -144,6 +144,12 @@ def degap_alignment(alignment):
 	
 	return(SeqIO.to_dict(degapped))
 
+def write_clade_dict(clade_dict, path):
+	with open(path, "w") as o:
+		for clade, asv in clades.items():
+			o.write([key, val,'\n'])
+
+
 if __name__ == "__main__":
 	
 	# Get options
@@ -162,7 +168,7 @@ if __name__ == "__main__":
 	# Check for bad options
 	
 	if(args.divergence > 1 or args.divergence < 0):
-		sys.ext("Error: divergence parameter should be between 0 and 1")
+		sys.ext("Error, divergence parameter should be between 0 and 1")
 	
 	# Make the alignment
 	

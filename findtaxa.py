@@ -5,8 +5,6 @@
 
 # Imports
 
-from io import StringIO
-import os
 import csv
 import sys
 from collections import defaultdict
@@ -36,3 +34,8 @@ def parse_taxa(taxafile, names):
 	
 	return(taxa)
 
+def dummy_taxa(names):
+	
+	taxa = { n : 'x' for n in names}
+	
+	return(taxa)
