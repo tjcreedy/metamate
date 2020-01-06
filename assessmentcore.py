@@ -48,6 +48,17 @@ import sys
 
 # Function definitions
 
+def resolve_ranges(range_string):
+	# Split into segments
+	ranges = re.split(",", range_string)
+	# Separate parts of any range specifications
+	ranges = [re.split("[-/]", r) for r in ranges]
+	# TODO: add check for range specifications being complete
+	# Convert any range specifications to full list
+	ranges = [numpy.linspace(float(r[0]), float(r[1]), int(r[2])) if len(r) > 1 else [float(r[0]),] for r in ranges ]
+	# Collapse list of lists
+	return(list(itertools.chain(*ranges)))
+
 def parse_spec(specfile, addnull):
 	"Parse through the specification to expand terms and thresholds"
 	
@@ -57,14 +68,15 @@ def parse_spec(specfile, addnull):
 		lines = fh.read().splitlines()
 	
 	commentline_filter = re.compile(r'^\s*$|^\s*#')
-
+	
 	# Parse lines into specifications
 	spec = {}
 	thresh_list = []
 	thresh_total = 1
 	spectext = []
+	i = 0
 	
-	for i, l in enumerate(lines):
+	for l in lines:
 		if(commentline_filter.search(l)):
 			next
 		else:
@@ -73,7 +85,7 @@ def parse_spec(specfile, addnull):
 			values = re.split("\t+", v)
 			
 			# Set up error
-			err = "Error, malformed specification in " + specfile + " line " + i+1
+			err = "Error, malformed specification in " + specfile + " line " + str(i+1)
 			
 			# Check there are 3 values
 			if(len(values) != 3):
@@ -89,7 +101,7 @@ def parse_spec(specfile, addnull):
 				errterm = err + ": first term must be \'library\' or \'total\'"
 				sys.exit(errterm)
 			
-			if(not all(t in ['taxa', 'clade'] for t in values[0][1:])):
+			if(not all(t in ['taxon', 'clade'] for t in values[0][1:])):
 				errterm = err + ": secondary term(s) must be \'clade\' or \'taxon\'"
 				sys.exit(errterm)
 			
@@ -114,6 +126,7 @@ def parse_spec(specfile, addnull):
 			
 			# Add to dict
 			spec[i] = dict(zip(['terms', 'metric', 'thresholds'], values))
+			i += 1
 	
 	# TODO: Check thresh_total against maximum
 	
@@ -129,18 +142,41 @@ def counts_from_spec(spec, data):
 	
 	# Work through specifications
 	for specn, specdict in spec.items():
-		
 		# Check if partitioned and do counting
 		if( len(specdict['terms']) == 1 ):
-			counts[specn] = categorycounting.count_categories(data[specdict['terms'][0]], specdict['metric'] )
+			counts[specn] = categorycounting.count_categories(data[specdict['terms'][0]], specdict['metric'])
 		else:
 			partitiontermsdata = tuple( data[term] for term in specdict['terms'][1:] )
 			counts[specn] = categorycounting.count_categories( categorycounting.multicategory( data[specdict['terms'][0]], partitiontermsdata), specdict['metric'] )
 	
 	return(counts)
 
+def calc_score(retained_target, target, retained_nontarget, nontarget, score_type, weight = 0.5):
+	if(score_type == "standardised"):
+		return(2 * ( weight * (1 - retained_target/target) + (1-weight) * retained_nontarget/nontarget))
+	elif(score_type == "unstandardised"):
+		return( ( weight * (target - retained_target) + (1 - weight) * (nontarget - retained_target)) / ( weight * target + (1 - weight) * nontarget) )
+	else:
+		sys.ext("Error: unknown score_type value passed to calc_score")
+
+def estimate_true_values(asvs, retained_asvs, retained_target, target, retained_nontarget, nontarget):
+	try:
+		true_target = ( retained_asvs - asvs * (retained_nontarget / nontarget) ) / (retained_target / target - retained_nontarget / nontarget )
+		true_nontarget = asvs - true_target
+		true_retained_target = true_target * (retained_target / target)
+		true_retained_nontarget = (retained_nontarget / nontarget) * (asvs - true_target)
+		out = [true_target, true_nontarget, true_retained_target, true_retained_nontarget]
+	except:
+		out = ['NA', 'NA', 'NA', 'NA']
+	return(out)
+
 def calc_stats(counts, thresholds, asvs, target, nontarget, anythreshold, score_type, weight = 0.5):
 	"For a given set of category counts and a given set of thresholds, counts retention, calculates scores and estimates statistics. Counts and thresholds should be in two lists of equal lengths, where the nth item of the thresholds should be the threshold count for the nth counts"
+	
+	#thresholds = threshold_set
+	#asvs = set(rawasvs.keys())
+	#anythreshold = args.anythreshold
+	#score_type = "standardised"
 	
 	# Find all rejected_asvs across counts
 	rejectedasvs = set(itertools.chain.from_iterable([ categorycounting.reject(counts[i], t, anythreshold) for i, t in enumerate(thresholds) ]))
@@ -150,7 +186,7 @@ def calc_stats(counts, thresholds, asvs, target, nontarget, anythreshold, score_
 	inputs.append(inputs[0]-inputs[3])
 	
 	# Calculate number of retained target and nontarget asvs, plus number of actual retentions 
-	retained_vals = [retained_target(rejectedasvs, target), retained_nontarget(rejectedasvs, nontarget), len(rejectedasvs - target)]
+	retained_vals = [len(target - rejectedasvs), len(nontarget - rejectedasvs), len(rejectedasvs - target)]
 	
 	# Calculate score
 	score = calc_score(retained_vals[0], inputs[1], retained_vals[1], inputs[2], score_type, weight)
@@ -159,7 +195,7 @@ def calc_stats(counts, thresholds, asvs, target, nontarget, anythreshold, score_
 	estimates = estimate_true_values(inputs[0], inputs[4], retained_vals[0], inputs[1], retained_vals[1], inputs[3])
 	
 	# score, asvs, target, nontarget, rejectedasvs, retainedasvs, retained_target, retained_nontarget, actual_retainedasvs, true_target, true_nontarget, true_retained_target, true_retained_nontarget
-	return([score].extend(inputs.extend[retained_vals.extend(estimates)]))
+	return([score] + inputs + retained_vals + estimates)
 
 def write_specs_and_stats(specs, thresholds, scores, path):
 	
@@ -177,28 +213,7 @@ def write_specs_and_stats(specs, thresholds, scores, path):
 			o.write(",".join(thresh + score)+'\n')
 
 
-def retained_target(rejected, target):
-	retained = target - rejected
-	return(len(retained))
 
-def retained_nontarget(rejected, nontarget):
-	retained = nontarget - rejected
-	return(len(retained))
-
-def calc_score(retained_target, target, retained_nontarget, nontarget, score_type, weight = 0.5):
-	if(score_type == "standardised"):
-		return(2 * ( weight * (1 - retained_target/target) + (1-weight) * retained_nontarget/nontarget))
-	elif(score_type == "unstandardised"):
-		return( ( weight * (target - retained_target) + (1 - weight) * (nontarget - retained_target)) / ( weight * target + (1 - weight) * nontarget) )
-	else:
-		sys.ext("Error: unknown score_type value passed to calc_score")
-
-def estimate_true_values(asvs, retained_asvs, retained_target, target, retained_nontarget, nontarget):
-	true_target = ( retained_asvs - asvs * (retained_nontarget / nontarget) ) / (retained_target / target - retained_nontarget / nontarget )
-	true_nontarget = asvs - true_target
-	true_retained_target = true_target * (retained_target / target)
-	true_retained_nontarget = (retained_nontarget / nontarget) * (asvs - true_target)
-	return([true_target, true_nontarget, true_retained_target, true_retained_nontarget])
 
 def get_minimum_thresholds(scores, threshold_combinations, spec):
 	
@@ -246,18 +261,6 @@ def get_minimum_thresholds(scores, threshold_combinations, spec):
 		n += 1
 	
 	return(minscore, min_thresholds, outtext)
-
-
-def resolve_ranges(range_string):
-	# Split into segments
-	ranges = re.split(",", range_string)
-	# Separate parts of any range specifications
-	ranges = [re.split("[-/]", r) for r in ranges]
-	# TODO: add check for range specifications being complete
-	# Convert any range specifications to full list
-	ranges = [numpy.linspace(float(r[0]), float(r[1]), int(r[2])) if len(r) > 1 else [float(r[0]),] for r in ranges ]
-	# Collapse list of lists
-	return(list(itertools.chain(*ranges)))
 
 
 def output_filtered_haplotypes(counts, min_thresholds, good, bad, file, filename, outdir):

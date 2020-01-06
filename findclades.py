@@ -37,11 +37,18 @@ parser.add_argument("-T", "--threads",			help = "number of threads to use", defa
 
 # Function definitions
 
+def detect_aligned(fasta):
+	try:
+		AlignIO.read(fasta, "fasta")
+		return(True)
+	except ValueError:
+		return(False)
+
 def do_alignment(fasta, threads):
 	# Run MAFFT alignment
-	align_cmd = MafftCommandline(input = fasta, retree = 2, maxiterate = 2, threads = threads)	# Construct MAFFT commandline object
-	align_so, align_se = align_cmd()															# Run the commandline object
-	align = AlignIO.read(StringIO(align_so), "fasta")											# Parse the standardout into alignment object
+	align_cmd = MafftCommandline(input = fasta, retree = 1, maxiterate = 0, thread = int(threads))	# Construct MAFFT commandline object
+	align_so, align_se = align_cmd()										# Run the commandline object
+	align = AlignIO.read(StringIO(align_so), "fasta")							# Parse the standardout into alignment object
 	
 	return (align)
 
@@ -94,9 +101,12 @@ def make_tree_mafft(path):
 #def phylo_to_nwkstring(tree):
 	
 
-def make_tree_R(alignpath, model):
+def make_tree_R(scriptdir, alignpath, model):
+	# Generate script location
+	maketreepath = os.path.join(scriptdir, 'maketree.R')
+	
 	# Run R script
-	maketreecommand = subprocess.run(['./maketree.R', '-a', alignpath, '-m', model], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+	maketreecommand = subprocess.run([maketreepath, '-a', alignpath, '-m', model], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 	
 	# Check for errors
 	mtcstderr = maketreecommand.stderr.decode("utf-8")
@@ -113,12 +123,16 @@ def make_tree_R(alignpath, model):
 	tree = maketreecommand.stdout.decode("utf-8")
 	return(tree)
 
-def get_clades_R(tree, height):
+def get_clades_R(scriptdir, tree, height):
+	# Generate script location
+	getcladespath = os.path.join(scriptdir, 'getclades.R')
+	
+	
 	if(type(tree) == str):
 		tree = tree.encode()
 	
 	# Run R script
-	getcladecommand = subprocess.run(['./getclades.R', '-i', str(height)], stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = tree)
+	getcladecommand = subprocess.run([getcladespath, '-i', str(height)], stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = tree)
 	cladestring = getcladecommand.stdout.decode("utf-8")
 	
 	if("Error" in getcladecommand.stderr.decode("utf-8")):
@@ -146,8 +160,9 @@ def degap_alignment(alignment):
 
 def write_clade_dict(clade_dict, path):
 	with open(path, "w") as o:
-		for clade, asv in clades.items():
-			o.write([key, val,'\n'])
+		for clade, asvs in clade_dict.items():
+			for asv in asvs:
+				o.write(asv + "," + clade + '\n')
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@
 # Note that more strict filtering can be applied by setting --anythreshold, whereby ASVs will be filtered if they fail to meet the threshold in any library in which they occur, as opposed to the default all libraries in which they occur.
 
 # DEFAULT (# out to overwrite)
-library			n	3-5/3,8-12/2,15-50/7,60-100/5
-library			p	0.0025,0.005-0.007/14,0.08-0.1/3
-library|taxon		p	0.001-0.4/15
+library		n	3-5/3,8-12/2,15-50/7,60-100/5
+library		p	0.0025,0.005-0.007/14,0.08-0.1/3
+#library|taxon		p	0.001-0.4/15
 library|clade		p	0.01,0.025,0.05-0.65/12,0.75,0.9,1-4/7,5-9/5

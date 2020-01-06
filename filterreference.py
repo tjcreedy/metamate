@@ -12,6 +12,7 @@ from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 import argparse
 import os
+import subprocess
 
 # Global variables
 
@@ -31,19 +32,30 @@ parser.add_argument("-i", "--match_percent", help = "the minimum percent identit
 
 # Function definitons
 
-def blast_for_presence(queryfile, subjectfile, perc_identity, min_length, threads):
+def blast_for_presence(queryfile, outputdirectory, subjectfile, perc_identity, min_length, threads):
+	# Create temporary directory
+	outputdirectory = os.path.join(outputdirectory, "blasttemp")
+	if not os.path.exists(outputdirectory):
+		os.makedirs(outputdirectory)
+	
+	# Create blast database
+	blastdb = os.path.join(outputdirectory, "blastdb")
+	blastdb_cline = 'makeblastdb -in {0} -dbtype nucl -out {1}'.format(subjectfile, blastdb)
+	blastdb_process = subprocess.Popen(blastdb_cline, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+	blastdb_process.wait()
 	
 	# Set up blast object
-	blastn_cline = NcbiblastnCommandline(query = queryfile, subject = subjectfile,
+	blastout = os.path.join(outputdirectory, "tempblastout.xml")
+	blastn_cline = NcbiblastnCommandline(query = queryfile, db = blastdb,
 							   evalue = 0.001, perc_identity = perc_identity,
 							   num_threads = threads, #TODO set up global threads variable
-							   outfmt = 5, out = "refblast.xml")
+							   outfmt = 5, out = blastout)
 	
 	# Run blast
 	stdout, stderr = blastn_cline()
 	
 	# Get result
-	blast_result_fh = open("refblast.xml")
+	blast_result_fh = open(blastout)
 	blast_records = NCBIXML.parse(blast_result_fh)
 	
 	# Work through results finding reference hits that are suitable
@@ -55,6 +67,9 @@ def blast_for_presence(queryfile, subjectfile, perc_identity, min_length, thread
 			length_pass.extend([hsp.query_end - hsp.query_start + 1 > min_length for hsp in alignment.hsps])
 		if(len(length_pass) > 0 and any(length_pass)):
 			query_pass.add(blast_record.query)
+	
+	# Clean up
+	#os.rmdir(outputdirectory)
 	
 	return(query_pass)
 

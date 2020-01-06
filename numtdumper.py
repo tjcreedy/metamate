@@ -5,7 +5,6 @@
 
 # Imports
 
-#import sys
 import argparse
 import os
 import sys
@@ -36,10 +35,10 @@ parser = argparse.ArgumentParser(description = "")
 	# Input / output paths
 parser.add_argument("-A", "--asvs",		help = "path to a fasta of unique sequences to filter", metavar = "ASVs", type = str)
 parser.add_argument("-R", "--reference",		help = "path to a fasta of known correct reference sequences", metavar = "REF", type = str)
-parser.add_argument("-L", "--libraries",		help = "paths to fastas of individual libraries/discrete samples from which zotus were found", metavar = "LIBS")
-parser.add_argument("-S", "--specifications",	help = "path to a text file detailing the read count binning strategy and thresholds", metavar = "SPEC")
-parser.add_argument("-X", "--taxgroups",		help = "path to a two-column csv file specifying the taxon for each haplotype", metavar = "TAXA")
-#parser.add_argument("-T", "--tree",			help = "path to an ultrametric tree of the zotus", metavar = "TREE", type = str, default = "test/bee_mocks/all.zotus.addglopairmaxit1k.nwk")
+parser.add_argument("-L", "--libraries",		help = "paths to fastas of individual libraries/discrete samples from which zotus were found", metavar = "LIBS", type = str, nargs = '*')
+parser.add_argument("-S", "--specification",	help = "path to a text file detailing the read count binning strategy and thresholds", metavar = "SPEC", type = str)
+parser.add_argument("-X", "--taxgroups",		help = "path to a two-column csv file specifying the taxon for each haplotype", metavar = "TAXA", type = str)
+parser.add_argument("-T", "--tree",		help = "path to an tree of the ASVs from a previous run", metavar = "TREE", type = str)
 
 #Available options: g h k q u v w z
 
@@ -47,7 +46,7 @@ parser.add_argument("-o", "--outputdirectory",	help = "output directory (default
 parser.add_argument("-t", "--threads",		help = "number of threads to use", default = 4, metavar = "N")
 
 	# Input file variables
-parser.add_argument("-a", "--aligned",		help = "is the input fasta of unique sequences already aligned?", action = "store_true", default = True)
+parser.add_argument("-a", "--realign",		help = "force (re)alignment of the input ASVs", action = "store_true", default = False)
 
 	# Master filtering variables
 parser.add_argument("-y", "--anythreshold",	help = "reject ASVs that fail to meet any threshold (as opposed to all thresholds)", action = "store_true", default = False)
@@ -85,10 +84,30 @@ if __name__ == "__main__":
 	#######################
 	# INITIAL PREPARATION #
 	#######################
+	# Locate the script directory
+	
+	scriptdir = os.path.dirname(__file__)
 	
 	# Get inputs
-	
+	#scriptdir = "/run/user/1004/gvfs/sftp:host=watson/av/thomas_numtdumper/program/"
+	#os.chdir("/run/user/1004/gvfs/sftp:host=watson/av/thomas_numtdumper/data/bee")
+	#args = parser.parse_args(['-A', '5_indelfil_apoidea.fftns1.fa', 
+	#	'-R', 'bold_BEEEE_2018_04_17.fa', 
+	#	'-L', 'merge/mock_10_relabel.fa', 'merge/mock_26_relabel.fa', 'merge/mock_41_relabel.fa', 'merge/mock_11_relabel.fa', 'merge/mock_27_relabel.fa', 'merge/mock_42_relabel.fa', 'merge/mock_12_relabel.fa', 'merge/mock_28_relabel.fa', 'merge/mock_43_relabel.fa', 'merge/mock_13_relabel.fa', 'merge/mock_29_relabel.fa', 'merge/mock_44_relabel.fa', 'merge/mock_14_relabel.fa', 'merge/mock_2_relabel.fa', 'merge/mock_45_relabel.fa', 'merge/mock_15_relabel.fa', 'merge/mock_30_relabel.fa', 'merge/mock_46_relabel.fa', 'merge/mock_16_relabel.fa', 'merge/mock_31_relabel.fa', 'merge/mock_47_relabel.fa', 'merge/mock_17_relabel.fa', 'merge/mock_32_relabel.fa', 'merge/mock_48_relabel.fa', 'merge/mock_18_relabel.fa', 'merge/mock_33_relabel.fa', 'merge/mock_49_relabel.fa', 'merge/mock_19_relabel.fa', 'merge/mock_34_relabel.fa', 'merge/mock_4_relabel.fa', 'merge/mock_1_relabel.fa', 'merge/mock_35_relabel.fa', 'merge/mock_50_relabel.fa', 'merge/mock_20_relabel.fa', 'merge/mock_36_relabel.fa', 'merge/mock_5_relabel.fa', 'merge/mock_21_relabel.fa', 'merge/mock_37_relabel.fa', 'merge/mock_6_relabel.fa', 'merge/mock_22_relabel.fa', 'merge/mock_38_relabel.fa', 'merge/mock_7_relabel.fa', 'merge/mock_23_relabel.fa', 'merge/mock_39_relabel.fa', 'merge/mock_8_relabel.fa', 'merge/mock_24_relabel.fa', 'merge/mock_3_relabel.fa', 'merge/mock_9_relabel.fa', 'merge/mock_25_relabel.fa', 'merge/mock_40_relabel.fa', 
+	#	'-S', '../../program/specifications.txt', 
+	#	'-o', 'numtdumper/', 
+	#	'-t', '20', 
+	#	'-u', 
+	#	'-l', '418', 
+	#	'-p', '0', 
+	#	'-s', '5', 
+	#	'-T', '5_indelfil_apoidea.fftns1_UPGMA.nwk'])
 	args = parser.parse_args()
+	
+	# Check inputs
+	if(not all( [args.asvs, args.reference, args.libraries, args.specification] ) ):
+		err = "Error, argument required to all of --asvs, --reference, --libraries and --specification"
+		sys.exit(err)
 	
 	# Find the file name
 	
@@ -99,9 +118,10 @@ if __name__ == "__main__":
 	if not os.path.exists(args.outputdirectory):
 		os.makedirs(args.outputdirectory)
 	
+	
+	
 	# Check options combinations
 	
-	#TODO: reject combination of aligned and tree - unecessary
 	
 	# Create dictionary of length specifications
 	
@@ -121,11 +141,12 @@ if __name__ == "__main__":
 	
 	min_max_bp = filterlength.resolve_length_spec(length_spec)
 	
+	
 	###########################################
 	# READ AND PARSE FILTERING SPECIFICATIONS #
 	###########################################
 	
-	spectext, specs, threshold_combinations = assessmentcore.parse_spec(args.specifications, args.addnull)
+	spectext, specs, threshold_combinations = assessmentcore.parse_spec(args.specification, args.addnull)
 	
 	# Check 
 	
@@ -133,53 +154,75 @@ if __name__ == "__main__":
 		err = "Error, taxon specified as a binning strategy but no taxon file supplied"
 		sys.exit(err)
 	
+	##################
+	# REPORT TO USER #
+	##################
+	
+	sys.stdout.write("\nWelcome to NUMTdumper, let's dump those NUMTs!\n\n")
+	
+	
 	###############
 	# FIND CLADES #
 	###############
 	
-	args.tree=0
+	# Set up variables
+	rawasvs = 0
+	rawpath = 0
+	alignedasvs = 0
+	alignedpath = 0
+	tree = 0
 	
-	if(args.tree):
-		tree = findclades.read_newick_string(args.tree)
-		rawasvs = SeqIO.to_dict(SeqIO.parse(args.asvs, "fasta"))
-		rawpath = args.asvs
+	# Detect alignment
+	
+	aligned = findclades.detect_aligned(args.asvs)
+	
+	# Parse in ASVs and align if necessary
+	
+	if(aligned and not args.realign):
+		sys.stdout.write("Input ASVs detected as aligned. If this is not the case, run with the --realign option.\n")
+		alignedasvs = AlignIO.read(args.asvs, "fasta")
+		alignedpath = args.asvs
+		rawasvs = findclades.degap_alignment(alignedasvs)
+		rawpath = os.path.join(args.outputdirectory, filename + "_unaligned.fa")
+		SeqIO.write(rawasvs.values(), rawpath, "fasta")
 	else:
-		
-		# Read or make the alignment
-		
-		if(args.aligned):
-			alignedasvs = AlignIO.read(args.asvs, "fasta")
-			alignedpath = args.asvs
-			rawasvs = findclades.degap_alignment(alignedasvs)
-			rawpath = os.path.join(args.outputdirectory, filename + "_unaligned.fa")
-			SeqIO.write(rawasvs.values(), rawpath, "fasta")
+		sys.stdout.write("Input ASVs detected as not aligned")
+		if(args.tree):
+			sys.stdout.write("but tree supplied, so not bothering to align")
+			if(args.realign):
+				sys.stdout.write(". --realign ignored")
+			sys.stdout.write("\n")
+			rawasvs = SeqIO.to_dict(SeqIO.parse(args.asvs, "fasta"))
+			rawpath = args.asvs
 		else:
+			sys.stdout.write(", running MAFFT FFT-NS-1 to align. This may take some time, skip this step by supplying an alignment to -ASVs\n")
 			alignedasvs = findclades.do_alignment(args.asvs, args.threads)
-			alignedpath = os.path.join(args.output_directory, filename + "_aligned.fa")
+			alignedpath = os.path.join(args.outputdirectory, filename + "_aligned.fa")
 			AlignIO.write(alignedasvs, alignedpath, "fasta")
 			rawasvs = findclades.degap_alignment(alignedpath)
-			rawasvs = args.asvs
+			rawpath = args.asvs
+	
+	# Read in tree or build tree as required
+	
+	if(args.tree):
+		sys.stdout.write("Reading supplied UPGMA tree from previous run.\n")
+		tree = findclades.read_newick_string(args.tree)
+	else:
+		sys.stdout.write("Making a UPGMA tree from the alignment. This may take some time, skip this step by supplying a tree to --tree\n")
+		tree = findclades.make_tree_R(scriptdir, alignedpath, args.distancemodel)
+		# Output the tree
 		
-		# Compute the distance matrix and tree
-		
-		#dist, tree = findclades.make_dist_and_tree_py(alignedasvs)
-		tree = findclades.make_tree_R(alignedpath, args.distancemodel)
-		#tree = findclades.make_tree_mafft(rawPath)
-		
-		del alignedasvs
-		del alignedpath
+		with open(os.path.join(args.outputdirectory, filename + "_UPGMA.nwk"), 'w') as o:
+			o.write(tree)
+	
+	del alignedasvs
+	del alignedpath
 	
 	# Find the clades
 	
-	#clades = findclades.find_clades_py(dist, args.divergence)
-	clades = findclades.get_clades_R(tree, args.divergence)
+	sys.stdout.write("Finding clades from the tree at %s divergence\n" % (args.divergence))
 	
-	# Output the tree
-	
-	if(not args.tree):
-		#Phylo.write(tree, os.path.join(args.outputdirectory, filename + "_UPGMA.nwk"), 'newick')
-		with open(os.path.join(args.outputdirectory, filename + "_UPGMA.nwk"), 'w') as o:
-			o.write(tree)
+	clades = findclades.get_clades_R(scriptdir, tree, args.divergence)
 	
 	# Output csv of clade assignments
 	
@@ -187,8 +230,9 @@ if __name__ == "__main__":
 	
 	# Clean up
 	
-	#dist.del()
 	del tree
+	
+	#print(rawasvs)
 	
 	#############
 	# READ TAXA #
@@ -197,6 +241,7 @@ if __name__ == "__main__":
 	taxa = None
 	
 	if(args.taxgroups):
+		sys.stdout.write("Reading taxa data\n")
 		taxa = findtaxa.parse_taxa(args.taxgroups, rawasvs.keys())
 	else:
 		taxa = findtaxa.dummy_taxa(rawasvs.keys())
@@ -205,6 +250,7 @@ if __name__ == "__main__":
 	# COMPUTE LIBRARY AND TOTAL READCOUNTS #
 	########################################
 	
+	sys.stdout.write("Matching library reads to ASVs to generate library ASV counts\n")
 	library_counts, total_counts = findlibraries.match_libraries_to_sequences(rawasvs, args.libraries)
 	
 	# Output csv of library counts
@@ -214,11 +260,16 @@ if __name__ == "__main__":
 	# DESIGNATE CONTROL SETS #
 	##########################
 	
+	
 	# Create length-based control list
+	
+	sys.stdout.write("Identifying control non-target ASVs based on length\n")
 	
 	nontarget_length = { name for name, seq in rawasvs.items() if not filterlength.check_length(seq, min_max_bp, args.expectedlength, args.onlyvarybycodon) }
 	
 	# Create translation based control list
+	
+	sys.stdout.write("Identifying control non-target ASVs based on translation\n")
 	
 		# Find reading frame
 	if(args.readingframe):
@@ -233,7 +284,18 @@ if __name__ == "__main__":
 	
 	# Create reference based control list
 	
-	target_ref = filterreference.blast_for_presence(rawpath, args.reference, args.matchpercent, args.matchlength, args.threads)
+	sys.stdout.write("Identifying control target ASVs based on references\n")
+		# Check if reference is alignment
+	
+	refaln = findclades.detect_aligned(args.reference)
+	if(refaln):
+		alignedref  = AlignIO.read(args.reference, "fasta")
+		rawref = findclades.degap_alignment(alignedref)
+		rawrefpath = os.path.join(args.outputdirectory, os.path.splitext(os.path.basename(args.reference))[0] + "_unaligned.fa")
+		SeqIO.write(rawref.values(), rawrefpath, "fasta")
+		args.reference = rawrefpath
+	
+	target_ref = filterreference.blast_for_presence(rawpath, args.outputdirectory, args.reference, args.matchpercent, args.matchlength, args.threads)
 	target_ref = target_ref - nontarget
 	
 	# Finalise
@@ -259,13 +321,19 @@ if __name__ == "__main__":
 	
 	# Generate category counts for each specification
 	
+	sys.stdout.write("Generating binned counts\n")
+	
 	counts = assessmentcore.counts_from_spec(specs, data)
 	
 	# Calculate score for threshold combination
 	
+	sys.stdout.write("Assessing counts and scoring\n")
+	
 	stats = list( assessmentcore.calc_stats(counts, threshold_set, set(rawasvs.keys()), target, nontarget, args.anythreshold, "standardised") for threshold_set in threshold_combinations )
 	
 	# Find threshold combination(s) matching minimum score
+	
+	sys.stdout.write("Identifying optimal threshold sets\n")
 	
 	minscore, min_thresholds, outtext = assessmentcore.get_minimum_thresholds(stats, threshold_combinations, specs)
 	
@@ -277,9 +345,14 @@ if __name__ == "__main__":
 	
 	# Output filtered haplotypes for threshold combination(s)
 	
+	sys.stdout.write("Writing filtered ASVs\n")
+	
 	assessmentcore.output_filtered_haplotypes(counts, min_thresholds, target, nontarget, rawpath, filename, args.outputdirectory)
 	
 	# Output thresholds and scores
 	
-	assessmentcore.write_specs_and_stats(spectext, threshold_combinations, scores, os.path.join(args.outputdirectory, filename + "_thresholds_scores_asvcounts.nwk"))
-
+	sys.stdout.write("Writing all data\n")
+	
+	assessmentcore.write_specs_and_stats(spectext, threshold_combinations, stats, os.path.join(args.outputdirectory, filename + "_thresholds_scores_asvcounts.nwk"))
+	
+	sys.stdout("\nNUMTs: dumped\n\n")
