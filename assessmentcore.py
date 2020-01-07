@@ -101,7 +101,7 @@ def parse_spec(specfile, addnull):
 				errterm = err + ": first term must be \'library\' or \'total\'"
 				sys.exit(errterm)
 			
-			if(not all(t in ['taxon', 'clade'] for t in values[0][1:])):
+			if(len(values[0]) > 1 and not all(t in ['taxon', 'clade'] for t in values[0][1:])):
 				errterm = err + ": secondary term(s) must be \'clade\' or \'taxon\'"
 				sys.exit(errterm)
 			
@@ -170,7 +170,7 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target, retained_
 		out = ['NA', 'NA', 'NA', 'NA']
 	return(out)
 
-def calc_stats(counts, thresholds, asvs, target, nontarget, anythreshold, score_type, weight = 0.5):
+def calc_stats(counts, asvs, target, nontarget, anythreshold, score_type, thresholds, weight = 0.5):
 	"For a given set of category counts and a given set of thresholds, counts retention, calculates scores and estimates statistics. Counts and thresholds should be in two lists of equal lengths, where the nth item of the thresholds should be the threshold count for the nth counts"
 	
 	#thresholds = threshold_set
@@ -194,8 +194,9 @@ def calc_stats(counts, thresholds, asvs, target, nontarget, anythreshold, score_
 	# Calculate estimates of total input true targets, total input true nontargets, total output true targets, total output true nontargets
 	estimates = estimate_true_values(inputs[0], inputs[4], retained_vals[0], inputs[1], retained_vals[1], inputs[3])
 	
-	# score, asvs, target, nontarget, rejectedasvs, retainedasvs, retained_target, retained_nontarget, actual_retainedasvs, true_target, true_nontarget, true_retained_target, true_retained_nontarget
-	return([score] + inputs + retained_vals + estimates)
+	# score, asvs, target, nontarget, rejectedasvs, retainedasvs, retained_target, retained_nontarget, actual_retainedasvs, true_target, true_nontarget, true_retained_target, true_retained_nontarget, rejectedasvshash
+	rejectedasvs = tuple(sorted(rejectedasvs))
+	return([score] + inputs + retained_vals + estimates + [hash(rejectedasvs)])
 
 def write_specs_and_stats(specs, thresholds, scores, path):
 	
@@ -203,16 +204,17 @@ def write_specs_and_stats(specs, thresholds, scores, path):
 		
 		# Write header
 		
-		scorehead = ["score", "asvs", "target", "nontarget", "rejectedasvs", "retainedasvs", "retained_target", "retained_nontarget", "actual_retainedasvs", "est_true_target", "est_true_nontarget", "est_true_retained_target", "est_true_retained_nontarget"]
+		scorehead = ["score", "asvs", "target", "nontarget", "rejectedasvs", "retainedasvs", "retained_target", "retained_nontarget", "actual_retainedasvs", "est_true_target", "est_true_nontarget", "est_true_retained_target", "est_true_retained_nontarget, hash_rejectedasvs"]
 		
-		o.write(",".join(specs + scorehead) + '\n')
+		o.write(",".join([s + "_threshold" for s in specs] + scorehead) + '\n')
 		
 		# Write lines
 		
+		thresh = thresholds[0]
+		score = scores[0]
+		
 		for thresh, score in zip(thresholds, scores):
-			o.write(",".join(thresh + score)+'\n')
-
-
+			o.write(",".join(str(v) for v in list(thresh) + score)+'\n')
 
 
 def get_minimum_thresholds(scores, threshold_combinations, spec):
@@ -263,7 +265,7 @@ def get_minimum_thresholds(scores, threshold_combinations, spec):
 	return(minscore, min_thresholds, outtext)
 
 
-def output_filtered_haplotypes(counts, min_thresholds, good, bad, file, filename, outdir):
+def output_filtered_haplotypes(counts, min_thresholds, anythreshold, good, bad, file, filename, outdir):
 	
 	#if(type(min_thresholds[0]) != list):
 	#	min_thresholds = [min_thresholds,]
@@ -272,13 +274,14 @@ def output_filtered_haplotypes(counts, min_thresholds, good, bad, file, filename
 	
 	for min_i, thresholds in enumerate(min_thresholds):
 		
-		failures = set(itertools.chain.from_iterable([ categorycounting.assess_failures(counts[i], t) for i, t in enumerate(thresholds) ]))
+		failures = set(itertools.chain.from_iterable([ categorycounting.reject(counts[i], t, anythreshold) for i, t in enumerate(thresholds) ]))
 		
 		exclude = failures.union(bad) - good
-		
-		with open(os.path.join(outdir, filename + "_filtered_set" + str(min_i) + ".fa"), "w") as outfasta:
-			
-			for head, seq in SimpleFastaParser(file):
-			
-				if( head not in exclude):
-					outfasta.write(">%s\n%s\n" % (head, seq))
+		with open(file) as infasta:
+			filen = min_i + 1
+			with open(os.path.join(outdir, filename + "_filtered_set" + str(filen) + ".fa"), "w") as outfasta:
+				
+				for head, seq in SimpleFastaParser(infasta):
+					
+					if( head not in exclude):
+						outfasta.write(">%s\n%s\n" % (head, seq))
