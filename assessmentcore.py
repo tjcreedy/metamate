@@ -210,9 +210,6 @@ def write_specs_and_stats(specs, thresholds, scores, path):
 		
 		# Write lines
 		
-		thresh = thresholds[0]
-		score = scores[0]
-		
 		for thresh, score in zip(thresholds, scores):
 			o.write(",".join(str(v) for v in list(thresh) + score)+'\n')
 

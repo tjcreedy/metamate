@@ -96,21 +96,21 @@ if __name__ == "__main__":
 	scriptdir = os.path.dirname(__file__)
 	
 	# Get inputs
-	#scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
-	#os.chdir("/home/thomas/Documents/programming/bioinformatics/numtdumper_testdata/bee")
-	#args = parser.parse_args(['-A', '5_indelfil_apoidea.fftns1.fa', 
-	#	'-R', 'bold_BEEEE_2018_04_17.fa', 
-	#	'-L', 'merge/mock_10_relabel.fa', 'merge/mock_26_relabel.fa', 'merge/mock_41_relabel.fa', 'merge/mock_11_relabel.fa', 'merge/mock_27_relabel.fa', 'merge/mock_42_relabel.fa', 'merge/mock_12_relabel.fa', 'merge/mock_28_relabel.fa', 'merge/mock_43_relabel.fa', 'merge/mock_13_relabel.fa', 'merge/mock_29_relabel.fa', 'merge/mock_44_relabel.fa', 'merge/mock_14_relabel.fa', 'merge/mock_2_relabel.fa', 'merge/mock_45_relabel.fa', 'merge/mock_15_relabel.fa', 'merge/mock_30_relabel.fa', 'merge/mock_46_relabel.fa', 'merge/mock_16_relabel.fa', 'merge/mock_31_relabel.fa', 'merge/mock_47_relabel.fa', 'merge/mock_17_relabel.fa', 'merge/mock_32_relabel.fa', 'merge/mock_48_relabel.fa', 'merge/mock_18_relabel.fa', 'merge/mock_33_relabel.fa', 'merge/mock_49_relabel.fa', 'merge/mock_19_relabel.fa', 'merge/mock_34_relabel.fa', 'merge/mock_4_relabel.fa', 'merge/mock_1_relabel.fa', 'merge/mock_35_relabel.fa', 'merge/mock_50_relabel.fa', 'merge/mock_20_relabel.fa', 'merge/mock_36_relabel.fa', 'merge/mock_5_relabel.fa', 'merge/mock_21_relabel.fa', 'merge/mock_37_relabel.fa', 'merge/mock_6_relabel.fa', 'merge/mock_22_relabel.fa', 'merge/mock_38_relabel.fa', 'merge/mock_7_relabel.fa', 'merge/mock_23_relabel.fa', 'merge/mock_39_relabel.fa', 'merge/mock_8_relabel.fa', 'merge/mock_24_relabel.fa', 'merge/mock_3_relabel.fa', 'merge/mock_9_relabel.fa', 'merge/mock_25_relabel.fa', 'merge/mock_40_relabel.fa', 
-	#	'-S', '../../numtdumper/specifications.txt', 
-	#	'-o', 'numtdumper/', 
-	#	'-t', '20', 
-	#	'-u', 
-	#	'-l', '418', 
-	#	'-p', '0', 
-	#	'-s', '5', 
-	#	'-T', '5_indelfil_apoidea.fftns1_UPGMA.nwk',
-	#	'-i', '99.5'])
-	args = parser.parse_args()
+	scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
+	os.chdir("/home/thomas/Documents/programming/bioinformatics/numtdumper_testdata/gra")
+	args = parser.parse_args(['-A', '5_denoise_coleoptera_fftnsi.fa', 
+		'-R', 'Vouchers_GRA_CI.fas', 
+		'-L', 'merge/10D_F_C2_.fasta', 'merge/10S_F_B5_.fasta', 'merge/11D_F_D2_.fasta', 'merge/11S_F_C5_.fasta', 'merge/12D_G_E2_.fasta', 'merge/12S_G_D5_.fasta', 'merge/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge/14D_G_G2_.fasta', 'merge/14S_G_E5_.fasta', 'merge/15D_F_H2_.fasta', 'merge/15S_F_G5_.fasta', 'merge/16D_F_A3_.fasta', 'merge/16S_F_F5_.fasta', 'merge/17D_F_B3_.fasta', 'merge/17S_F_E6_.fasta', 'merge/18D_F_C3_.fasta', 'merge/18S_F_F6_.fasta', 'merge/19D_G_B2_.fasta', 'merge/19S_G_H5_.fasta', 'merge/1D_F_A1_.fasta', 'merge/1S_F_A4_.fasta', 'merge/20D_F_D3_.fasta', 'merge/20S_F_C6_.fasta', 'merge/21D_F_E3_.fasta', 'merge/21S_F_H6_.fasta', 'merge/22D_G_G3_.fasta', 'merge/22S_G_A6_.fasta', 'merge/23D_F_F3_.fasta', 'merge/23S_F_D6_.fasta', 'merge/24D_G_H3_.fasta', 'merge/24S_G_B6_.fasta', 'merge/2D_F_B1_.fasta', 'merge/2S_F_B4_.fasta', 'merge/3D_F_C1_.fasta', 'merge/3S_F_C4_.fasta', 'merge/4D_G_D1_.fasta', 'merge/4S_G_D4_.fasta', 'merge/5D_G_E1_.fasta', 'merge/5S_G_E4_.fasta', 'merge/6D_G_F1_.fasta', 'merge/6S_G_F4_.fasta', 'merge/7D_G_G1_.fasta', 'merge/7S_G_H4_.fasta', 'merge/8D_G_H1_.fasta', 'merge/8S_G_G4_.fasta', 'merge/9D_G_A2_.fasta', 'merge/9S_G_A5_.fasta', 'merge/N_DOM_REPS_A7_.fasta', 'merge/N_GRA_A7_.fasta', 
+		'-S', '../../numtdumper/specifications.txt', 
+		'-o', 'numtdumper/', 
+		'-t', '4', 
+		'-u', 
+		'-l', '420', 
+		'-p', '0', 
+		'-s', '5', 
+		'-i', '99.5',
+		'-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'])
+	#args = parser.parse_args()
 	
 	# Check inputs
 	if(not all( [args.asvs, args.reference, args.libraries, args.specification] ) ):
@@ -125,8 +125,7 @@ if __name__ == "__main__":
 	
 	if not os.path.exists(args.outputdirectory):
 		os.makedirs(args.outputdirectory)
-	
-	
+		
 	
 	# Check options combinations
 	
@@ -134,21 +133,16 @@ if __name__ == "__main__":
 	# Create dictionary of length specifications
 	
 	length_spec = {}
-	if args.minimumlength > 0:		length_spec["min_bp"] = args.minimumlength
+	if args.minimumlength > 0:			length_spec["min_bp"] = args.minimumlength
 	if args.maximumlength < float('Inf'):	length_spec["max_bp"] = args.maximumlength
-	if args.expectedlength > 0:		length_spec["len_bp"] = args.expectedlength
-	if args.basesvariation > 0:		length_spec["var_bp"] = args.basesvariation
+	if args.expectedlength > 0:			length_spec["len_bp"] = args.expectedlength
+	if args.basesvariation > 0:			length_spec["var_bp"] = args.basesvariation
 	if args.percentvariation > 0:		length_spec["var_pc"] = args.percentvariation
 	if args.percentvariation > 0:		length_spec["var_cdn"] = args.codonsvariation
-	
-	
-	length_spec = {'len_bp' : 418,
-			  'var_pc' : 0}
 	
 	# Resolve length specifications into minimum and maximum allowed
 	
 	min_max_bp = filterlength.resolve_length_spec(length_spec)
-	
 	
 	###########################################
 	# READ AND PARSE FILTERING SPECIFICATIONS #
@@ -273,7 +267,6 @@ if __name__ == "__main__":
 	# DESIGNATE CONTROL SETS #
 	##########################
 	
-	
 	# Create length-based control list
 	
 	sys.stdout.write("Identifying control non-target ASVs based on length.\n")
@@ -296,7 +289,11 @@ if __name__ == "__main__":
 		# Finalise 
 	nontarget = nontarget_length.union(nontarget_trans)
 	
-	sys.stdout.write("Found %s non-target ASVs: %s based on length variation and %s based on translation.\n" % (len(nontarget), len(nontarget_length), len(nontarget_trans)) )
+	if len(nontarget) > 0:
+		sys.stdout.write("Found %s non-target ASVs: %s based on length variation and %s based on translation.\n" % (len(nontarget), len(nontarget_length), len(nontarget_trans)) )
+	else: 
+		err = "Error: no non-target ASVs could be found. Prior data filtering may have been too stringent."
+		sys.exit(err)
 	
 	# Create reference based control list
 	
@@ -311,14 +308,20 @@ if __name__ == "__main__":
 		SeqIO.write(rawref.values(), rawrefpath, "fasta")
 		args.reference = rawrefpath
 	
-	target_ref = filterreference.blast_for_presence(rawpath, args.outputdirectory, args.reference, args.matchpercent, args.matchlength, args.threads)
-	target_ref = target_ref - nontarget
+	ref_match = filterreference.blast_for_presence(rawpath, args.outputdirectory, args.reference, args.matchpercent, args.matchlength, args.threads)
 	
 		# Finalise
 	
-	target = target_ref
-	
-	sys.stdout.write("Found %s target ASVs matching to reference set.\n" % (len(target)) )
+	target = ref_match - nontarget
+	if len(target) > 0:
+		sys.stdout.write("Found %s target ASVs: % out of all ASVs matched to reference set, %s non-target ASVs removed.\n" % (len(target), len(ref_match), len(ref_match - target)) )
+	else:
+		err = "Error: no target ASVs found"
+		if len(ref_match) > 0:
+			err = err + ", although " + len(ref_match) + " ASVs matched to reference set. Length thresholds may be too stringent and find too many non-target ASVs."
+		else:
+			err = err + ". Check your reference and your reference matching thresholds."
+		sys.exit(err)
 	
 	# Clean up
 	
@@ -346,7 +349,6 @@ if __name__ == "__main__":
 	# Calculate score for threshold combination
 	
 	sys.stdout.write("Assessing counts and scoring for each threshold combination.")
-	
 	
 	stats_filename = "statsdumptemp.pydata"
 	
