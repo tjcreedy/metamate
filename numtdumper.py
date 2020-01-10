@@ -38,10 +38,10 @@ import assessmentcore
 parser = argparse.ArgumentParser(description = "")
 
 	# Input / output paths
-parser.add_argument("-A", "--asvs",		help = "path to a fasta of unique sequences to filter", metavar = "ASVs", type = str)
-parser.add_argument("-R", "--reference",		help = "path to a fasta of known correct reference sequences", metavar = "REF", type = str)
-parser.add_argument("-L", "--libraries",		help = "paths to fastas of individual libraries/discrete samples from which zotus were found", metavar = "LIBS", type = str, nargs = '*')
-parser.add_argument("-S", "--specification",	help = "path to a text file detailing the read count binning strategy and thresholds", metavar = "SPEC", type = str)
+parser.add_argument("-A", "--asvs",		help = "path to a fasta of unique sequences to filter", required = True, metavar = "ASVs", type = str)
+parser.add_argument("-R", "--reference",		help = "path to a fasta of known correct reference sequences", required = True, metavar = "REF", type = str)
+parser.add_argument("-L", "--libraries",		help = "paths to fastas of individual libraries/discrete samples from which zotus were found", required = True , metavar = "LIB", type = str, nargs = '*')
+parser.add_argument("-S", "--specification",	help = "path to a text file detailing the read count binning strategy and thresholds", required = True, metavar = "SPEC", type = str)
 parser.add_argument("-X", "--taxgroups",		help = "path to a two-column csv file specifying the taxon for each haplotype", metavar = "TAXA", type = str)
 parser.add_argument("-T", "--tree",		help = "path to an tree of the ASVs from a previous run", metavar = "TREE", type = str)
 
@@ -96,21 +96,22 @@ if __name__ == "__main__":
 	scriptdir = os.path.dirname(__file__)
 	
 	# Get inputs
-	scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
-	os.chdir("/home/thomas/Documents/programming/bioinformatics/numtdumper_testdata/gra")
-	args = parser.parse_args(['-A', '5_denoise_coleoptera_fftnsi.fa', 
-		'-R', 'Vouchers_GRA_CI.fas', 
-		'-L', 'merge/10D_F_C2_.fasta', 'merge/10S_F_B5_.fasta', 'merge/11D_F_D2_.fasta', 'merge/11S_F_C5_.fasta', 'merge/12D_G_E2_.fasta', 'merge/12S_G_D5_.fasta', 'merge/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge/14D_G_G2_.fasta', 'merge/14S_G_E5_.fasta', 'merge/15D_F_H2_.fasta', 'merge/15S_F_G5_.fasta', 'merge/16D_F_A3_.fasta', 'merge/16S_F_F5_.fasta', 'merge/17D_F_B3_.fasta', 'merge/17S_F_E6_.fasta', 'merge/18D_F_C3_.fasta', 'merge/18S_F_F6_.fasta', 'merge/19D_G_B2_.fasta', 'merge/19S_G_H5_.fasta', 'merge/1D_F_A1_.fasta', 'merge/1S_F_A4_.fasta', 'merge/20D_F_D3_.fasta', 'merge/20S_F_C6_.fasta', 'merge/21D_F_E3_.fasta', 'merge/21S_F_H6_.fasta', 'merge/22D_G_G3_.fasta', 'merge/22S_G_A6_.fasta', 'merge/23D_F_F3_.fasta', 'merge/23S_F_D6_.fasta', 'merge/24D_G_H3_.fasta', 'merge/24S_G_B6_.fasta', 'merge/2D_F_B1_.fasta', 'merge/2S_F_B4_.fasta', 'merge/3D_F_C1_.fasta', 'merge/3S_F_C4_.fasta', 'merge/4D_G_D1_.fasta', 'merge/4S_G_D4_.fasta', 'merge/5D_G_E1_.fasta', 'merge/5S_G_E4_.fasta', 'merge/6D_G_F1_.fasta', 'merge/6S_G_F4_.fasta', 'merge/7D_G_G1_.fasta', 'merge/7S_G_H4_.fasta', 'merge/8D_G_H1_.fasta', 'merge/8S_G_G4_.fasta', 'merge/9D_G_A2_.fasta', 'merge/9S_G_A5_.fasta', 'merge/N_DOM_REPS_A7_.fasta', 'merge/N_GRA_A7_.fasta', 
-		'-S', '../../numtdumper/specifications.txt', 
-		'-o', 'numtdumper/', 
-		'-t', '4', 
-		'-u', 
-		'-l', '420', 
-		'-p', '0', 
-		'-s', '5', 
-		'-i', '99.5',
-		'-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'])
-	#args = parser.parse_args()
+	#scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
+	#os.chdir("/home/thomas/Documents/programming/bioinformatics/numtdumper_testdata/gra")
+	#args = parser.parse_args(['-A', '5_denoise_coleoptera_fftnsi.fa', 
+	#	'-R', 'Vouchers_GRA_CI.fas', 
+	#	'-L', 'merge/10D_F_C2_.fasta', 'merge/10S_F_B5_.fasta', 'merge/11D_F_D2_.fasta', 'merge/11S_F_C5_.fasta', 'merge/12D_G_E2_.fasta', 'merge/12S_G_D5_.fasta', 'merge/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge/14D_G_G2_.fasta', 'merge/14S_G_E5_.fasta', 'merge/15D_F_H2_.fasta', 'merge/15S_F_G5_.fasta', 'merge/16D_F_A3_.fasta', 'merge/16S_F_F5_.fasta', 'merge/17D_F_B3_.fasta', 'merge/17S_F_E6_.fasta', 'merge/18D_F_C3_.fasta', 'merge/18S_F_F6_.fasta', 'merge/19D_G_B2_.fasta', 'merge/19S_G_H5_.fasta', 'merge/1D_F_A1_.fasta', 'merge/1S_F_A4_.fasta', 'merge/20D_F_D3_.fasta', 'merge/20S_F_C6_.fasta', 'merge/21D_F_E3_.fasta', 'merge/21S_F_H6_.fasta', 'merge/22D_G_G3_.fasta', 'merge/22S_G_A6_.fasta', 'merge/23D_F_F3_.fasta', 'merge/23S_F_D6_.fasta', 'merge/24D_G_H3_.fasta', 'merge/24S_G_B6_.fasta', 'merge/2D_F_B1_.fasta', 'merge/2S_F_B4_.fasta', 'merge/3D_F_C1_.fasta', 'merge/3S_F_C4_.fasta', 'merge/4D_G_D1_.fasta', 'merge/4S_G_D4_.fasta', 'merge/5D_G_E1_.fasta', 'merge/5S_G_E4_.fasta', 'merge/6D_G_F1_.fasta', 'merge/6S_G_F4_.fasta', 'merge/7D_G_G1_.fasta', 'merge/7S_G_H4_.fasta', 'merge/8D_G_H1_.fasta', 'merge/8S_G_G4_.fasta', 'merge/9D_G_A2_.fasta', 'merge/9S_G_A5_.fasta', 'merge/N_DOM_REPS_A7_.fasta', 'merge/N_GRA_A7_.fasta', 
+	#	'-S', '../../numtdumper/specifications.txt', 
+	#	'-o', 'numtdumper/', 
+	#	'-t', '4', 
+	#	'-u', 
+	#	'-l', '420', 
+	#	'-p', '0', 
+	#	'-s', '5', 
+	#	'-i', '99.5',
+	#	'-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'])
+	
+	args = parser.parse_args()
 	
 	# Check inputs
 	if(not all( [args.asvs, args.reference, args.libraries, args.specification] ) ):
@@ -258,6 +259,8 @@ if __name__ == "__main__":
 	########################################
 	
 	sys.stdout.write("Matching library reads to ASVs to generate library ASV counts.\n")
+	
+	#TODO: check that all ASVs have >= 1 match (throw error if not) and warn if any libraries have no matches
 	library_counts, total_counts = findlibraries.match_libraries_to_sequences(rawasvs, args.libraries)
 	
 	# Output csv of library counts
@@ -314,7 +317,7 @@ if __name__ == "__main__":
 	
 	target = ref_match - nontarget
 	if len(target) > 0:
-		sys.stdout.write("Found %s target ASVs: % out of all ASVs matched to reference set, %s non-target ASVs removed.\n" % (len(target), len(ref_match), len(ref_match - target)) )
+		sys.stdout.write("Found %s target ASVs: %s out of all ASVs matched to reference set, %s non-target ASVs removed.\n" % (len(target), len(ref_match), len(ref_match - target)) )
 	else:
 		err = "Error: no target ASVs found"
 		if len(ref_match) > 0:
@@ -348,7 +351,7 @@ if __name__ == "__main__":
 	
 	# Calculate score for threshold combination
 	
-	sys.stdout.write("Assessing counts and scoring for each threshold combination.")
+	sys.stdout.write("Assessing counts and scoring for each threshold combination.\n")
 	
 	stats_filename = "statsdumptemp.pydata"
 	
@@ -371,7 +374,9 @@ if __name__ == "__main__":
 	
 	minscore, min_thresholds, outtext = assessmentcore.get_minimum_thresholds(stats, threshold_combinations, specs)
 	
-	print(outtext)
+	#TODO: what to do if very large numbers of outputs with minimum score? Suppress outtext and output filtered ASVs for only a subset?
+	
+	#print(outtext)
 	
 	##################
 	# OUTPUT RESULTS #
@@ -381,12 +386,12 @@ if __name__ == "__main__":
 	
 	sys.stdout.write("Writing filtered ASVs\n")
 	
-	assessmentcore.output_filtered_haplotypes(counts, min_thresholds, args.anythreshold, target, nontarget, rawpath, filename, args.outputdirectory)
+	#assessmentcore.output_filtered_haplotypes(counts, min_thresholds, args.anythreshold, target, nontarget, rawpath, filename, args.outputdirectory)
 	
 	# Output thresholds and scores
 	
 	sys.stdout.write("Writing all data\n")
 	
-	assessmentcore.write_specs_and_stats(spectext, threshold_combinations, stats, os.path.join(args.outputdirectory, filename + "_thresholds_scores_asvcounts.nwk"))
+	assessmentcore.write_specs_and_stats(spectext, threshold_combinations, stats, os.path.join(args.outputdirectory, filename + "_thresholds_scores_asvcounts.csv"))
 	
 	sys.stdout.write("\nNUMTs: dumped\n\n")

@@ -118,7 +118,7 @@ def parse_spec(specfile, addnull):
 				if(values[1] == 'p' and not 1 in values[2]):
 					values[2].append(1)
 				elif(values[1] == 'n'):
-					values[2].append(9999999999)
+					values[2].append(99999999)
 			
 			# Add to list of thresholds
 			thresh_total *= len(values[2])
