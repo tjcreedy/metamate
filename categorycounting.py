@@ -21,12 +21,14 @@ import sys
 	#dict[category] : name		for clades and taxa
 
 def count_categories(catdict, metric):
+	#catdict, metric = [data[specdict['terms'][0]], specdict['metric']]
 	
 	# Set up dictiony of sets for scores
 	counts = defaultdict(set)
 	
 	# Work through each category
 	for category, catcounts in catdict.items():
+		#category, catcounts = list(catdict.items())[0]
 		
 		# Get total for category
 		total = sum(catcounts.values())
@@ -46,8 +48,10 @@ def count_categories(catdict, metric):
 	return(counts)
 
 def reject(counts, threshold, anythreshold):
-	
+	#counts, threshold = counts[i], t
 	# Work through sets of scores
+	#name = "uniq13;size=257"
+	#count = counts[name]
 	reject = {name for name, count in counts.items() if (anythreshold and min(count) < threshold) or (not anythreshold and all(c < threshold for c in count))}
 	
 	return(reject)

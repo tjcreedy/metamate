@@ -135,6 +135,7 @@ def parse_spec(specfile, addnull):
 	return(spectext, spec, thresh_combos)
 
 def counts_from_spec(spec, data):
+	# spec = specs
 	"Does category counting for each individual specification in a specification set and returns a list of the category counts for each specification"
 	
 	# Set up new empty list for outputs
@@ -142,6 +143,7 @@ def counts_from_spec(spec, data):
 	
 	# Work through specifications
 	for specn, specdict in spec.items():
+		#specn, specdict = list(spec.items())[1]
 		# Check if partitioned and do counting
 		if( len(specdict['terms']) == 1 ):
 			counts[specn] = categorycounting.count_categories(data[specdict['terms'][0]], specdict['metric'])
@@ -171,14 +173,11 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target, retained_
 	return(out)
 
 def calc_stats(counts, asvs, target, nontarget, anythreshold, score_type, thresholds, weight = 0.5):
+	#asvs, anythreshold, score_type, thresholds, weight =  [set(rawasvs.keys()), args.anythreshold, "standardised" , threshold_combinations[467], 0.5]
 	"For a given set of category counts and a given set of thresholds, counts retention, calculates scores and estimates statistics. Counts and thresholds should be in two lists of equal lengths, where the nth item of the thresholds should be the threshold count for the nth counts"
 	
-	#thresholds = threshold_set
-	#asvs = set(rawasvs.keys())
-	#anythreshold = args.anythreshold
-	#score_type = "standardised"
-	
 	# Find all rejected_asvs across counts
+	#i, t = list(enumerate(thresholds))[1]
 	rejectedasvs = set(itertools.chain.from_iterable([ categorycounting.reject(counts[i], t, anythreshold) for i, t in enumerate(thresholds) ]))
 	
 	# Input counts

@@ -28,8 +28,8 @@ if( is.null(opt$alignment) ){
 if ( is.null(opt$model) ) opt$model = "F84"
 
 # Testing
-#opt$alignment <-"test/bee_mocks/all.zotus.glopairmaxit1k_align.fa"
-# opt$alignment <- "carmelo/TEN_100subset_align_retree2_maxit0.fa"
+# opt$alignment <-"gra/5_coleoptera_fftnsi.fa"
+# opt$alignment <- "amm/6_coleoptera_fftnsi.fasta"
 
 # Load in data
 alignment <- read.FASTA(opt$alignment)
@@ -38,12 +38,13 @@ alignment <- read.FASTA(opt$alignment)
 distmat <- dist.dna(alignment, model = opt$model, pairwise.deletion = T)
 
 # Check for overdistance pairs
-if(any(is.nan(distmat))){
-  nancounts <- rowSums(is.nan(as.matrix(distmat)))
-  pc_overdistance <- round((sum(nancounts > 0.8 * length(alignment)) / length(alignment)) * 100, 0)
-  warning(paste(paste0(pc_overdistance, "%"), "of haplotypes are too dissimilar to 80% of other sequences to compute distances. Consider re-aligning. Uncomputed distances will be set to 1."))
-  distmat[is.nan(distmat)] <- 1
-}
+# if(any(is.nan(distmat))){
+#   nancounts <- rowSums(is.nan(as.matrix(distmat)))
+#   pc_overdistance <- round((sum(nancounts > 0.8 * length(alignment)) / length(alignment)) * 100, 0)
+#   warning(paste(paste0(pc_overdistance, "%"), "of haplotypes are too dissimilar to 80% of other sequences to compute distances. Consider re-aligning. Uncomputed distances will be set to 1."))
+#   distmat[is.nan(distmat)] <- 1
+# }
+distmat[is.nan(distmat)] <- ceiling(max(distmat, na.rm = T))
 
 # Create tree
 tree <- upgma(distmat)
