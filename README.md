@@ -1,5 +1,6 @@
 # NUMTdumper
-NUMTdumper is undergoing final testing, it's almost ready for release and use - watch this space.
+NUMTdumper is undergoing final testing, the code is not currently in a usable condition. Please do not try to use it!
+It's almost ready for release and use - watch this space.
 
 The paper for NUMTdumper is in review:  Andújar, C., Creedy, T.J., Arribas, P., López, H., Salces-Castellano, A., Pérez-Delgado, A., Vogler, A.P. & B.C. Emerson (in review). NUMTdumper: a self-validating method for generating reliable haplotype data from mtDNA metabarcoding. Methods in Ecology and Evolution.
 
