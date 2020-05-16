@@ -1,4 +1,4 @@
-# This is an example NUMTdumper specifications file.
+# This is an example numtfilter specifications file.
 # Use this file to detail how per-ASV read frequencies should be assessed.
 
 # 1 Read frequencies can be binned according to four categories or combinations of these categories
