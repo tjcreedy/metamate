@@ -247,7 +247,7 @@ def find_clades(args, filename):
     # Output csv of clade assignments
     
     write_clade_dict(clades, os.path.join(args.outputdirectory, 
-                                          "f{filename}_clades.csv"))
+                                          f"{filename}_clades.csv"))
     
     return(clades, raw)
 

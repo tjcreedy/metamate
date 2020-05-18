@@ -22,9 +22,6 @@ from Bio import SeqIO
 #import re
 
 import filterlength
-import filterreference
-import filtertranslate
-
 import findlibraries
 import findclades
 import findtaxa
@@ -72,8 +69,10 @@ parser.add_argument("-R", "--reference",
                     help = "path to a fasta of known correct reference "
                     "sequences", required = True, metavar = "REF", type = str)
 parser.add_argument("-L", "--libraries",
-                    help = "paths to fastas of individual libraries/discrete "
-                    "samples from which zotus were found", 
+                    help = "path to fastx(s) of individual libraries/discrete "
+                    "samples from which ASVs were drawn, or a single fastx "
+                    "with ;samplename=.*; or ;barcodelabel=.*; annotations in "
+                    "headers.",
                     required = True , metavar = "LIB", type = str, nargs = '*')
 parser.add_argument("-S", "--specification",
                     help = "path to a text file detailing the read count "
@@ -195,24 +194,24 @@ if __name__ == "__main__":
     
     
     # Get inputs
-    scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
-    os.chdir("/home/thomas/Documents/programming/bioinformatics/numtdumper_testdata/amm")
-    args = parser.parse_args(['-A', '6_coleoptera_fftnsi.fasta', 
-        '-R', 'dummy_reference.fasta', 
-        #'-L', 'merge_fixed/10D_F_C2_.fasta', 'merge_fixed/10S_F_B5_.fasta', 'merge_fixed/11D_F_D2_.fasta', 'merge_fixed/11S_F_C5_.fasta', 'merge_fixed/12D_G_E2_.fasta', 'merge_fixed/12S_G_D5_.fasta', 'merge_fixed/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge_fixed/14D_G_G2_.fasta', 'merge_fixed/14S_G_E5_.fasta', 'merge_fixed/15D_F_H2_.fasta', 'merge_fixed/15S_F_G5_.fasta', 'merge_fixed/16D_F_A3_.fasta', 'merge_fixed/16S_F_F5_.fasta', 'merge_fixed/17D_F_B3_.fasta', 'merge_fixed/17S_F_E6_.fasta', 'merge_fixed/18D_F_C3_.fasta', 'merge_fixed/18S_F_F6_.fasta', 'merge_fixed/19D_G_B2_.fasta', 'merge_fixed/19S_G_H5_.fasta', 'merge_fixed/1D_F_A1_.fasta', 'merge_fixed/1S_F_A4_.fasta', 'merge_fixed/20D_F_D3_.fasta', 'merge_fixed/20S_F_C6_.fasta', 'merge_fixed/21D_F_E3_.fasta', 'merge_fixed/21S_F_H6_.fasta', 'merge_fixed/22D_G_G3_.fasta', 'merge_fixed/22S_G_A6_.fasta', 'merge_fixed/23D_F_F3_.fasta', 'merge_fixed/23S_F_D6_.fasta', 'merge_fixed/24D_G_H3_.fasta', 'merge_fixed/24S_G_B6_.fasta', 'merge_fixed/2D_F_B1_.fasta', 'merge_fixed/2S_F_B4_.fasta', 'merge_fixed/3D_F_C1_.fasta', 'merge_fixed/3S_F_C4_.fasta', 'merge_fixed/4D_G_D1_.fasta', 'merge_fixed/4S_G_D4_.fasta', 'merge_fixed/5D_G_E1_.fasta', 'merge_fixed/5S_G_E4_.fasta', 'merge_fixed/6D_G_F1_.fasta', 'merge_fixed/6S_G_F4_.fasta', 'merge_fixed/7D_G_G1_.fasta', 'merge_fixed/7S_G_H4_.fasta', 'merge_fixed/8D_G_H1_.fasta', 'merge_fixed/8S_G_G4_.fasta', 'merge_fixed/9D_G_A2_.fasta', 'merge_fixed/9S_G_A5_.fasta', 'merge_fixed/N_DOM_REPS_A7_.fasta', 'merge_fixed/N_GRA_A7_.fasta', 
-        '-L', 'merge/T4.fastq', 'merge/T6.fastq', 'merge/T7.fastq', 'merge/T8.fastq', 'merge/T9.fastq', 'merge/T10.fastq', 'merge/T11.fastq', 'merge/T12.fastq', 'merge/T13.fastq', 'merge/T14.fastq', 'merge/T15.fastq', 'merge/T16.fastq',
-        '-S', '../../numtdumper/specifications.txt', 
-        '-o', 'numtdumper/', 
-        '-t', '4', 
-        '-u', 
-        '-l', '418', 
-        '-p', '0', 
-        '-s', '5', 
-        '-i', '99.5'#,
-    #    '-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'
-        ])
-    
-    #args = parser.parse_args()
+#    scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
+#    os.chdir("/home/thomas/seqtesting/NUMTdumper/amm")
+#    args = parser.parse_args(['-A', '6_coleoptera_fftnsi.fasta', 
+#        '-R', 'dummy_reference.fasta', 
+#        #'-L', 'merge_fixed/10D_F_C2_.fasta', 'merge_fixed/10S_F_B5_.fasta', 'merge_fixed/11D_F_D2_.fasta', 'merge_fixed/11S_F_C5_.fasta', 'merge_fixed/12D_G_E2_.fasta', 'merge_fixed/12S_G_D5_.fasta', 'merge_fixed/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge_fixed/14D_G_G2_.fasta', 'merge_fixed/14S_G_E5_.fasta', 'merge_fixed/15D_F_H2_.fasta', 'merge_fixed/15S_F_G5_.fasta', 'merge_fixed/16D_F_A3_.fasta', 'merge_fixed/16S_F_F5_.fasta', 'merge_fixed/17D_F_B3_.fasta', 'merge_fixed/17S_F_E6_.fasta', 'merge_fixed/18D_F_C3_.fasta', 'merge_fixed/18S_F_F6_.fasta', 'merge_fixed/19D_G_B2_.fasta', 'merge_fixed/19S_G_H5_.fasta', 'merge_fixed/1D_F_A1_.fasta', 'merge_fixed/1S_F_A4_.fasta', 'merge_fixed/20D_F_D3_.fasta', 'merge_fixed/20S_F_C6_.fasta', 'merge_fixed/21D_F_E3_.fasta', 'merge_fixed/21S_F_H6_.fasta', 'merge_fixed/22D_G_G3_.fasta', 'merge_fixed/22S_G_A6_.fasta', 'merge_fixed/23D_F_F3_.fasta', 'merge_fixed/23S_F_D6_.fasta', 'merge_fixed/24D_G_H3_.fasta', 'merge_fixed/24S_G_B6_.fasta', 'merge_fixed/2D_F_B1_.fasta', 'merge_fixed/2S_F_B4_.fasta', 'merge_fixed/3D_F_C1_.fasta', 'merge_fixed/3S_F_C4_.fasta', 'merge_fixed/4D_G_D1_.fasta', 'merge_fixed/4S_G_D4_.fasta', 'merge_fixed/5D_G_E1_.fasta', 'merge_fixed/5S_G_E4_.fasta', 'merge_fixed/6D_G_F1_.fasta', 'merge_fixed/6S_G_F4_.fasta', 'merge_fixed/7D_G_G1_.fasta', 'merge_fixed/7S_G_H4_.fasta', 'merge_fixed/8D_G_H1_.fasta', 'merge_fixed/8S_G_G4_.fasta', 'merge_fixed/9D_G_A2_.fasta', 'merge_fixed/9S_G_A5_.fasta', 'merge_fixed/N_DOM_REPS_A7_.fasta', 'merge_fixed/N_GRA_A7_.fasta', 
+#        '-L', 'merge/T4.fastq', 'merge/T6.fastq', 'merge/T7.fastq', 'merge/T8.fastq', 'merge/T9.fastq', 'merge/T10.fastq', 'merge/T11.fastq', 'merge/T12.fastq', 'merge/T13.fastq', 'merge/T14.fastq', 'merge/T15.fastq', 'merge/T16.fastq',
+#        '-S', 'specifications.txt', 
+#        '-o', 'numtdumper/', 
+#        '-t', '4', 
+#        '-u', 
+#        '-l', '418', 
+#        '-p', '0', 
+#        '-s', '5', 
+#        '-i', '99.5'#,
+#    #    '-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'
+#        ])
+##    
+    args = parser.parse_args()
     
     # Find the file name
     
@@ -238,7 +237,7 @@ if __name__ == "__main__":
     ##################
     
     sys.stdout.write("\nWelcome to NUMTdumper, let's dump those NUMTs!\n\n"
-                     f"Parsed {len(specs)} specifications, "
+                     f"Parsed {len(specs)} specification(s), "
                      f"{len(thresholdcombos)} total threshold combinations\n")
     
     ###############
@@ -266,8 +265,6 @@ if __name__ == "__main__":
     sys.stdout.write("Matching library reads to ASVs to generate library ASV "
                      "counts.\n")
     
-    #TODO: enable reading from a single concatenated file instead
-    #TODO: check that all ASVs have >= 1 match (throw error if not) and warn if any libraries have no matches
     librarycounts, totalcounts = findlibraries.count_asvs_in_libraries(
                                                                raw['asvs'],
                                                                args.libraries)
@@ -302,6 +299,9 @@ if __name__ == "__main__":
     sys.stdout.write("Generating binned counts\n")
     
     counts = assessmentcore.counts_from_spec(specs, data)
+    
+    counts[0]['uniq211;size=7']
+    
     
     # Calculate score for threshold combination
     sys.stdout.write("Assessing counts and scoring for each threshold "

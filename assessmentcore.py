@@ -84,16 +84,15 @@ def parse_spec(args):
     fh = open(args.specification, 'r')
     linen = 0
     specn = 0
-    for l in fh.readline():
-        l = fh.readline()
-        l.strip()
+    for l in fh:
+        #l = fh.readline()
         linen += 1
         if re.match("^\s*#|^$", l):
             continue
         else:
             # Clean and split up
-            v = l.replace('#.*$| ', '')
-            values = re.split("\t+", v)
+            v = l.replace('#.*$| ', '').strip()
+            values = re.split("\t", v)
             
             # Set up error
             err = (f"Error, malformed specification in {args.specification} "
@@ -105,7 +104,7 @@ def parse_spec(args):
                          "tab-separated entries")
             
             # Split terms into parts
-            spectext.append(f"{values[0]}({values[1]})")
+            spectext.append(f"{values[0]}_{values[1]}")
             values[0]  = re.split("[\|\+]", values[0])
             
             # Check terms are formed correctly
@@ -136,6 +135,7 @@ def parse_spec(args):
             # Add to dict
             spec[specn] = dict(zip(['terms', 'metric', 'thresholds'], values))
             specn += 1
+    fh.close()
     
     # TODO: Check thresh_total against maximum
     threshcombos = list(itertools.product(*threshlist))
@@ -212,7 +212,7 @@ def get_validated(raw, minmaxbp, args, filename):
     # Output file with details of targets/non-targets
     path = os.path.join(args.outputdirectory, f"{filename}_control.txt")
     with open(path, 'w') as o:
-        for asv, cat in zip(["lengthfail", "stopfail", "refpass"], 
+        for cat, asv in zip(["lengthfail", "stopfail", "refpass"], 
                             [nontargetlength, nontargettrans, refmatch]):
             for a in asv: o.write(f"{cat}\t{a}\n")
     
@@ -276,7 +276,7 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target,
 
 def calc_stats(counts, asvs, target, nontarget, anythreshold, 
                scoretype, thresholds, weight = 0.5):
-    #asvs, anythreshold, score_type, thresholds, weight =  [set(raw['asvs'].keys()), args.anythreshold, "standardised" , thresholdcombos[467], 0.5]
+    #asvs, anythreshold, score_type, thresholds, weight =  [set(raw['asvs'].keys()), args.anythreshold, "standardised" , thresholdcombos[1], 0.5]
     """For a given set of category counts and a given set of thresholds, counts
     retention, calculates scores and estimates statistics. Counts and 
     thresholds should be in two lists of equal lengths, where the nth item of 
@@ -297,6 +297,8 @@ def calc_stats(counts, asvs, target, nontarget, anythreshold,
     # of actual retentions 
     retained_vals = [len(target - rejects), len(nontarget - rejects),
                      len(rejects - target)]
+    # TODO: add proportions to the above!
+    
     
     # Calculate score
     score = calc_score(retained_vals[0], inputs[1], retained_vals[1], 
@@ -321,7 +323,7 @@ def write_specs_and_stats(specs, thresholds, scores, path):
         # Write header
         scorehead = ["score", "asvs", "target", "nontarget", "rejectedasvs",
                      "retainedasvs", "retained_target", "retained_nontarget",
-                     "actual_retainedasvs", "est_true_target",
+                     "actual_rejectedasvs", "est_true_target",
                      "est_true_nontarget", "est_true_retained_target",
                      "est_true_retained_nontarget, hash_rejectedasvs"]
         
@@ -387,19 +389,16 @@ def get_minimum_thresholds(scores, thresholdcombinations, spec):
 
 def output_filtered_haplotypes(counts, minthresholds, anythreshold, good, bad,
                                file, filename, outdir):
-    
-    #if(type(min_thresholds[0]) != list):
-    #    min_thresholds = [min_thresholds,]
-    
-    #min_i, thresholds = list(enumerate(min_thresholds))[10]
+    # minthresholds, anythreshold, good, bad, file, outdir = [minthresh, args.anythreshold, target, nontarget, raw['path'], args.outputdirectory]
     
     for mini, thresholds in enumerate(minthresholds):
-        rejectedasvs = set()
+        #mini, thresholds = list(enumerate(minthresholds))[1]
+        rejects = []
         for i, t in enumerate(thresholds):
-            rejectedasvs.add(categorycounting.reject(counts[i], t, 
-                                                     anythreshold))
+            rejects.extend(categorycounting.reject(counts[i], t, anythreshold))
+        rejects = set(rejects)
         
-        exclude = rejectedasvs.union(bad) - good
+        exclude = rejects.union(bad) - good
         with open(file) as infasta:
             filen = mini + 1
             filename = os.path.join(outdir, 
