@@ -80,7 +80,7 @@ parser.add_argument("-S", "--specification",
                     required = True, metavar = "SPEC", type = str)
 parser.add_argument("-X", "--taxgroups",
                     help = "path to a two-column csv file specifying the "
-                    "taxon for each haplotype", 
+                    "taxon for each ASV", 
                     metavar = "TAXA", type = str)
 parser.add_argument("-T", "--tree",
                     help = "path to an tree of the ASVs from a previous run",
@@ -111,7 +111,7 @@ parser.add_argument("-u", "--addnull",
                     action = "store_true", default = False)
 
     # Clade finder variables
-parser.add_argument("-m", "--distancemodel",
+parser.add_argument("--distancemodel",
                     help = "substitution model for UPGMA tree estimation "
                     "(passed to R dist.dna, default F84)", 
                     default = "F84", type = str, metavar = "X")
@@ -160,22 +160,22 @@ parser.add_argument("-s", "--table",
 parser.add_argument("-r", "--readingframe",
                     help = "coding frame of sequences, if known", 
                     type = int, choices = [1,2,3], metavar = "N")
-parser.add_argument("-f", "--detectionconfidence",
+parser.add_argument("--detectionconfidence",
                     help = "confidence level (0 < x < 1) for detection of "
                     "reading frame (default 0.95, usually no need to change)",
                     type = float, default = 0.95, metavar = "N")
-parser.add_argument("-e", "--detectionminstops",
+parser.add_argument("--detectionminstops",
                     help = "minimum number of stops to encounter for "
                     "detection (default 100, may need to decrease for few "
                     "sequences)",
                     type = int, default = 100, metavar = "N")
 
     # Reference matching parameters
-parser.add_argument("-j", "--matchlength",
+parser.add_argument("--matchlength",
                     help = "the minimum alignment length to consider a BLAST "
                     "match when comparing ASVs against the reference",
                     type = int, metavar = "N", default = 350)
-parser.add_argument("-i", "--matchpercent",
+parser.add_argument("--matchpercent",
                     help = "the minimum percent identity to consider a BLAST "
                     "match when comparing ASVs against the reference", 
                     type = float, metavar = "N", default = 100)
@@ -194,23 +194,22 @@ if __name__ == "__main__":
     
     
     # Get inputs
-#    scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
-#    os.chdir("/home/thomas/seqtesting/NUMTdumper/amm")
-#    args = parser.parse_args(['-A', '6_coleoptera_fftnsi.fasta', 
-#        '-R', 'dummy_reference.fasta', 
-#        #'-L', 'merge_fixed/10D_F_C2_.fasta', 'merge_fixed/10S_F_B5_.fasta', 'merge_fixed/11D_F_D2_.fasta', 'merge_fixed/11S_F_C5_.fasta', 'merge_fixed/12D_G_E2_.fasta', 'merge_fixed/12S_G_D5_.fasta', 'merge_fixed/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge_fixed/14D_G_G2_.fasta', 'merge_fixed/14S_G_E5_.fasta', 'merge_fixed/15D_F_H2_.fasta', 'merge_fixed/15S_F_G5_.fasta', 'merge_fixed/16D_F_A3_.fasta', 'merge_fixed/16S_F_F5_.fasta', 'merge_fixed/17D_F_B3_.fasta', 'merge_fixed/17S_F_E6_.fasta', 'merge_fixed/18D_F_C3_.fasta', 'merge_fixed/18S_F_F6_.fasta', 'merge_fixed/19D_G_B2_.fasta', 'merge_fixed/19S_G_H5_.fasta', 'merge_fixed/1D_F_A1_.fasta', 'merge_fixed/1S_F_A4_.fasta', 'merge_fixed/20D_F_D3_.fasta', 'merge_fixed/20S_F_C6_.fasta', 'merge_fixed/21D_F_E3_.fasta', 'merge_fixed/21S_F_H6_.fasta', 'merge_fixed/22D_G_G3_.fasta', 'merge_fixed/22S_G_A6_.fasta', 'merge_fixed/23D_F_F3_.fasta', 'merge_fixed/23S_F_D6_.fasta', 'merge_fixed/24D_G_H3_.fasta', 'merge_fixed/24S_G_B6_.fasta', 'merge_fixed/2D_F_B1_.fasta', 'merge_fixed/2S_F_B4_.fasta', 'merge_fixed/3D_F_C1_.fasta', 'merge_fixed/3S_F_C4_.fasta', 'merge_fixed/4D_G_D1_.fasta', 'merge_fixed/4S_G_D4_.fasta', 'merge_fixed/5D_G_E1_.fasta', 'merge_fixed/5S_G_E4_.fasta', 'merge_fixed/6D_G_F1_.fasta', 'merge_fixed/6S_G_F4_.fasta', 'merge_fixed/7D_G_G1_.fasta', 'merge_fixed/7S_G_H4_.fasta', 'merge_fixed/8D_G_H1_.fasta', 'merge_fixed/8S_G_G4_.fasta', 'merge_fixed/9D_G_A2_.fasta', 'merge_fixed/9S_G_A5_.fasta', 'merge_fixed/N_DOM_REPS_A7_.fasta', 'merge_fixed/N_GRA_A7_.fasta', 
-#        '-L', 'merge/T4.fastq', 'merge/T6.fastq', 'merge/T7.fastq', 'merge/T8.fastq', 'merge/T9.fastq', 'merge/T10.fastq', 'merge/T11.fastq', 'merge/T12.fastq', 'merge/T13.fastq', 'merge/T14.fastq', 'merge/T15.fastq', 'merge/T16.fastq',
-#        '-S', 'specifications.txt', 
-#        '-o', 'numtdumper/', 
-#        '-t', '4', 
-#        '-u', 
-#        '-l', '418', 
-#        '-p', '0', 
-#        '-s', '5', 
-#        '-i', '99.5'#,
-#    #    '-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'
-#        ])
-##    
+    scriptdir = "/home/thomas/Documents/programming/bioinformatics/numtdumper/"
+    os.chdir("/home/thomas/seqtesting/NUMTdumper/amm")
+    args = parser.parse_args(['-A', '6_coleoptera_fftnsi.fasta', 
+        '-R', 'dummy_reference.fasta', 
+        #'-L', 'merge_fixed/10D_F_C2_.fasta', 'merge_fixed/10S_F_B5_.fasta', 'merge_fixed/11D_F_D2_.fasta', 'merge_fixed/11S_F_C5_.fasta', 'merge_fixed/12D_G_E2_.fasta', 'merge_fixed/12S_G_D5_.fasta', 'merge_fixed/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge_fixed/14D_G_G2_.fasta', 'merge_fixed/14S_G_E5_.fasta', 'merge_fixed/15D_F_H2_.fasta', 'merge_fixed/15S_F_G5_.fasta', 'merge_fixed/16D_F_A3_.fasta', 'merge_fixed/16S_F_F5_.fasta', 'merge_fixed/17D_F_B3_.fasta', 'merge_fixed/17S_F_E6_.fasta', 'merge_fixed/18D_F_C3_.fasta', 'merge_fixed/18S_F_F6_.fasta', 'merge_fixed/19D_G_B2_.fasta', 'merge_fixed/19S_G_H5_.fasta', 'merge_fixed/1D_F_A1_.fasta', 'merge_fixed/1S_F_A4_.fasta', 'merge_fixed/20D_F_D3_.fasta', 'merge_fixed/20S_F_C6_.fasta', 'merge_fixed/21D_F_E3_.fasta', 'merge_fixed/21S_F_H6_.fasta', 'merge_fixed/22D_G_G3_.fasta', 'merge_fixed/22S_G_A6_.fasta', 'merge_fixed/23D_F_F3_.fasta', 'merge_fixed/23S_F_D6_.fasta', 'merge_fixed/24D_G_H3_.fasta', 'merge_fixed/24S_G_B6_.fasta', 'merge_fixed/2D_F_B1_.fasta', 'merge_fixed/2S_F_B4_.fasta', 'merge_fixed/3D_F_C1_.fasta', 'merge_fixed/3S_F_C4_.fasta', 'merge_fixed/4D_G_D1_.fasta', 'merge_fixed/4S_G_D4_.fasta', 'merge_fixed/5D_G_E1_.fasta', 'merge_fixed/5S_G_E4_.fasta', 'merge_fixed/6D_G_F1_.fasta', 'merge_fixed/6S_G_F4_.fasta', 'merge_fixed/7D_G_G1_.fasta', 'merge_fixed/7S_G_H4_.fasta', 'merge_fixed/8D_G_H1_.fasta', 'merge_fixed/8S_G_G4_.fasta', 'merge_fixed/9D_G_A2_.fasta', 'merge_fixed/9S_G_A5_.fasta', 'merge_fixed/N_DOM_REPS_A7_.fasta', 'merge_fixed/N_GRA_A7_.fasta', 
+        '-L', 'merge/T4.fastq', 'merge/T6.fastq', 'merge/T7.fastq', 'merge/T8.fastq', 'merge/T9.fastq', 'merge/T10.fastq', 'merge/T11.fastq', 'merge/T12.fastq', 'merge/T13.fastq', 'merge/T14.fastq', 'merge/T15.fastq', 'merge/T16.fastq',
+        '-S', 'specifications1.txt', 
+        '-o', 'numtdumper/', 
+        '-t', '4',
+        '-l', '418', 
+        '-p', '0', 
+        '-s', '5', 
+        '--matchpercent', '99.5'#,
+    #    '-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'
+        ])
+#    
     args = parser.parse_args()
     
     # Find the file name
@@ -300,14 +299,11 @@ if __name__ == "__main__":
     
     counts = assessmentcore.counts_from_spec(specs, data)
     
-    counts[0]['uniq211;size=7']
-    
-    
     # Calculate score for threshold combination
     sys.stdout.write("Assessing counts and scoring for each threshold "
                      "combination.\n")
     
-    chunksize = math.floor(len(thresholdcombos)/args.threads)
+    chunksize = math.ceil(len(thresholdcombos)/args.threads)
     with Pool(processes = args.threads) as pool:
         stats = pool.map(partial(assessmentcore.calc_stats, counts,
                                  set(raw['asvs'].keys()), target, nontarget,
@@ -344,8 +340,6 @@ if __name__ == "__main__":
 #        with open(stats_filename, "wb") as f:
 #            pickle.dump(stats, f, pickle.HIGHEST_PROTOCOL)
 #    
-    
-    
     
     # Analyse scores to find best sets
     

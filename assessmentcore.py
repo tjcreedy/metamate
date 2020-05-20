@@ -276,7 +276,7 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target,
 
 def calc_stats(counts, asvs, target, nontarget, anythreshold, 
                scoretype, thresholds, weight = 0.5):
-    #asvs, anythreshold, score_type, thresholds, weight =  [set(raw['asvs'].keys()), args.anythreshold, "standardised" , thresholdcombos[1], 0.5]
+    #asvs, anythreshold, scoretype, thresholds, weight =  [set(raw['asvs'].keys()), args.anythreshold, "standardised" , thresholdcombos[0], 0.5]
     """For a given set of category counts and a given set of thresholds, counts
     retention, calculates scores and estimates statistics. Counts and 
     thresholds should be in two lists of equal lengths, where the nth item of 
@@ -299,7 +299,6 @@ def calc_stats(counts, asvs, target, nontarget, anythreshold,
                      len(rejects - target)]
     # TODO: add proportions to the above!
     
-    
     # Calculate score
     score = calc_score(retained_vals[0], inputs[1], retained_vals[1], 
                        inputs[2], scoretype, weight)
@@ -314,7 +313,8 @@ def calc_stats(counts, asvs, target, nontarget, anythreshold,
     # true_nontarget, true_retained_target, true_retained_nontarget,
     # rejectedasvshash
     rejects = tuple(sorted(rejects))
-    return([score] + inputs + retained_vals + estimates + [hash(rejects)])
+    out = [score] + inputs + retained_vals + estimates + [hash(rejects)]
+    return(out)
 
 def write_specs_and_stats(specs, thresholds, scores, path):
     
@@ -336,7 +336,7 @@ def write_specs_and_stats(specs, thresholds, scores, path):
 
 def get_minimum_thresholds(scores, thresholdcombinations, spec):
     #scores, thresholdcombinations, spec = [stats, thresholdcombos, specs]
-    # Get list of scores only 
+    # Get list of scores only
     scorelist = [ s[0] for s in scores ]
     
     # Find minimum and indices
@@ -401,9 +401,9 @@ def output_filtered_haplotypes(counts, minthresholds, anythreshold, good, bad,
         exclude = rejects.union(bad) - good
         with open(file) as infasta:
             filen = mini + 1
-            filename = os.path.join(outdir, 
+            outname = os.path.join(outdir, 
                                    f"{filename}_filtered_set{str(filen)}.fa") 
-            with open(filename, "w") as outfasta:
+            with open(outname, "w") as outfasta:
                 for head, seq in SimpleFastaParser(infasta):
                     if( head not in exclude):
                         outfasta.write(">%s\n%s\n" % (head, seq))
