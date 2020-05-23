@@ -36,6 +36,6 @@ def parse_taxa(taxafile, names):
 
 def dummy_taxa(names):
     
-    taxa = { n : 'x' for n in names}
+    taxa = { 'x' : names}
     
     return(taxa)

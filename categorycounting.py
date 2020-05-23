@@ -64,7 +64,7 @@ def multicategory(countdict, otherdicts):
     the rest are passed in a tuple of length >= 1, each can have counts or 
     just sets, i.e. {y : {a , b}}
     """
-    
+    # countdict, otherdicts = [data[specdict['terms'][0]], parttermsdata]
     # Check otherdicts is a tuple or error
     
     if(type(otherdicts) != tuple):
@@ -75,16 +75,16 @@ def multicategory(countdict, otherdicts):
     
     # Work through each further dict combining with master
     for newdict in otherdicts:
-        
+        # newdict = otherdicts[0]
         # Create new multdict
         newmulti = dict()
         
         # Work through categories in master
         for mcat, mcounts in multidict.items():
-            
+            # mcat, mcounts = list(multidict.items())[0]
             # Work through categories in new dict
             for ncat, nvalue in newdict.items():
-                
+                # ncat, nvalue = list(newdict.items())[0]
                 # Check if avalue is set of names or dictionary of name:counts
                 nvalueset = nvalue
                 if type(nvalue) == "dict":

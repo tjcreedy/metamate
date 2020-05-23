@@ -69,90 +69,87 @@ def resolve_ranges(range_string):
     # Collapse list of lists
     return(list(itertools.chain(*rangeout)))
 
-def parse_spec(args):
+def parse_spec(spec):
+    
+    values = re.sub("[\[\]]", '', spec).split(';')
+    name = f"{values[0]}_{values[1]}"
+    # Set up error
+    err = f"Error, malformed specification in {spec}"
+    
+    # Check there are 3 values
+    if len(values) != 3:
+        sys.exit(f"{err}: specification line should have three "
+                 "tab-separated entries")
+    
+    # Split terms into parts
+    values[0]  = re.split("[\|\+]", values[0])
+    
+    # Check terms are formed correctly
+    if not values[0][0] in ['library', 'total']:
+        sys.exit(f"{err}: first term must be \'library\' or \'total\'")
+    if (len(values[0]) > 1 
+        and not all(t in ['taxon', 'clade'] for t in values[0][1:])):
+        sys.exit(f"{err}: secondary term(s) must be \'clade\' or "
+                 "\'taxon\'")
+    
+    # Check metric is n or p
+    if(not values[1] in ['n', 'p']):
+        sys.exit(f"{err}: metric should be \'n\' or \'p\'")
+    
+    # Expand thresholds to list
+    values[2] = resolve_ranges(values[2])
+    
+    return([name] + values)
+
+def parse_specfile(args):
     "Parse through the specification to expand terms and thresholds"
     
     filename = os.path.splitext(os.path.basename(args.asvs))[0]
     
-    # Set up specifications
-    spec = {}
-    threshlist = []
-    threshtotal = 1
-    spectext = []
-    
     # Open specifications file and parse lines into specifications
     fh = open(args.specification, 'r')
-    linen = 0
-    specn = 0
+    spectext = ''
     for l in fh:
         #l = fh.readline()
-        linen += 1
         if re.match("^\s*#|^$", l):
             continue
         else:
-            # Clean and split up
-            v = l.replace('#.*$| ', '').strip()
-            values = re.split("\t", v)
-            
-            # Set up error
-            err = (f"Error, malformed specification in {args.specification} "
-                   f"line {linen}")
-            
-            # Check there are 3 values
-            if len(values) != 3:
-                sys.exit(f"{err}: specification line should have three "
-                         "tab-separated entries")
-            
-            # Split terms into parts
-            spectext.append(f"{values[0]}_{values[1]}")
-            values[0]  = re.split("[\|\+]", values[0])
-            
-            # Check terms are formed correctly
-            if not values[0][0] in ['library', 'total']:
-                sys.exit(f"{err}: first term must be \'library\' or \'total\'")
-            if (len(values[0]) > 1 
-                and not all(t in ['taxon', 'clade'] for t in values[0][1:])):
-                sys.exit(f"{err}: secondary term(s) must be \'clade\' or "
-                         "\'taxon\'")
-            
-            # Check metric is n or p
-            if(not values[1] in ['n', 'p']):
-                sys.exit(f"{err}: metric should be \'n\' or \'p\'")
-            
-            # Expand thresholds to list
-            values[2] = resolve_ranges(values[2])
-            # Add null value if requested
-            if(args.addnull):
-                if(values[1] == 'p' and not 1 in values[2]):
-                    values[2].append(1)
-                elif(values[1] == 'n'):
-                    values[2].append(99999999)
-            
-            # Add to list of thresholds
-            threshtotal *= len(values[2])
-            threshlist.append(values[2])
-            
-            # Add to dict
-            spec[specn] = dict(zip(['terms', 'metric', 'thresholds'], values))
-            specn += 1
-    fh.close()
-    
-    # TODO: Check thresh_total against maximum
-    threshcombos = list(itertools.product(*threshlist))
-    
+            spectext += l.strip()
+    # Clean up and parse for additive and multiplicative specs
+    spectext = re.sub(' ', '', spectext)
+    specslist = [s.split('*') for s in spectext.split('+')]
+    # Find unique terms and extract thresholds
+    specdict = dict()
+    specthresholds = []
+    for specl in specslist:
+        out = dict()
+        for spec in specl:
+            l = parse_spec(spec)
+            specdict[l[0]] = {'terms': l[1],
+                              'metric': l[2]}
+            out[l[0]] = l[3]
+        specthresholds.append(out)
+    # Build all threshold combinations
+    threshcombos = []
+    termorder = list(specdict.keys())
+    for specs in specthresholds:
+        #specs = specthresholds[2]
+        thresholds = []
+        for term in termorder:
+            thresholds.append(specs[term] if term in specs else [float('nan')])
+        threshcombos.extend(itertools.product(*thresholds))
     # Check 
     if( not args.taxgroups and any("taxon" in e for e in spectext)):
         sys.exit("Error, taxon specified as a binning strategy but no taxon "
                  "file supplied")
-    
     #Output specifications in table
     path = os.path.join(args.outputdirectory, f"{filename}_specifications.csv")
     with open(path, 'w') as o:
-        o.write(",".join(spectext) + "\n")
+        o.write(",".join(specdict.keys()) + "\n")
         for thresh in threshcombos:
             o.write(",".join([str(t) for t in thresh]) + "\n")
     
-    return(spectext, spec, threshcombos)
+    return(specdict, termorder, threshcombos)
 
 def get_validated(raw, minmaxbp, args, filename):
     
@@ -196,7 +193,7 @@ def get_validated(raw, minmaxbp, args, filename):
     if len(target) > 0:
         sys.stdout.write(f"Found {len(target)} target ASVs: {len(refmatch)} "
                           "out of all ASVs matched to reference set, "
-                         f"{len(refmatch-nontarget)} non-target ASVs removed."
+                         f"{len(refmatch - target)} non-target ASVs removed."
                          "\n")
     else:
         err = "Error: no target ASVs found"
@@ -225,23 +222,23 @@ def counts_from_spec(spec, data):
     # spec = specs
     
     
-    counts = []
+    counts = dict()
     
     # Work through specifications
-    for specn, specdict in spec.items():
-        #specn, specdict = list(spec.items())[1]
+    for specname, specdict in spec.items():
+        #specname, specdict = list(spec.items())[2]
         # Check if partitioned and do counting
         if len(specdict['terms']) == 1 :
-            counts.append(categorycounting.count_categories(
+            counts[specname] = categorycounting.count_categories(
                                                     data[specdict['terms'][0]],
-                                                    specdict['metric']))
+                                                    specdict['metric'])
         else:
             parttermsdata = tuple( data[t] for t in specdict['terms'][1:] )
             multicat = categorycounting.multicategory(
                                                     data[specdict['terms'][0]],
                                                     parttermsdata)
-            counts.append(categorycounting.count_categories(multicat,
-                                                           specdict['metric']))
+            counts[specname] = categorycounting.count_categories(multicat,
+                                                            specdict['metric'])
     
     return(counts)
 
@@ -274,7 +271,7 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target,
         out = ['NA', 'NA', 'NA', 'NA']
     return(out)
 
-def calc_stats(counts, asvs, target, nontarget, anythreshold, 
+def calc_stats(counts, termorder, asvs, target, nontarget, anythreshold, 
                scoretype, thresholds, weight = 0.5):
     #asvs, anythreshold, scoretype, thresholds, weight =  [set(raw['asvs'].keys()), args.anythreshold, "standardised" , thresholdcombos[0], 0.5]
     """For a given set of category counts and a given set of thresholds, counts
@@ -284,57 +281,76 @@ def calc_stats(counts, asvs, target, nontarget, anythreshold,
     
     # Find all rejected_asvs across counts
     rejects = []
-    for i, t in enumerate(thresholds):
-        #i, t = list(enumerate(thresholds))[1]
-        rejects.extend(categorycounting.reject(counts[i], t, anythreshold))
+    for term, thresh in zip(termorder, thresholds):
+        #term, thresh = list(zip(termorder, thresholds))[3]
+        rejects.extend(categorycounting.reject(counts[term], thresh,
+                                               anythreshold))
     rejects = set(rejects)
+    actualrejects = rejects - target
     
-    # Input counts
-    inputs = [len(asvs), len(target), len(nontarget), len(rejects)]
-    inputs.append(inputs[0]-inputs[3])
-    
-    # Calculate number of retained target and nontarget asvs, plus number 
-    # of actual retentions 
-    retained_vals = [len(target - rejects), len(nontarget - rejects),
-                     len(rejects - target)]
-    # TODO: add proportions to the above!
+    stats = [len(asvs),                              #0: asvs_total
+             len(target),                            #1: targets_total
+             len(nontarget),                         #2: nontargets_total
+             len(asvs) - len(rejects)]               #3: asvsprelim_retained_n
+    stats += [stats[3] / stats[0],                   #4: asvsprelim_retained_p
+              len(rejects),                          #5: asvsprelim_rejected_n
+              len(rejects) / stats[0],               #6: asvsprelim_rejected_p
+              len(target - rejects)]                 #7: targets_retained_n
+    stats += [stats[7] / stats[1],                   #8: targets_retained_p
+              stats[1] - stats[7]]                   #9: targets_rejected_n
+    stats += [stats[9] / stats[1],                   #10: targets_rejected_p
+              len(nontarget - rejects)]              #11: nontargets_retained_n
+    stats += [stats[11] / stats[2],                  #12: nontargets_retained_p
+              stats[2] - stats[11]]                  #13: nontargets_rejected_n
+    stats += [stats[13 / stats[2]],                  #14: nontargets_rejected_p
+              len(asvs) - len(actualrejects)]        #15: asvsactual_retained_n
+    stats += [stats[15] / stats[0],                  #16: asvsactual_retained_p
+              len(actualrejects),                    #17: asvsactual_rejected_n
+              len(actualrejects) / stats[0]]         #18: asvsactual_rejected_p
     
     # Calculate score
-    score = calc_score(retained_vals[0], inputs[1], retained_vals[1], 
-                       inputs[2], scoretype, weight)
+    score = calc_score(stats[8], stats[1], stats[11], stats[2],
+                       scoretype, weight)
     
     # Calculate estimates of 0: total input true targets, 1: total input true
     # nontargets, 2: total output true targets, 3: total output true nontargets
-    estimates = estimate_true_values(inputs[0], inputs[4], retained_vals[0],
-                                     inputs[1], retained_vals[1], inputs[3])
+    estimates = estimate_true_values(stats[0], stats[3], stats[7], stats[1],
+                                     stats[11], stats[2])
     
-    # score, asvs, target, nontarget, rejectedasvs, retainedasvs, 
-    # retained_target, retained_nontarget, actual_retainedasvs, true_target, 
-    # true_nontarget, true_retained_target, true_retained_nontarget,
-    # rejectedasvshash
-    rejects = tuple(sorted(rejects))
-    out = [score] + inputs + retained_vals + estimates + [hash(rejects)]
-    return(out)
+    # Store list of rejects or retains, whichever is shorter
+    store = []
+    if len(rejects) < 0.5 * len(asvs):
+        ('rejects', actualrejects)
+    else:
+        ('retain', asvs - actualrejects )
+    
+    # score, stats, estimates, hash, store
+    rejects = tuple(sorted(actualrejects))
+    return([score] + stats + estimates + [hash(rejects),  store])
 
-def write_specs_and_stats(specs, thresholds, scores, path):
+def write_specs_and_stats(terms, thresholds, scores, path):
     
     with open(path, "w") as o:
         
         # Write header
-        scorehead = ["score", "asvs", "target", "nontarget", "rejectedasvs",
-                     "retainedasvs", "retained_target", "retained_nontarget",
-                     "actual_rejectedasvs", "est_true_target",
-                     "est_true_nontarget", "est_true_retained_target",
-                     "est_true_retained_nontarget, hash_rejectedasvs"]
+        head = ("score targets_total nontargets_total asvsprelim_retained_n "
+                "asvsprelim_retained_p asvsprelim_rejected_n "
+                "asvsprelim_rejected_p targets_retained_n targets_retained_p "
+                "targets_rejected_n targets_rejected_p nontargets_retained_n "
+                "nontargets_retained_p nontargets_rejected_n "
+                "nontargets_rejected_p asvsactual_retained_n "
+                "asvsactual_retained_p asvsactual_rejected_n "
+                "asvsactual_rejected_p inputtargets_total_estimate "
+                "inputnontargets_total_estimate outputtargets_total_estimate "
+                "outputtargets_total_estimate").split(" ")
         
-        o.write(",".join([s + "_threshold" for s in specs] + scorehead) + '\n')
+        o.write(",".join([s + "_threshold" for s in terms] + head) + '\n')
         
         # Write lines
         for thresh, score in zip(thresholds, scores):
-            o.write(",".join(str(v) for v in list(thresh) + score)+'\n')
+            o.write(",".join(str(v) for v in list(thresh) + score[:-2])+'\n')
 
-
-def get_minimum_thresholds(scores, thresholdcombinations, spec):
+def get_minimum_thresholds(scores, terms, thresholdcombinations, spec):
     #scores, thresholdcombinations, spec = [stats, thresholdcombos, specs]
     # Get list of scores only
     scorelist = [ s[0] for s in scores ]
@@ -359,20 +375,20 @@ def get_minimum_thresholds(scores, thresholdcombinations, spec):
         outtext += f"\t({str(n)})\n"
         
         # Go through each threshold
-        for i, v in enumerate(threshcomb):
+        for term, thresh in zip(terms, threshcomb):
             #i, v = list(enumerate(threshcomb))[0]
             outtext += "\tThreshold "
             
-            if(spec[i]['metric'] == "n"):
+            if(spec[term]['metric'] == "n"):
                 outtext += "number "
             else:
                 outtext += "proportion "
-            outtext += f"of {spec[i]['terms'][0]} read counts per haplotype"
+            outtext += f"of {spec[term]['terms'][0]} read counts per haplotype"
             
-            if(len(spec[i]['terms']) > 1):
-                outtext += " by " + " and ".join(spec[i]['terms'][1:])
+            if(len(spec[term]['terms']) > 1):
+                outtext += " by " + " and ".join(spec[terms]['terms'][1:])
             
-            outtext += f" = {str(v)}\n"
+            outtext += f" = {str(thresh)}\n"
         
         outtext += ( "\tPreliminary number of putative exclusions: "
                     f"{str(scores[minindex][4])}\n\t"
@@ -387,15 +403,16 @@ def get_minimum_thresholds(scores, thresholdcombinations, spec):
     return(minscore, minthresholds, outtext)
 
 
-def output_filtered_haplotypes(counts, minthresholds, anythreshold, good, bad,
-                               file, filename, outdir):
+def output_filtered_haplotypes(counts, minthresholds, termorder, anythreshold,
+                               good, bad, file, filename, outdir):
     # minthresholds, anythreshold, good, bad, file, outdir = [minthresh, args.anythreshold, target, nontarget, raw['path'], args.outputdirectory]
     
     for mini, thresholds in enumerate(minthresholds):
         #mini, thresholds = list(enumerate(minthresholds))[1]
         rejects = []
-        for i, t in enumerate(thresholds):
-            rejects.extend(categorycounting.reject(counts[i], t, anythreshold))
+        for term, thresh in zip(termorder, thresholds):
+            rejects.extend(categorycounting.reject(counts[term], term, 
+                                                   anythreshold))
         rejects = set(rejects)
         
         exclude = rejects.union(bad) - good
