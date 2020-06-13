@@ -41,69 +41,70 @@ class MultilineFormatter(argparse.HelpFormatter):
 
 # Global variables
 
-parser = argparse.ArgumentParser(description = "")
-
 
 # B D E F H I J K M N O P Q U V W Y Z
 # e f g h i j k m q u v w z
-    # Input / output paths
-iopaths = parser.add_argument_group('Input/output paths')
-iopaths.add_argument("-A", "--asvs",
-                     help = "path to a fasta of unique sequences to filter",
-                     required = True, metavar = "ASVs", type = str)
-iopaths.add_argument("-C", "--resultcache",
-                     help = "path to the resultcache.json file from a "
-                            "previous run from which to extract final "
-                            "filtered ASVs",
-                    metavar = 'CACHE', type = str)
-iopaths.add_argument("-R", "--references",
-                     help = "path to a fasta of known correct reference "
-                            "sequences", 
-                     metavar = "REF", type = str)
-iopaths.add_argument("-L", "--libraries",
-                     help = "path to fastx file(s) of individual libraries"
-                            "/discrete samples from which ASVs were drawn, or "
-                            "a single fastx with ;samplename=.*; or "
-                            ";barcodelabel=.*; annotations in headers.",
-                    metavar = "LIB", type = str, nargs = '*')
-iopaths.add_argument("-S", "--specification",
-                     help = "path to a text file detailing the read count "
-                     "binning strategy and thresholds",
-                     metavar = "SPEC", type = str)
-iopaths.add_argument("-G", "--taxgroups",
-                     help = "path to a two-column csv file specifying the "
-                     "taxon for each ASV", 
-                     metavar = "TAXA", type = str)
-iopaths.add_argument("-T", "--tree",
-                     help = "path to an tree of the ASVs from a previous run",
-                     metavar = "TREE", type = str)
-iopaths.add_argument("-o", "--outputdirectory",
-                     help = "output directory (default is current directory)",
-                     default = "./", metavar = "OUTDIR")
+
+parser = argparse.ArgumentParser(description = "")
+parser._positionals.title = "action to perform"
+parser._optionals.title = "optional arguments"
+
+
+parser.add_argument("-t", "--threads",
+                        help = "number of threads to use (default 1)", 
+                        default = 1, metavar = "N", type = int)
+
+subparsers = parser.add_subparsers(help = '', dest = 'action')
+
+    # Core inputs on a separate parser which acts as parent to subs
+
+coreparser = argparse.ArgumentParser(add_help = False)
+core = coreparser.add_argument_group('core inputs and options')
+core.add_argument("-A", "--asvs",
+                  help = "path to a fasta of unique sequences to filter",
+                  required = True, metavar = "ASVs", type = str)
+core.add_argument("-L", "--libraries",
+                  help = "path to fastx file(s) of individual libraries"
+                         "/discrete samples from which ASVs were drawn, or "
+                         "a single fastx with ;samplename=.*; or "
+                         ";barcodelabel=.*; annotations in headers.",
+                  metavar = "LIB", type = str, nargs = '*')
+core.add_argument("-G", "--taxgroups",
+                  help = "path to a two-column csv file specifying the "
+                         "taxon for each ASV", 
+                  metavar = "TAXA", type = str)
+core.add_argument("-T", "--tree",
+                  help = "path to an tree of the ASVs from a previous run",
+                  metavar = "TREE", type = str)
+core.add_argument("-o", "--outputdirectory",
+                  help = "output directory (default is current directory)",
+                  default = "./", metavar = "OUTDIR")
+core.add_argument("-a", "--realign",
+                  help = "force (re)alignment of the input ASVs", 
+                  action = "store_true", default = False)
+core.add_argument("-y", "--anyfail",
+                  help = "reject ASVs when any incidences fail to meet "
+                         "a threshold (default is all incidences)", 
+                  action = "store_true", default = False)
 #TODO: throw error if not A + C or A + R + L + S 
 
-general = parser.add_argument_group('General options')
-general.add_argument("-t", "--threads",
-                     help = "number of threads to use (default 1)", 
-                     default = 1, metavar = "N", type = int)
+findparser = subparsers.add_parser("find", parents = [coreparser],
+                                   help = "find NUMTs by supplying threshold "
+                                          "ranges and control specifications")
+findparser._optionals.title = "arguments"
 
-    # Input file variables
-general.add_argument("-a", "--realign",
-                     help = "force (re)alignment of the input ASVs", 
-                     action = "store_true", default = False)
+findparser.add_argument("-S", "--specification",
+                        help = "path to a text file detailing the read count "
+                               "binning strategy and thresholds",
+                        required = True, metavar = "SPEC", type = str)
 
-    # Master filtering variables
-general.add_argument("-y", "--anyfail",
-                     help = "reject ASVs when any incidences fail to meet "
-                            "a threshold (default is all incidences)", 
-                     action = "store_true", default = False)
 #parser.add_argument("-u", "--addnull",
 #                    help = "include null thresholds to all filters (i.e. "
 #                    "thresholds passing all reads)", 
 #                    action = "store_true", default = False)
 
     # Clade finder variables
-cladfind = parser.add_argument_group('Clade finding')
+cladfind = findparser.add_argument_group('tlade finding')
 cladfind.add_argument("--distancemodel",
                       help = "substitution model for UPGMA tree estimation "
                              "(passed to R dist.dna, default F84)", 
@@ -113,8 +114,27 @@ cladfind.add_argument("-d", "--divergence",
                              "(default is 0.2)",
                       default = 0.2, type = float, metavar = "N")
 
+    # Reference matching parameters
+refmatch = findparser.add_argument_group("teference-matching-based target "
+                                         "identification")
+refmatch.add_argument("-R", "--references",
+                      help = "path to a fasta of known correct reference "
+                             "sequences", 
+                      metavar = "REF", type = str)
+refmatch.add_argument("--matchlength",
+                      help = "the minimum alignment length to consider a "
+                             "BLAST match when comparing ASVs against "
+                             "reference sequences",
+                      type = int, metavar = "N", default = 350)
+refmatch.add_argument("--matchpercent",
+                      help = "the minimum percent identity to consider a "
+                             "BLAST match when comparing ASVs against "
+                             "reference sequences", 
+                      type = float, metavar = "N", default = 100)
+
     # Length parameters
-lengths = parser.add_argument_group('Length-based non-target identification')
+lengths = findparser.add_argument_group("tength-based non-target "
+                                        "identification")
 lengths.add_argument("-n", "--minimumlength",
                      help = "designate ASVs that are shorter than this value "
                             "as non-target", 
@@ -147,8 +167,8 @@ lengths.add_argument("--onlyvarybycodon",
                      action = "store_true")
 
     # Translation parameters
-transl = parser.add_argument_group("Translation-based non-target "
-                                   "identification")
+transl = findparser.add_argument_group("translation-based non-target "
+                                       "identification")
 transl.add_argument("-s", "--table",
                     help = "the number referring to the translation table "
                            "to use for translation filtering", 
@@ -167,19 +187,24 @@ transl.add_argument("--detectionminstops",
                            "few input ASVs)",
                     type = int, default = 100, metavar = "N")
 
-    # Reference matching parameters
-refmatch = parser.add_argument_group("Reference-matching-based target "
-                                     "identification")
-refmatch.add_argument("--matchlength",
-                      help = "the minimum alignment length to consider a "
-                             "BLAST match when comparing ASVs against "
-                             "reference sequences",
-                      type = int, metavar = "N", default = 350)
-refmatch.add_argument("--matchpercent",
-                      help = "the minimum percent identity to consider a "
-                             "BLAST match when comparing ASVs against "
-                             "reference sequences", 
-                      type = float, metavar = "N", default = 100)
+dumpparser = subparsers.add_parser("dump", parents = [coreparser],
+                                   help = "dump NUMTs found in a previous run "
+                                          "or with fixed thresholds")
+dumpparser._optionals.title = "arguments"
+#TODO: make sure resultcache.json is correct name
+dumpparser.add_argument("-C", "--resultcache",
+                        help = "path to the resultcache.json file from a "
+                               "previous run ",
+                        metavar = 'CACHE', type = str)
+dumpparser.add_argument("-S", "--specification",
+                        help = "one or more [category(/ies); metric; "
+                               "threshold] strings denoting the specification "
+                               "for dumping NUMTs",
+                        metavar = "[C(s); M; T]", type = str, nargs = '*')
+
+
+
+
 
 # Class definitions
 
