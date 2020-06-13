@@ -39,138 +39,147 @@ class MultilineFormatter(argparse.HelpFormatter):
 # Function definitions
 
 
-def required_multiple(multiple):
-    class RequiredMultiple(argparse.Action):
-        def __call__(self, parser, args, values, option_string=None):
-            if not len(values) % multiple == 0:
-                msg = 'argument "{f}" requires a multiple of {multiple} values'
-                msg = msg.format(f=self.dest, multiple=multiple)
-                raise argparse.ArgumentTypeError(msg)
-            setattr(args, self.dest, values)
-    return RequiredMultiple
-
 # Global variables
 
 parser = argparse.ArgumentParser(description = "")
 
+
+# B D E F H I J K M N O P Q U V W Y Z
+# e f g h i j k m q u v w z
     # Input / output paths
-parser.add_argument("-A", "--asvs",
-                    help = "path to a fasta of unique sequences to filter",
-                    required = True, metavar = "ASVs", type = str)
-parser.add_argument("-R", "--reference",
-                    help = "path to a fasta of known correct reference "
-                    "sequences", required = True, metavar = "REF", type = str)
-parser.add_argument("-L", "--libraries",
-                    help = "path to fastx(s) of individual libraries/discrete "
-                    "samples from which ASVs were drawn, or a single fastx "
-                    "with ;samplename=.*; or ;barcodelabel=.*; annotations in "
-                    "headers.",
-                    required = True , metavar = "LIB", type = str, nargs = '*')
-parser.add_argument("-S", "--specification",
-                    help = "path to a text file detailing the read count "
-                    "binning strategy and thresholds",
-                    required = True, metavar = "SPEC", type = str)
-parser.add_argument("-X", "--taxgroups",
-                    help = "path to a two-column csv file specifying the "
-                    "taxon for each ASV", 
-                    metavar = "TAXA", type = str)
-parser.add_argument("-T", "--tree",
-                    help = "path to an tree of the ASVs from a previous run",
-                    metavar = "TREE", type = str)
+iopaths = parser.add_argument_group('Input/output paths')
+iopaths.add_argument("-A", "--asvs",
+                     help = "path to a fasta of unique sequences to filter",
+                     required = True, metavar = "ASVs", type = str)
+iopaths.add_argument("-C", "--resultcache",
+                     help = "path to the resultcache.json file from a "
+                            "previous run from which to extract final "
+                            "filtered ASVs",
+                    metavar = 'CACHE', type = str)
+iopaths.add_argument("-R", "--references",
+                     help = "path to a fasta of known correct reference "
+                            "sequences", 
+                     metavar = "REF", type = str)
+iopaths.add_argument("-L", "--libraries",
+                     help = "path to fastx file(s) of individual libraries"
+                            "/discrete samples from which ASVs were drawn, or "
+                            "a single fastx with ;samplename=.*; or "
+                            ";barcodelabel=.*; annotations in headers.",
+                    metavar = "LIB", type = str, nargs = '*')
+iopaths.add_argument("-S", "--specification",
+                     help = "path to a text file detailing the read count "
+                     "binning strategy and thresholds",
+                     metavar = "SPEC", type = str)
+iopaths.add_argument("-G", "--taxgroups",
+                     help = "path to a two-column csv file specifying the "
+                     "taxon for each ASV", 
+                     metavar = "TAXA", type = str)
+iopaths.add_argument("-T", "--tree",
+                     help = "path to an tree of the ASVs from a previous run",
+                     metavar = "TREE", type = str)
+iopaths.add_argument("-o", "--outputdirectory",
+                     help = "output directory (default is current directory)",
+                     default = "./", metavar = "OUTDIR")
+#TODO: throw error if not A + C or A + R + L + S 
 
-#Available options: g h k q u v w z
-
-parser.add_argument("-o", "--outputdirectory",
-                    help = "output directory (default is current directory)",
-                    default = "./", metavar = "OUTDIR")
-parser.add_argument("-t", "--threads",
-                    help = "number of threads to use", 
-                    default = 4, metavar = "N", type = int)
+general = parser.add_argument_group('General options')
+general.add_argument("-t", "--threads",
+                     help = "number of threads to use (default 1)", 
+                     default = 1, metavar = "N", type = int)
 
     # Input file variables
-parser.add_argument("-a", "--realign",
-                    help = "force (re)alignment of the input ASVs", 
-                    action = "store_true", default = False)
+general.add_argument("-a", "--realign",
+                     help = "force (re)alignment of the input ASVs", 
+                     action = "store_true", default = False)
 
     # Master filtering variables
-parser.add_argument("-y", "--anythreshold",
-                    help = "reject ASVs that fail to meet any threshold (as "
-                    "opposed to all thresholds)", 
-                    action = "store_true", default = False)
+general.add_argument("-y", "--anyfail",
+                     help = "reject ASVs when any incidences fail to meet "
+                            "a threshold (default is all incidences)", 
+                     action = "store_true", default = False)
 #parser.add_argument("-u", "--addnull",
 #                    help = "include null thresholds to all filters (i.e. "
 #                    "thresholds passing all reads)", 
 #                    action = "store_true", default = False)
 
     # Clade finder variables
-parser.add_argument("--distancemodel",
-                    help = "substitution model for UPGMA tree estimation "
-                    "(passed to R dist.dna, default F84)", 
-                    default = "F84", type = str, metavar = "X")
-parser.add_argument("-d", "--divergence",
-                    help = "divergence level to use for assigning clades "
-                    "(default is 0.2)",
-                    default = 0.2, type = float, metavar = "N")
+cladfind = parser.add_argument_group('Clade finding')
+cladfind.add_argument("--distancemodel",
+                      help = "substitution model for UPGMA tree estimation "
+                             "(passed to R dist.dna, default F84)", 
+                      default = "F84", type = str, metavar = "X")
+cladfind.add_argument("-d", "--divergence",
+                      help = "divergence level to use for assigning clades "
+                             "(default is 0.2)",
+                      default = 0.2, type = float, metavar = "N")
 
     # Length parameters
-parser.add_argument("-n", "--minimumlength",
-                    help = "designate ASVs that are shorter than this value "
-                    "as non-target", 
+lengths = parser.add_argument_group('Length-based non-target identification')
+lengths.add_argument("-n", "--minimumlength",
+                     help = "designate ASVs that are shorter than this value "
+                            "as non-target", 
+                     type = int, default = 0, metavar = "N")
+lengths.add_argument("-x", "--maximumlength",
+                     help = "designate ASVs that are longer than this value "
+                            "as non-target",
+                     type = int, default = float('Inf'), metavar = "N")
+lengths.add_argument("-l", "--expectedlength",
+                     help = "the expected length of the sequences", 
+                     type = int, default = 0, metavar = "N")
+lengths.add_argument("-p", "--percentvariation",
+                     help = "the percentage variation from the expected "
+                            "length within which ASVs should not be "
+                            "designated as non-target", 
+                     type = float, default = 0, metavar = "N")
+lengths.add_argument("-b", "--basesvariation",
+                     help = "the number of bases of variation from the "
+                            "expected length within which ASVs should not be "
+                            "designated as non-target", 
                     type = int, default = 0, metavar = "N")
-parser.add_argument("-x", "--maximumlength",
-                    help = "designate ASVs that are longer than this value "
-                    "as non-target",
-                    type = int, default = float('Inf'), metavar = "N")
-parser.add_argument("-l", "--expectedlength",
-                    help = "the expected length of the sequences", 
-                    type = int, default = 0, metavar = "N")
-parser.add_argument("-p", "--percentvariation",
-                    help = "the percentage variation from the expected "
-                    "length within which ASVs should not be designated as "
-                    "non-target", 
-                    type = float, default = 0, metavar = "N")
-parser.add_argument("-b", "--basesvariation",
-                    help = "the number of bases of variation from the "
-                    "expected length within which ASVs should not be "
-                    "designated as non-target", 
-                    type = int, default = 0, metavar = "N")
-parser.add_argument("-c", "--codonsvariation",
-                    help = "the number of codons of variation from the "
-                    "expected length within which ASVs should not be "
-                    "designated as non-target", 
-                    type = int, default = 0, metavar = "N")
-parser.add_argument("--onlyvarybycodon",
-                    help = "designate ASVs that do not vary by a multiple of "
-                    "3 bases from the expected length as non-target",
-                    action = "store_true")
+lengths.add_argument("-c", "--codonsvariation",
+                     help = "the number of codons of variation from the "
+                            "expected length within which ASVs should not be "
+                            "designated as non-target", 
+                     type = int, default = 0, metavar = "N")
+lengths.add_argument("--onlyvarybycodon",
+                     help = "designate ASVs that do not vary by a multiple of "
+                            "3 bases from the expected length as non-target",
+                     action = "store_true")
 
     # Translation parameters
-parser.add_argument("-s", "--table",
+transl = parser.add_argument_group("Translation-based non-target "
+                                   "identification")
+transl.add_argument("-s", "--table",
                     help = "the number referring to the translation table "
-                    "to use for translation filtering", 
+                           "to use for translation filtering", 
                     metavar = "TABLE", default = 5)
-parser.add_argument("-r", "--readingframe",
+transl.add_argument("-r", "--readingframe",
                     help = "coding frame of sequences, if known", 
                     type = int, choices = [1,2,3], metavar = "N")
-parser.add_argument("--detectionconfidence",
+transl.add_argument("--detectionconfidence",
                     help = "confidence level (0 < x < 1) for detection of "
-                    "reading frame (default 0.95, usually no need to change)",
+                           "reading frame (default 0.95, usually no need to "
+                           "change)",
                     type = float, default = 0.95, metavar = "N")
-parser.add_argument("--detectionminstops",
+transl.add_argument("--detectionminstops",
                     help = "minimum number of stops to encounter for "
-                    "detection (default 100, may need to decrease for few "
-                    "sequences)",
+                           "detection (default 100, may need to decrease for "
+                           "few input ASVs)",
                     type = int, default = 100, metavar = "N")
 
     # Reference matching parameters
-parser.add_argument("--matchlength",
-                    help = "the minimum alignment length to consider a BLAST "
-                    "match when comparing ASVs against the reference",
-                    type = int, metavar = "N", default = 350)
-parser.add_argument("--matchpercent",
-                    help = "the minimum percent identity to consider a BLAST "
-                    "match when comparing ASVs against the reference", 
-                    type = float, metavar = "N", default = 100)
+refmatch = parser.add_argument_group("Reference-matching-based target "
+                                     "identification")
+refmatch.add_argument("--matchlength",
+                      help = "the minimum alignment length to consider a "
+                             "BLAST match when comparing ASVs against "
+                             "reference sequences",
+                      type = int, metavar = "N", default = 350)
+refmatch.add_argument("--matchpercent",
+                      help = "the minimum percent identity to consider a "
+                             "BLAST match when comparing ASVs against "
+                             "reference sequences", 
+                      type = float, metavar = "N", default = 100)
 
 # Class definitions
 
@@ -228,13 +237,15 @@ if __name__ == "__main__":
     ##################
     
     sys.stdout.write("\nWelcome to NUMTdumper, let's dump those NUMTs!\n\n"
-                     f"Parsed {len(specs)} specification term(s), "
-                     f"{len(thresholdcombos)} total threshold combinations\n")
+                     f"Parsed {len(specs)} specification term"
+                     f"{'s' if len(specs) > 1 else ''}, "
+                     f"{len(thresholdcombos)} total threshold combination"
+                     f"{'s' if len(thresholdcombos) > 1 else ''}\n")
     
     ###############
     # FIND CLADES #
     ###############
-    
+    #TODO: error catch for duplicate headers?
     clades, raw = findclades.find_clades(args, filename)
     
     #############

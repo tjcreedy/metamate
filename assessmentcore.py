@@ -193,8 +193,8 @@ def get_validated(raw, minmaxbp, args, filename):
     if len(target) > 0:
         sys.stdout.write(f"Found {len(target)} target ASVs: {len(refmatch)} "
                           "out of all ASVs matched to reference set, "
-                         f"{len(refmatch - target)} non-target ASVs removed."
-                         "\n")
+                         f"{len(refmatch - target)} of these rejected due to "
+                          "inclusion in non-target set\n")
     else:
         err = "Error: no target ASVs found"
         if len(refmatch) > 0:
@@ -302,7 +302,7 @@ def calc_stats(counts, termorder, asvs, target, nontarget, anythreshold,
               len(nontarget - rejects)]              #11: nontargets_retained_n
     stats += [stats[11] / stats[2],                  #12: nontargets_retained_p
               stats[2] - stats[11]]                  #13: nontargets_rejected_n
-    stats += [stats[13 / stats[2]],                  #14: nontargets_rejected_p
+    stats += [stats[13] / stats[2],                  #14: nontargets_rejected_p
               len(asvs) - len(actualrejects)]        #15: asvsactual_retained_n
     stats += [stats[15] / stats[0],                  #16: asvsactual_retained_p
               len(actualrejects),                    #17: asvsactual_rejected_n
@@ -320,9 +320,9 @@ def calc_stats(counts, termorder, asvs, target, nontarget, anythreshold,
     # Store list of rejects or retains, whichever is shorter
     store = []
     if len(rejects) < 0.5 * len(asvs):
-        ('rejects', actualrejects)
+        store = ('rejects', actualrejects)
     else:
-        ('retain', asvs - actualrejects )
+        store = ('retain', asvs - actualrejects )
     
     # score, stats, estimates, hash, store
     rejects = tuple(sorted(actualrejects))
