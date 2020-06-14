@@ -5,6 +5,7 @@
 #
 #   Note that any lines starting with # or that are completely blank are ignored
 #   Any spaces or newlines in other lines are ignored
+#
 #####
 #
 # 1. Categories
@@ -15,11 +16,11 @@
 #        "clade" = the clade assignment of a haplotype
 #        "taxon" = the taxon assignment of a haplotype
 #
-# Binning specification must start with either "total" or "library".
-# Counts will be further subdivided by any assignment term(s).
-# For example: "total|clade" will bin reads by clade over the dataset
-#       "library" will use the per-library haplotype reads
-#       "library|taxon+clade" will bin reads by unique clade and taxon within each library
+#   Binning specification must start with either "total" or "library".
+#   Counts will be further subdivided by any assignment term(s).
+#   For example: "total|clade" will bin reads by clade over the dataset
+#                "library" will use the per-library haplotype reads
+#                "library|taxon+clade" will bin reads by unique clade and taxon within each library
 #
 ######
 #
@@ -32,12 +33,11 @@
 #####
 #
 # 3. Thresholds
-#   Thresholds for designating numts can be specified as a single value or a range of values, or a set
-#   of single values or ranges
-#   Ranges are specified in the form "start-stop/nsteps", i.e. 1-2/5 will run with threshold values of
-#   [1, 1.25. 1.5, 1.75, 2]
-#   Sets are specified in the form "a,b,c", and can be single values or ranges, for example
-#   "1,2,3,4-10/4" will expand to [1, 2, 3, 4, 6, 8, 10]
+#   Thresholds for designating NUMTs can be specified as a single value, a range of values, or mixture
+#   Ranges are specified in the form "start-stop/nsteps", i.e. [1-2/5] will run with threshold values
+#   of [1, 1.25. 1.5, 1.75, 2]
+#   Multiple values or ranges are specified in the form "a,b,c",where a, b, and c can each be single 
+#   values or ranges, for example [1,2,3,4-10/4] will expand to [1, 2, 3, 4, 6, 8, 10]
 #
 #####
 #
@@ -48,8 +48,8 @@
 #   
 #      [total; n; 2-10/5]
 #   
-#   This line would run five iterations. In each iteration, ASVs would be designated as NUMTs if they
-#   had fewer than 2, 4, 6, 8 or 10 reads respectively in total across the entire dataset. 
+#   This specification would run five iterations. In each iteration, ASVs would be designated as NUMTs 
+#   if they fewer than 2, 4, 6, 8 or 10 reads respectively in total across the entire dataset. 
 #   
 #   Multiple sets of specifications can be compared "additively" in the same run of NUMTdumper by 
 #   including them with the + symbol
@@ -106,9 +106,11 @@
 #   
 #      B * C
 #   
-#   *Note that more strict filtering can be applied by setting --anythreshold, whereby ASVs will be
-#   filtered if they fail to meet the threshold in any library in which they occur, as opposed to the
-#   default all libraries in which they occur.
+#   *Note that more strict filtering for library-based specifications can be applied by setting --anyfail,
+#   whereby ASVs will be designated as NUMTs if they fail to meet the threshold in ~any~ library in which
+#   they occur, as opposed to the default of ~all~ libraries in which they occur. This is currently a 
+#   global setting, i.e. it applies to all specifications involving library filtering. It could be applied
+#   on a per-specification basis if there is demand.
 #
 #####
 #
@@ -117,4 +119,4 @@
 [library; n; 3-5/3,8-12/2,15-50/7,60-100/5]
 + [library; p; 0.0025,0.005-0.007/14,0.08-0.1/3]
 + [library|taxon; p; 0.001-0.4/15]
-* [library|clade; p; 0.01,0.025,0.05-0.65/12,0.75,0.9,1-4/7,5-9/5]
+* [library|clade; p; 0.0001,0.00025,0.0005-0.0065/12,0.0075,0.009,0.01-0.04/7,0.05-0.09/5]
