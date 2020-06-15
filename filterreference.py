@@ -5,13 +5,12 @@
 
 # Imports
 from Bio import AlignIO, SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 import argparse
 import os
+import shutil
 import subprocess
 import findclades
 
@@ -37,6 +36,7 @@ def blast_for_presence(queryfile, outputdirectory, subjectfile, percid, minlen,
                        threads, fail = False):
     
     # Create temporary directory
+    #TODO: create a proper temporary directory with appropriate libraries?
     outputdirectory = os.path.join(outputdirectory, "blasttemp")
     if not os.path.exists(outputdirectory):
         os.makedirs(outputdirectory)
@@ -86,7 +86,7 @@ def blast_for_presence(queryfile, outputdirectory, subjectfile, percid, minlen,
             out.append(blastrecord.query)
     
     # Clean up
-    #os.rmdir(outputdirectory)
+    shutil.rmtree(outputdirectory)
     
     return(set(out))
 

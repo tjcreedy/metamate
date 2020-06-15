@@ -45,15 +45,15 @@ def count_categories(catdict, metric):
     
     return(counts)
 
-def reject(counts, threshold, anythreshold):
+def reject(counts, threshold, anyfail):
     #counts, threshold = counts[i], t
     # Work through sets of scores
     #name = "uniq13;size=257"
     #count = counts[name]
     out = []
     for name, count in counts.items():
-        if ((anythreshold and min(count) < threshold)
-            or (not anythreshold and all(c < threshold for c in count))):
+        if ((anyfail and min(count) < threshold)
+            or (not anyfail and all(c < threshold for c in count))):
             out.append(name)
     return(out)
 

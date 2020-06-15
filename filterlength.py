@@ -33,72 +33,47 @@ parser.add_argument("--only_vary_by_codon",        help = "remove sequences that
 
 # Function definitions
 
-def resolve_length_spec(args):
+def resolve_length_spec(args, parser):
     "Resolves specifications for length filtering to just minimum and maximum"
+     # Check and calculate the length specifications
+    if args.expectedlength is not None:
+        # If a centre given, minimum and maximum should not be given
+        if args.minimumlength > 0 or args.maximumlength < float('Inf'):
+            parser.error('specify either --l/--expected length, or one/both '
+                         'of -n/--minimumlength, -x/--maximumlength')
+        # If a centre given, find the variation specified
+        nargs = 0
+        bpvar = 0
+        if args.basesvariation is not None:
+            bpvar = args.basesvariation
+            nargs += 1
+        if args.percentvariation is not None:
+            bpvar = round(args.percentvariation/100 * args.expectedlength)
+            nargs += 1
+        if args.codonsvariation is not None:
+            bpvar = 3 * args.basesvariation
+            nargs += 1
+        nargerr = ('specify one of -b/--basesvariation, '
+                   '-p/--percentvariation, -c/--codonsvariation')
+        # Throw error if more than one variation is specified
+        if nargs > 1:
+            parser.error(f"only {nargerr}")
+        # Throw error if no variation is specified but vary by codon is set
+        elif nargs == 0 and args.onlyvarybycodon:
+            parser.error(f"must {nargerr} if setting --onlyvarybycodon")
+        # Compute the corrected minimum and maximum
+        args.minimumlength = args.expectedlength - bpvar
+        args.maximumlength = args.expectedlength + bpvar
     
-    # Create dictionary of length specifications
-    
-    length_spec = {}
-    ml = float('Inf')
-    if args.minimumlength > 0:    length_spec["min_bp"] = args.minimumlength
-    if args.maximumlength < ml:   length_spec["max_bp"] = args.maximumlength
-    if args.expectedlength > 0:   length_spec["len_bp"] = args.expectedlength
-    if args.basesvariation > 0:   length_spec["var_bp"] = args.basesvariation
-    if args.percentvariation > 0: length_spec["var_pc"] = args.percentvariation
-    if args.percentvariation > 0: length_spec["var_cdn"] = args.codonsvariation
-    
-    # Set defaults
-    min_bp_out = 0
-    max_bp_out = float('Inf')
-    
-    # Compute some useful values for checking specifications
-    n_specs = len(length_spec)
-    min_max_n = ["min_bp" in length_spec, "max_bp" in length_spec].count(True)
-    
-    # Check that the specifications match the allowable sets:
-        # No specifications at all
-        # One of minimum, maximum or specified length
-        # Either minimum and maximum, or specified length and a variation around it
-    if not (n_specs == 0
-            or (n_specs == 1 and (min_max_n == 1 or "len_bp" in length_spec))
-            or (( n_specs == 2 and  min_max_n == 2)
-                 or ("len_bp" in length_spec and min_max_n == 0 ))):
-        sys.exit("Error: insufficient or unclear length specification")
-    if n_specs == 0:
-        sys.stderr.write("Warning: no length specification supplied, all"
-                         "sequences will pass filtering")
-    
-    # Overwrite min or max values if supplied
-    if "min_bp" in length_spec: min_bp_out = length_spec["min_bp"]
-    if "max_bp" in length_spec: max_bp_out = length_spec["max_bp"]
-    
-    # Set min or max values if length specified
-    if "len_bp" in length_spec:
-        # Set default
-        var_bp = 0
-        
-        # Overwrite with (calculated) value if variation specified
-        if "var_bp" in length_spec:
-            var_bp = length_spec["var_bp"]
-        elif "var_pc" in length_spec:
-            var_bp = round((length_spec["var_pc"]/100) * length_spec["len_bp"])
-        elif "var_cdn" in length_spec:
-            var_bp = length_spec["var_cdn"] * 3
-        
-        # Overwrite min or max values
-        min_bp_out = length_spec["len_bp"] - var_bp
-        max_bp_out = length_spec["len_bp"] + var_bp
-    
-    # Return final values
-    return (min_bp_out, max_bp_out)
+    lset = args.minimumlength > 0 or args.maximumlength < float('Inf')
+    return(args, lset)
 
 def check_length(seqrecord, minmaxbp, lenbp, varbycodon = False):
     "Checks if a sequence record (or sequence string) passes or fails the length specifications"
     
     # Check length is ok
     if lenbp == 0 and varbycodon:
-        sys.exit("Error: check_length requires len_bp > 0 "
-                 "if varbycodon == True")
+        sys.exit("Error: check_length requires lenbp > 0 if varbycodon True")
     
     # Find length
     currlen = len(seqrecord)
