@@ -266,7 +266,7 @@ def getcliargs(arglist = None):
                                                'specifications.txt')
             sys.stderr.write( "Warning: -S/--specifications not supplied, "
                               "falling back to the default specifications in "
-                             f"{args.specifications}\n")
+                             f"{args.specification}\n")
         if not args.libraries:
             parser.error('-L/--libraries is required for NUMT finding')
         # Ensure at least one reference is supplied
