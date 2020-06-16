@@ -182,7 +182,7 @@ def get_validated(raw, args, filename):
     
     # Finalise nontargets
     nontarget = set(nontargetlength + nontargettrans)
-    overlap = nontargetlength.union(nontargettrans)
+    overlap = set(nontargetlength).union(set(nontargettrans))
     if len(nontarget) > 0:
         sys.stdout.write(f"Designating a total of {len(nontarget)} unique "
                          f"ASVs as non-target ({len(overlap)} found in both "
