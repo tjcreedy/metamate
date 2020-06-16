@@ -262,7 +262,7 @@ def getcliargs(arglist = None):
     if args.action == 'find':
         # Ensure a value is supplied to libraries
         if not args.specification :
-            args.specification = os.path.join(os.path.realpath(__file__),
+            args.specification = os.path.join(os.path.dirname(__file__),
                                                'specifications.txt')
             sys.stderr.write( "Warning: -S/--specifications not supplied, "
                               "falling back to the default specifications in "
