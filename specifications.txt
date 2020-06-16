@@ -44,7 +44,8 @@
 #    Structuring specifications
 #
 #   A set of these three specifications (category(/ies), metric, threshold(s)) is written within square
-#   brackets, with the three parts separated by semicolons, for example (spaces are ignored):
+#   brackets, with the three parts separated by semicolons, and any spaces are ignored.
+#   For example:
 #   
 #      [total; n; 2-10/5]
 #   
