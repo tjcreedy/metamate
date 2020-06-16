@@ -10,7 +10,6 @@ from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 import argparse
 import os
-import shutil
 import subprocess
 import findclades
 
@@ -32,14 +31,17 @@ parser.add_argument("-i", "--match_percent", help = "the minimum percent identit
 
 # Function definitons
 
-def blast_for_presence(queryfile, outputdirectory, subjectfile, percid, minlen,
-                       threads, fail = False):
-    
+
+def make_temp_blastwd(path, name):
     # Create temporary directory
     #TODO: create a proper temporary directory with appropriate libraries?
-    outputdirectory = os.path.join(outputdirectory, "blasttemp")
+    outputdirectory = os.path.join(path, name)
     if not os.path.exists(outputdirectory):
         os.makedirs(outputdirectory)
+    return(outputdirectory)
+
+
+def make_blastdb(subjectfile, workingdir):
     
     # Check if subjectfile is aligned
     subaln = findclades.detect_aligned(subjectfile)
@@ -47,25 +49,32 @@ def blast_for_presence(queryfile, outputdirectory, subjectfile, percid, minlen,
         alnsub  = AlignIO.read(subjectfile, "fasta")
         rawsub = findclades.degap_alignment(alnsub)
         name =  os.path.splitext(os.path.basename(subjectfile))[0]
-        rawsubpath = os.path.join(outputdirectory, f"{name}_unaligned.fa")
+        rawsubpath = os.path.join(workingdir, f"{name}_unaligned.fa")
         SeqIO.write(rawsub.values(), rawsubpath, "fasta")
         subjectfile = rawsubpath
     
     # Create blast database
-    blastdb = os.path.join(outputdirectory, "blastdb")
+    blastdb = os.path.join(workingdir, "blastdb")
     blastdbcline = f"makeblastdb -in {subjectfile} -dbtype nucl -out {blastdb}"
     blastdbprocess = subprocess.Popen(blastdbcline, shell = True, 
                                       stdout = subprocess.PIPE, 
                                       stderr = subprocess.PIPE)
     blastdbprocess.wait()
     
+    return(blastdb)
+
+
+def refmatch_blast(querypath, subjectdb, workingdir, percid, minlen, threads,
+                   fail = False):
+    #querypath, subjectdb, workingdir, percid, minlen, threads = [raw['path'], db, wd, mp, ml, args.threads]
     # Set up blast object
-    blastout = os.path.join(outputdirectory, "tempblastout.xml")
-    blastncline = NcbiblastnCommandline(query = queryfile, db = blastdb,
+    blastout = os.path.join(workingdir, "tempblastout.xml")
+    blastncline = NcbiblastnCommandline(query = querypath, db = subjectdb,
                                         evalue = 0.001, perc_identity = percid,
                                         num_threads = threads, outfmt = 5,
-                                        out = blastout)
-    
+                                        out = blastout,
+                                        max_target_seqs = 1000)
+    #print(blastncline)
     # Run blast
     stdout, stderr = blastncline()
     
@@ -85,9 +94,18 @@ def blast_for_presence(queryfile, outputdirectory, subjectfile, percid, minlen,
         if (qpass and not fail) or (not qpass and fail):
             out.append(blastrecord.query)
     
-    # Clean up
-    shutil.rmtree(outputdirectory)
+    return(set(out))
+
+
+
+def blast_for_presence(queryfile, outputdirectory, subjectfile, percid, minlen,
+                       threads, fail = False):
     
+    
+    
+    
+    
+
     return(set(out))
 
 

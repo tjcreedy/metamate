@@ -73,8 +73,9 @@ def count_asvs_in_libraries(master, librarypaths):
     else:
         nameregex = ";(?:barcodelabel|sample)=([^;]+);"
         seqn = 0
-        for seqr in SeqIO.parse(librarypaths[0], 'fasta'):
-            #seqr = next(SeqIO.parse(librarypaths[0], 'fasta'))
+        seqformat = detect_format(librarypaths[0])
+        for seqr in SeqIO.parse(librarypaths[0], seqformat):
+            #seqr = next(SeqIO.parse(librarypaths[0], seqformat))
             seqn += 1
             seq = str(seqr.seq).upper()
             if seq in asvseqs:
@@ -98,8 +99,8 @@ def count_asvs_in_libraries(master, librarypaths):
     # Check if all ASVs were in at least one master
     asvabsent = [n for n, r in master.items() if n not in countstotal['total']]
     if len(asvabsent) > 0:
-        sys.exit(f"Error: ASV(s) {', '.join(asvabsent)} were not found in the "
-                  "library file or files.\n")
+        sys.exit(f"Error: {len(asvabsent)} ASV(s) were not found in the "
+                 f"library file(s):\n{', '.join(asvabsent)}\n")
     
     # Check if all libraries had at least one match
     libabsent = [n for n in libnames if n not in countsbylibrary]

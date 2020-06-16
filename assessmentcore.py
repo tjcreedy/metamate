@@ -159,13 +159,14 @@ def parse_specfile(args, null = float('nan')):
     return(specdict, termorder, threshcombos)
 
 def get_validated(raw, args, filename):
-
+    #filname = infilename
+    
     # Create length-based control list
     sys.stdout.write("Identifying control non-target ASVs based on length.\n")
 
     nontargetlength = filterlength.check_length_multi(raw['asvs'],
                                                       [args.minimumlength,
-                                                       args.maximumlength],
+                                                      args.maximumlength],
                                                       args, fail=True)
 
     # Create translation based control list
@@ -187,23 +188,41 @@ def get_validated(raw, args, filename):
                  "filtering may have been too stringent.")
 
     # Create reference based control list
-    sys.stdout.write("Identifying control target ASVs based on references.\n")
-
-    refmatch = filterreference.blast_for_presence(raw['path'],
-                                                   args.outputdirectory,
-                                                   args.references,
-                                                   args.matchpercent,
-                                                   args.matchlength,
-                                                   args.threads)
-
+    
+    
+    wd = filterreference.make_temp_blastwd(args.outputdirectory, "blastdb")
+    refmatch = set()
+    loopvars = zip(['references', 'blast database'], 
+                   [args.references, args.blastdb])
+    for src, dat in loopvars:
+        #src, dat = list(loopvars)[0]
+        if dat is None:
+            continue
+        
+        sys.stdout.write(f"Identifying control target ASVs based on {src}...")
+        sys.stdout.flush()
+        db, mp, ml = [None, None, None]
+        
+        if src == 'references':
+            db = filterreference.make_blastdb(dat, wd) 
+            mp, ml = [args.refmatchpercent, args.refmatchlength]
+        else:
+            db = dat
+            mp, ml = [args.dbmatchpercent, args.dbmatchlength]
+        
+        candidates = filterreference.refmatch_blast(raw['path'], db, wd,
+                                                  mp, ml, args.threads)
+        sys.stdout.write(f"found {len(candidates)} candidates\n")
+        refmatch.update(candidates)
+    
     target = refmatch - nontarget
-
+    
     # Finalise targets
     if len(target) > 0:
         sys.stdout.write(f"Found {len(target)} target ASVs: {len(refmatch)} "
-                          "out of all ASVs matched to reference set, "
-                         f"{len(refmatch - target)} of these rejected due to "
-                          "inclusion in non-target set\n")
+                          "out of all ASVs matched to references and/or "
+                         f"blast database, {len(refmatch - target)} of these "
+                          "rejected due to inclusion in non-target set\n")
     else:
         err = "Error: no target ASVs found"
         if len(refmatch) > 0:
@@ -211,8 +230,9 @@ def get_validated(raw, args, filename):
                     "reference set. Length thresholds may be too stringent "
                     "and find too many non-target ASVs.")
         else:
-            err = (f"{err}. Check your reference and your reference matching "
-                    "thresholds.")
+            err = (f"{err}. Check the reference file and/or database is "
+                   " correct and consider adjusting the matching "
+                   " thresholds (carefully!)")
         sys.exit(err)
 
     # Output file with details of targets/non-targets

@@ -204,7 +204,7 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
         else:
            sys.stdout.write(", running MAFFT FFT-NS-1 to align. This may "
                              "take some time, skip this step by supplying an "
-                             "alignment to -ASVs\n")
+                             "alignment to -A/--asvs\n")
            aligned['asvs'] = do_alignment(args.asvs, args.threads)
            aligned['path'] = outfile + "_aligned.fa"
            AlignIO.write(aligned['asvs'], aligned['path'], "fasta")
@@ -234,7 +234,7 @@ def find_clades(args, filename):
     else:
         sys.stdout.write("Making a UPGMA tree from the alignment. This may "
                          "take some time, skip this step in re-runs by "
-                         "supplying the tree to --tree\n")
+                         "supplying the tree to -T/--tree\n")
         tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel)
 
         # Output the tree

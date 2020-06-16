@@ -143,16 +143,30 @@ def getcliargs(arglist = None):
     refmatch.add_argument("-R", "--references",
                           help = "path to a fasta of known correct reference "
                                  "sequences",
-                          required = True, metavar = "path", type = str)
-    refmatch.add_argument("--matchlength",
+                          metavar = "path", type = str)
+    refmatch.add_argument("-D", "--blastdb",
+                          help = "path to a blast database, such as nt",
+                          metavar = "path", type = str)
+    refmatch.add_argument("--refmatchlength",
                           help = "the minimum alignment length to consider a "
                                  "BLAST match when comparing ASVs against "
                                  "reference sequences",
                           type = int, metavar = "n", default = 350)
-    refmatch.add_argument("--matchpercent",
+    refmatch.add_argument("--refmatchpercent",
                           help = "the minimum percent identity to consider a "
                                  "BLAST match when comparing ASVs against "
                                  "reference sequences",
+                          type = float, default = 99.5,
+                          action = Range, minimum = 0, maximum = 100)
+    refmatch.add_argument("--dbmatchlength",
+                          help = "the minimum alignment length to consider a "
+                                 "BLAST match when comparing ASVs against "
+                                 "a blast database",
+                          type = int, metavar = "n", default = 350)
+    refmatch.add_argument("--dbmatchpercent",
+                          help = "the minimum percent identity to consider a "
+                                 "BLAST match when comparing ASVs against "
+                                 "a blast database",
                           type = float, default = 100,
                           action = Range, minimum = 0, maximum = 100)
 
@@ -240,16 +254,20 @@ def getcliargs(arglist = None):
                                    "dumping NUMTs. If provided via CLI, "
                                    "each [] string must be quoted",
                             metavar = "'[C(s);M;T]'", type = str, nargs = '*')
-
+    
     args = parser.parse_args(arglist) if arglist else parser.parse_args()
-
+    
     # Check for all required variables
-
+    
     if args.action == 'find':
         # Ensure a value is supplied to libraries
         if not args.libraries:
             parser.error('-L/--libraries is required for NUMT finding')
-
+        # Ensure at least one reference is supplied
+        if not args.references and not args.blastdb:
+            parser.error('at least one of -R/--references and/or '
+                         '-D/--blastdb is required for NUMT finding')
+        
         # Check the length specification
         args, lset = filterlength.resolve_length_spec(args, parser)
         if not lset:
@@ -282,32 +300,33 @@ def getcliargs(arglist = None):
     return(args)
 
 kwargs = {
-# 'al' : ['find',
-#            '-A', '6_coleoptera_fftnsi.fasta',
-#            '-R', 'dummy_reference.fasta',
-# #        #'-L', 'merge_fixed/10D_F_C2_.fasta', 'merge_fixed/10S_F_B5_.fasta', 'merge_fixed/11D_F_D2_.fasta', 'merge_fixed/11S_F_C5_.fasta', 'merge_fixed/12D_G_E2_.fasta', 'merge_fixed/12S_G_D5_.fasta', 'merge_fixed/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge_fixed/14D_G_G2_.fasta', 'merge_fixed/14S_G_E5_.fasta', 'merge_fixed/15D_F_H2_.fasta', 'merge_fixed/15S_F_G5_.fasta', 'merge_fixed/16D_F_A3_.fasta', 'merge_fixed/16S_F_F5_.fasta', 'merge_fixed/17D_F_B3_.fasta', 'merge_fixed/17S_F_E6_.fasta', 'merge_fixed/18D_F_C3_.fasta', 'merge_fixed/18S_F_F6_.fasta', 'merge_fixed/19D_G_B2_.fasta', 'merge_fixed/19S_G_H5_.fasta', 'merge_fixed/1D_F_A1_.fasta', 'merge_fixed/1S_F_A4_.fasta', 'merge_fixed/20D_F_D3_.fasta', 'merge_fixed/20S_F_C6_.fasta', 'merge_fixed/21D_F_E3_.fasta', 'merge_fixed/21S_F_H6_.fasta', 'merge_fixed/22D_G_G3_.fasta', 'merge_fixed/22S_G_A6_.fasta', 'merge_fixed/23D_F_F3_.fasta', 'merge_fixed/23S_F_D6_.fasta', 'merge_fixed/24D_G_H3_.fasta', 'merge_fixed/24S_G_B6_.fasta', 'merge_fixed/2D_F_B1_.fasta', 'merge_fixed/2S_F_B4_.fasta', 'merge_fixed/3D_F_C1_.fasta', 'merge_fixed/3S_F_C4_.fasta', 'merge_fixed/4D_G_D1_.fasta', 'merge_fixed/4S_G_D4_.fasta', 'merge_fixed/5D_G_E1_.fasta', 'merge_fixed/5S_G_E4_.fasta', 'merge_fixed/6D_G_F1_.fasta', 'merge_fixed/6S_G_F4_.fasta', 'merge_fixed/7D_G_G1_.fasta', 'merge_fixed/7S_G_H4_.fasta', 'merge_fixed/8D_G_H1_.fasta', 'merge_fixed/8S_G_G4_.fasta', 'merge_fixed/9D_G_A2_.fasta', 'merge_fixed/9S_G_A5_.fasta', 'merge_fixed/N_DOM_REPS_A7_.fasta', 'merge_fixed/N_GRA_A7_.fasta',
-#         '-L', 'merge/T4.fastq', 'merge/T6.fastq', 'merge/T7.fastq', 'merge/T8.fastq', 'merge/T9.fastq', 'merge/T10.fastq', 'merge/T11.fastq', 'merge/T12.fastq', 'merge/T13.fastq', 'merge/T14.fastq', 'merge/T15.fastq', 'merge/T16.fastq',
-#         '-S', 'specifications.txt',
-#         '-o', 'numtdumper/',
-#         '-l', '418',
-#         '-p', '0',
-#         '-s', '5',
-#         '-t', '4',
-#         '--realign',
-#         '--matchpercent', '99.5',
-#         '-g'#,
-# #    #    '-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'
-#         ],
+'al' : ['find',
+            '-A', '6_coleoptera_fftnsi.fasta',
+            '-R', 'dummy_reference.fasta',
+#        #'-L', 'merge_fixed/10D_F_C2_.fasta', 'merge_fixed/10S_F_B5_.fasta', 'merge_fixed/11D_F_D2_.fasta', 'merge_fixed/11S_F_C5_.fasta', 'merge_fixed/12D_G_E2_.fasta', 'merge_fixed/12S_G_D5_.fasta', 'merge_fixed/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge_fixed/14D_G_G2_.fasta', 'merge_fixed/14S_G_E5_.fasta', 'merge_fixed/15D_F_H2_.fasta', 'merge_fixed/15S_F_G5_.fasta', 'merge_fixed/16D_F_A3_.fasta', 'merge_fixed/16S_F_F5_.fasta', 'merge_fixed/17D_F_B3_.fasta', 'merge_fixed/17S_F_E6_.fasta', 'merge_fixed/18D_F_C3_.fasta', 'merge_fixed/18S_F_F6_.fasta', 'merge_fixed/19D_G_B2_.fasta', 'merge_fixed/19S_G_H5_.fasta', 'merge_fixed/1D_F_A1_.fasta', 'merge_fixed/1S_F_A4_.fasta', 'merge_fixed/20D_F_D3_.fasta', 'merge_fixed/20S_F_C6_.fasta', 'merge_fixed/21D_F_E3_.fasta', 'merge_fixed/21S_F_H6_.fasta', 'merge_fixed/22D_G_G3_.fasta', 'merge_fixed/22S_G_A6_.fasta', 'merge_fixed/23D_F_F3_.fasta', 'merge_fixed/23S_F_D6_.fasta', 'merge_fixed/24D_G_H3_.fasta', 'merge_fixed/24S_G_B6_.fasta', 'merge_fixed/2D_F_B1_.fasta', 'merge_fixed/2S_F_B4_.fasta', 'merge_fixed/3D_F_C1_.fasta', 'merge_fixed/3S_F_C4_.fasta', 'merge_fixed/4D_G_D1_.fasta', 'merge_fixed/4S_G_D4_.fasta', 'merge_fixed/5D_G_E1_.fasta', 'merge_fixed/5S_G_E4_.fasta', 'merge_fixed/6D_G_F1_.fasta', 'merge_fixed/6S_G_F4_.fasta', 'merge_fixed/7D_G_G1_.fasta', 'merge_fixed/7S_G_H4_.fasta', 'merge_fixed/8D_G_H1_.fasta', 'merge_fixed/8S_G_G4_.fasta', 'merge_fixed/9D_G_A2_.fasta', 'merge_fixed/9S_G_A5_.fasta', 'merge_fixed/N_DOM_REPS_A7_.fasta', 'merge_fixed/N_GRA_A7_.fasta',
+        #'-L', 'merge/T4.fastq', 'merge/T6.fastq', 'merge/T7.fastq', 'merge/T8.fastq', 'merge/T9.fastq', 'merge/T10.fastq', 'merge/T11.fastq', 'merge/T12.fastq', 'merge/T13.fastq', 'merge/T14.fastq', 'merge/T15.fastq', 'merge/T16.fastq',
+        '-L', '1_concat.fastq',
+        '-S', '/home/thomas/Documents/programming/bioinformatics/numtdumper/specifications.txt',
+        '-o', 'livetest/',
+        '-l', '418',
+        '-p', '0',
+        '-s', '5',
+        '-t', '2',
+        #'--realign',
+        '--refmatchpercent', '100'#,
+        #'-g'#,
+#    #    '-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'
+        ],
 # 'al' : ['dump', 
 #         '-A', '6_coleoptera.fasta', 
 #         '-C', 'test1/6_coleoptera_resultcache',
 #         '-i', '43',
 #         '-f', 'test8.fa'],
-'al' : ['dump',
-        '-A', '6_coleoptera.fasta',
-        '-S', '[library; n; 3]', '[library; p; 0.0025]',
-        '[library|clade; p; 0.04]',
-        '-f', 'test10.fa'],
+# 'al' : ['dump',
+#         '-A', '6_coleoptera.fasta',
+#         '-S', '[library; n; 3]', '[library; p; 0.0025]',
+#         '[library|clade; p; 0.04]',
+#         '-f', 'test10.fa'],
 'sd' : "/home/thomas/Documents/programming/bioinformatics/numtdumper/",
 'wd' : "/home/thomas/seqtesting/NUMTdumper/amm/"
 }
@@ -329,7 +348,7 @@ def main(**kwargs):
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
     outfilename = infilename
-    if args.outfasta:
+    if args.action == 'dump' and args.outfasta:
         outfilename = os.path.splitext(os.path.basename(args.outfasta))[0]
     
     # Make the output directory
@@ -393,18 +412,18 @@ def main(**kwargs):
         taxa = findtaxa.parse_taxa(args.taxgroups, raw['asvs'].keys())
     else:
         taxa = findtaxa.dummy_taxa(raw['asvs'].keys())
-
+    
     ########################################
     # COMPUTE LIBRARY AND TOTAL READCOUNTS #
     ########################################
-
+    
     sys.stdout.write("Matching library reads to ASVs to generate library ASV "
                      "counts.\n")
-
+    
     librarycounts, totalcounts = findlibraries.count_asvs_in_libraries(
                                                                raw['asvs'],
                                                                args.libraries)
-
+    
     # Output csv of library counts
     categorycounting.write_count_dict(librarycounts, raw['asvs'].keys(),
                                     os.path.join(args.outputdirectory,
