@@ -122,7 +122,7 @@ def getcliargs(arglist = None):
     findparser.add_argument("-S", "--specification",
                             help = "path to a text file detailing the read "
                                    "count binning strategy and thresholds",
-                            required = True, metavar = "path", type = str)
+                            metavar = "path", type = str)
     findparser.add_argument("-g", "--generateASVresults",
                             help = "generate fasta files of retained ASVs for "
                                    "for threshold sets: if no value is given, "
@@ -261,13 +261,18 @@ def getcliargs(arglist = None):
     
     if args.action == 'find':
         # Ensure a value is supplied to libraries
+        if not args.specifications :
+            args.specifications = os.path.join(os.path.realpath(__file__),
+                                               'specifications.txt')
+            sys.stderr.write( "Warning: -S/--specifications not supplied, "
+                              "falling back to the default specifications in "
+                             f"{args.specifications}\n")
         if not args.libraries:
             parser.error('-L/--libraries is required for NUMT finding')
         # Ensure at least one reference is supplied
         if not args.references and not args.blastdb:
             parser.error('at least one of -R/--references and/or '
                          '-D/--blastdb is required for NUMT finding')
-        
         # Check the length specification
         args, lset = filterlength.resolve_length_spec(args, parser)
         if not lset:
