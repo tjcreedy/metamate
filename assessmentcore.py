@@ -182,7 +182,7 @@ def get_validated(raw, args, filename):
     
     # Finalise nontargets
     nontarget = set(nontargetlength + nontargettrans)
-    overlap = set(nontargetlength).union(set(nontargettrans))
+    overlap = set(nontargetlength).intersection(set(nontargettrans))
     if len(nontarget) > 0:
         sys.stdout.write(f"Designating a total of {len(nontarget)} unique "
                          f"ASVs as non-target ({len(overlap)} found in both "
@@ -220,7 +220,7 @@ def get_validated(raw, args, filename):
         sys.stdout.write(f"found {len(candidates)} candidates\n")
         allcandidates.extend(candidates)
     
-    refmatch = set(candidates)
+    refmatch = set(allcandidates)
     target = refmatch - nontarget
     
     # Finalise targets
