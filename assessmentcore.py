@@ -162,27 +162,31 @@ def get_validated(raw, args, filename):
     #filname = infilename
     
     # Create length-based control list
-    sys.stdout.write("Identifying control non-target ASVs based on length.\n")
-
+    sys.stdout.write("Identifying control non-target ASVs based on length...")
+    
     nontargetlength = filterlength.check_length_multi(raw['asvs'],
                                                       [args.minimumlength,
                                                       args.maximumlength],
                                                       args, fail=True)
-
+    
+    sys.stdout.write(f"found {len(nontargetlength)} candidates\n")
+    
     # Create translation based control list
     sys.stdout.write("Identifying control non-target ASVs based on "
-                     "translation.\n")
-
+                     "translation...")
+    
     nontargettrans = filtertranslate.check_stops_multi(raw['asvs'], args,
                                                        fail = True)
-
+    
+    sys.stdout.write(f"found {len(nontargettrans)} candidates\n")
+    
     # Finalise nontargets
     nontarget = set(nontargetlength + nontargettrans)
-
+    overlap = nontargetlength.union(nontargettrans)
     if len(nontarget) > 0:
-        sys.stdout.write(f"Found {len(nontarget)} non-target ASVs: "
-                         f"{len(nontargetlength)} based on length variation "
-                         f"and {len(nontargettrans)} based on translation.\n")
+        sys.stdout.write(f"Designating a total of {len(nontarget)} unique "
+                         f"ASVs as non-target ({len(overlap)} found in both "
+                          "sets)\n")
     else:
         sys.exit("Error: no non-target ASVs could be found. Prior data "
                  "filtering may have been too stringent.")
@@ -191,7 +195,7 @@ def get_validated(raw, args, filename):
     
     
     wd = filterreference.make_temp_blastwd(args.outputdirectory, "blastdb")
-    refmatch = set()
+    allcandidates = []
     loopvars = zip(['references', 'blast database'], 
                    [args.references, args.blastdb])
     for src, dat in loopvars:
@@ -211,24 +215,28 @@ def get_validated(raw, args, filename):
             mp, ml = [args.dbmatchpercent, args.dbmatchlength]
         
         candidates = filterreference.refmatch_blast(raw['path'], db, wd,
-                                                  mp, ml, args.threads)
+                                                    mp, ml, args.threads)
+        
         sys.stdout.write(f"found {len(candidates)} candidates\n")
-        refmatch.update(candidates)
+        allcandidates.extend(candidates)
     
+    refmatch = set(candidates)
     target = refmatch - nontarget
     
     # Finalise targets
     if len(target) > 0:
-        sys.stdout.write(f"Found {len(target)} target ASVs: {len(refmatch)} "
-                          "out of all ASVs matched to references and/or "
-                         f"blast database, {len(refmatch - target)} of these "
-                          "rejected due to inclusion in non-target set\n")
+        sys.stdout.write(f"Designating a total of {len(target)} unique ASVs "
+                         f"as target ({len(refmatch)} unique matched to "
+                          "references and/or blast database, "
+                         f"{len(refmatch - target)} rejected due to inclusion "
+                          "in non-target set)\n")
     else:
         err = "Error: no target ASVs found"
         if len(refmatch) > 0:
             err = (f"{err}, although {len(refmatch)} ASVs matched to "
                     "reference set. Length thresholds may be too stringent "
-                    "and find too many non-target ASVs.")
+                    "and find too many non-target ASVs, or reference dataset "
+                    "is not sufficiently curated")
         else:
             err = (f"{err}. Check the reference file and/or database is "
                    " correct and consider adjusting the matching "
