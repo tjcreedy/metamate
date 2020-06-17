@@ -13,10 +13,10 @@ The development of this tool was supported by the iBioGen project, funded by the
 ## Table of contents
 * [How NUMTdumper works](#how-numtdumper-works)
 * [Installation](#installation)
-* [General usage](#usage)
+* [Usage](#usage)
   + [Input data](#input-data)
   + [find](#find)
-  + [Output data](#output-data)
+  + [Outputs](#outputs)
   + [dump](#dump)
 * [Details](#details)
   + [Identifying non-targets](#identifying-validated-non-target-ASVs)
@@ -25,3 +25,31 @@ The development of this tool was supported by the iBioGen project, funded by the
   + [ASV assessment](#asv-assessment)
   + [Scoring and estimation](#scoring-and-estimation)
 * [Development](#development)
+
+## How NUMTdumper works
+
+## Installation
+
+## Usage
+
+### Input data
+
+### ```find```
+
+### Outputs
+
+### ```dump```
+
+## Details
+
+### Identifying validated non-target ASVs
+
+### Identifying validated target ASVs
+
+### Generating clades
+
+### ASV assessment
+
+### Scoring and estimation
+
+## Development
