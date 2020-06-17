@@ -156,7 +156,7 @@ def getcliargs(arglist = None):
                           help = "the minimum percent identity to consider a "
                                  "BLAST match when comparing ASVs against "
                                  "reference sequences",
-                          type = float, default = 99.5,
+                          type = float, default = 99.9,
                           action = Range, minimum = 0, maximum = 100)
     refmatch.add_argument("--dbmatchlength",
                           help = "the minimum alignment length to consider a "
