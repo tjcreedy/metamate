@@ -16,6 +16,7 @@ import numpy
 import itertools
 import os
 import sys
+import shutil
 
 # Global variables
 
@@ -185,8 +186,8 @@ def get_validated(raw, args, filename):
     overlap = set(nontargetlength).intersection(set(nontargettrans))
     if len(nontarget) > 0:
         sys.stdout.write(f"Designating a total of {len(nontarget)} unique "
-                         f"ASVs as non-target ({len(overlap)} found in both "
-                          "sets)\n")
+                         f"ASVs as non-target ({len(overlap)} were found in "
+                          "both sets)\n")
     else:
         sys.exit("Error: no non-target ASVs could be found. Prior data "
                  "filtering may have been too stringent.")
@@ -219,6 +220,8 @@ def get_validated(raw, args, filename):
         
         sys.stdout.write(f"found {len(candidates)} candidates\n")
         allcandidates.extend(candidates)
+    
+    shutil.rmtree(wd)
     
     refmatch = set(allcandidates)
     target = refmatch - nontarget
@@ -392,7 +395,7 @@ def write_stats_and_cache(terms, thresholds, scores, filename, outdir):
             "asvsactual_rejected_n asvsactual_rejected_p "
             "inputtargets_total_estimate inputnontargets_total_estimate "
             "outputtargets_total_estimate "
-            "outputtargets_total_estimate rejects_hash").split(" ")
+            "outputnontargets_total_estimate rejects_hash").split(" ")
 
     sh.write(",".join(["resultset"]
                       + [s + "_threshold" for s in terms]
