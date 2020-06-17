@@ -15,9 +15,9 @@ The development of this tool was supported by the iBioGen project, funded by the
 * [Installation](#installation)
 * [Usage](#usage)
   + [Input data](#input-data)
-  + [find](#find)
+  + [`find`](#find)
   + [Outputs](#outputs)
-  + [dump](#dump)
+  + [`dump`](#dump)
 * [Details](#details)
   + [Identifying non-targets](#identifying-validated-non-target-ASVs)
   + [Identifying targets](#identifying-validated-target-ASVs)
@@ -34,11 +34,11 @@ The development of this tool was supported by the iBioGen project, funded by the
 
 ### Input data
 
-### ```find```
+### `find`
 
 ### Outputs
 
-### ```dump```
+### `dump`
 
 ## Details
 
