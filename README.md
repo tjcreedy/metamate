@@ -42,7 +42,11 @@ b) Finding ASVs that fall outside acceptable length or translation parameters
 3. Bin ASVs according to the specified binning strategies and generate counts of ASV reads within these bins
 4. For each specified set of thresholds, assess all ASVs for retention or rejection according to their binned read frequencies
 5. Output a report detailing counts of ASV rejection and retention overall and for the two control groups, over all thresholds.
+
+
 This report can then be easily interrogated by the user according to project-specific requirements to balance rejection and retention. 
+
+
 A `dump` run is used to enact a single desired threshold set, either by providing the results from a `find` run and selecting the desired threshold set output, or by providing an ASV set and other inputs, and a single threshold specification.
 
 ## Installation
