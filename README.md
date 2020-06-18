@@ -53,7 +53,7 @@ A `dump` run is used to enact a single desired threshold set, either by providin
 
 Currently NUMTdumper is supplied as a set of python and R scripts. You can install by downloading and unpacking this repository. You should ensure that you have all of the dependencies listed below installed and accessible on the PATH. 
 
-Then you simply need to run `python3 ./numtdumper/numtdumper.py`. 
+Then you simply need to run `python3 ./numtdumper/numtdumper.py`
 
 We plan to build an automatic installer and complete package soon.
 
