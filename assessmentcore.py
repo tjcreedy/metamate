@@ -18,6 +18,7 @@ import os
 import sys
 import shutil
 import functools
+import gzip
 
 # Global variables
 
@@ -162,6 +163,10 @@ def parse_specs(args, null = float('nan')):
         terms.append([specl, nthresh])
         threshlists.append(threshl)
     nterm = len(terms)
+    
+    if args.action == 'dump' and nthresh > 1:
+        sys.exit("Error: mode 'dump' allows only a single threshold set. To "
+                 "run wih multiple threshold sets, use mode 'find'\n")
     
     # Construct generators
     terms = (l for t, c in terms for l in [t] * c)
@@ -388,10 +393,10 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
 def write_stats_and_cache(specs, scores, terms, filename, outdir):
     
     sh = open(os.path.join(outdir,f"{filename}_scores.csv"), 'w')
-    ch = open(os.path.join(outdir,f"{filename}_resultcache"), 'w')
+    ch = gzip.open(os.path.join(outdir,f"{filename}_resultcache"), 'wt')
     
     # Write header
-    head = ("score asvs_total targets_total nontargets_total "
+    head = ("score asvs_total targets_total_observed nontargets_total_observed"
             "asvsprelim_retained_n asvsprelim_retained_p "
             "asvsprelim_rejected_n asvsprelim_rejected_p "
             "targets_retained_n targets_retained_p "
@@ -400,9 +405,9 @@ def write_stats_and_cache(specs, scores, terms, filename, outdir):
             "nontargets_rejected_n nontargets_rejected_p "
             "asvsactual_retained_n asvsactual_retained_p "
             "asvsactual_rejected_n asvsactual_rejected_p "
-            "inputtargets_total_estimate inputnontargets_total_estimate "
-            "outputtargets_total_estimate "
-            "outputnontargets_total_estimate rejects_hash").split(" ")
+            "targets_total_estimate nontargets_total_estimate "
+            "targets_retained_estimate nontargets_retained_estimate "
+            "rejects_hash").split(" ")
     
     sh.write(",".join(["resultset", "term"]
                       + [s + "_threshold" for s in specs['name']]
@@ -412,8 +417,8 @@ def write_stats_and_cache(specs, scores, terms, filename, outdir):
     for i, term, score in zip(its.count(), terms, scores):
         sh.write(",".join(str(v) for v in [i, '*'.join(term)] + score[:-1])
                  +'\n')
-        ch.write("\t".join([str(i), score[-1][0]] + list(score[-1][1]))
-                 +'\n')
+        chout = "\t".join([str(i), score[-1][0]] + list(score[-1][1])) +'\n'
+        ch.write(chout)
     
     sh.close()
     ch.close()
@@ -465,7 +470,7 @@ def write_resultset_asvs(asvs, filename, infile, outdir, resultsets, store,
 
 def parse_resultcache(path, asvs):
     #path, asvs = [args.resultcache, set(raw['asvs'].keys())]
-    fh = open(path, 'r')
+    fh = gzip.open(path, 'rt')
     store = []
     for i, line in enumerate(fh):
         #i, line = next(enumerate(fh))

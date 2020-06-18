@@ -87,8 +87,12 @@ def getcliargs(arglist = None):
     core.add_argument("-o", "--outputdirectory",
                       help = "output directory (default is current directory)",
                       default = os.getcwd(), metavar = "path/")
-    core.add_argument("-a", "--realign",
+    core.add_argument("--realign",
                       help = "force (re)alignment of the input ASVs",
+                      action = "store_true", default = False)
+    core.add_argument("--overwrite",
+                      help = "force overwriting of output file or directory "
+                             "if it already exists",
                       action = "store_true", default = False)
 
         # Clade finder variables
@@ -150,8 +154,9 @@ def getcliargs(arglist = None):
     refmatch.add_argument("--refmatchlength",
                           help = "the minimum alignment length to consider a "
                                  "BLAST match when comparing ASVs against "
-                                 "reference sequences",
-                          type = int, metavar = "n", default = 350)
+                                 "reference sequences (default is 80% of "
+                                 "[calculated value of] -n/--minimumlength)",
+                          type = int, metavar = "n")
     refmatch.add_argument("--refmatchpercent",
                           help = "the minimum percent identity to consider a "
                                  "BLAST match when comparing ASVs against "
@@ -161,8 +166,9 @@ def getcliargs(arglist = None):
     refmatch.add_argument("--dbmatchlength",
                           help = "the minimum alignment length to consider a "
                                  "BLAST match when comparing ASVs against "
-                                 "a blast database",
-                          type = int, metavar = "n", default = 350)
+                                 "a blast database (default is 80% of "
+                                 "[calculated value of] -n/--minimumlength)",
+                          type = int, metavar = "n")
     refmatch.add_argument("--dbmatchpercent",
                           help = "the minimum percent identity to consider a "
                                  "BLAST match when comparing ASVs against "
@@ -278,7 +284,13 @@ def getcliargs(arglist = None):
         if not lset:
             parser.error('supply some length-based non-target identification '
                          'specifications')
-
+        # Set the matchlength defaults
+        if not args.dbmatchlength and args.blastdb:
+            args.dbmatchlength = int(0.8 * args.minimumlength)
+        if not args.refmatchlength and args.references:
+            args.refmatchlength = int(0.8 * args.minimumlength)
+        args.outfasta = None
+    
     elif args.action == 'dump':
         ressum = sum([args.resultcache is not None,
                       args.resultindex is not None])
@@ -301,6 +313,13 @@ def getcliargs(arglist = None):
                          'to -i/--resultindex. Supply -o/--outputdirectory '
                          'instead')
             args.outfasta = None
+    
+    if not args.overwrite:
+        for a, t in zip([args.outputdirectory, args.outfasta],
+                        ['-o/--outputdirectory', '-f/--outfasta']):
+            if a and os.path.exists(a):
+                sys.exit(f"{t} {a} exists but --overwrite is not set.")
+    
     sys.stderr.flush()
     return(args)
 
