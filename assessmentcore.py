@@ -13,10 +13,11 @@ import filterreference
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 import re
 import numpy
-import itertools
+import itertools as its
 import os
 import sys
 import shutil
+import functools
 
 # Global variables
 
@@ -68,9 +69,9 @@ def resolve_ranges(range_string):
         else:
             rangeout.append([float(r[0])])
     # Collapse list of lists
-    return(list(itertools.chain(*rangeout)))
+    return(list(its.chain(*rangeout)))
 
-def parse_spec(spec):
+def resolve_spec(spec):
 
     values = re.sub("[\[\]]", '', spec).split(';')
     name = f"{values[0]}_{values[1]}"
@@ -92,19 +93,20 @@ def parse_spec(spec):
         and not all(t in ['taxon', 'clade'] for t in values[0][1:])):
         sys.exit(f"{err}: secondary term(s) must be \'clade\' or "
                  "\'taxon\'")
-
+        
     # Check metric is n or p
     if(not values[1] in ['n', 'p']):
         sys.exit(f"{err}: metric should be \'n\' or \'p\'")
-
+        
     # Expand thresholds to list
     values[2] = resolve_ranges(values[2])
-
+    
     return([name] + values)
 
-def parse_specfile(args, null = float('nan')):
+def parse_specs(args, null = float('nan')):
     "Parse through the specification to expand terms and thresholds"
-
+    #null = 0
+    
     if args.action == 'find':
         # Open specifications file and parse lines into specifications
         fh = open(args.specification, 'r')
@@ -119,45 +121,53 @@ def parse_specfile(args, null = float('nan')):
     elif args.action == 'dump':
         spectext = '*'.join([re.sub("\'", '', s) for s in args.specification])
     
-    # Clean up and parse for additive and multiplicative specs
-    spectext = re.sub(' ', '', spectext)
-    specslist = [s.split('*') for s in spectext.split('+')]
-
-    # Find unique terms and extract thresholds
-    specdict = dict()
-    specthresholds = []
-    for specl in specslist:
-        out = dict()
-        for spec in specl:
-            l = parse_spec(spec)
-            specdict[l[0]] = {'terms': l[1],
-                              'metric': l[2]}
-            out[l[0]] = l[3]
-        specthresholds.append(out)
-    # Build all threshold combinations
-    threshcombos = []
-    termorder = list(specdict.keys())
-    for specs in specthresholds:
-        #specs = specthresholds[2]
-        thresholds = []
-        for term in termorder:
-            thresholds.append(specs[term] if term in specs else [null])
-        threshcombos.extend(itertools.product(*thresholds))
     # Check
     if( not args.taxgroups and any("taxon" in e for e in spectext)):
         sys.exit("Error, taxon specified as a binning strategy but no taxon "
                  "file supplied")
-    #Output specifications in table
-#    if args.action == 'find':
-#        filename = os.path.splitext(os.path.basename(args.asvs))[0]
-#        path = os.path.join(args.outputdirectory,
-#                            f"{filename}_specifications.csv")
-#        with open(path, 'w') as o:
-#            o.write(",".join(specdict.keys()) + "\n")
-#            for thresh in threshcombos:
-#                o.write(",".join([str(t) for t in thresh]) + "\n")
-#
-    return(specdict, termorder, threshcombos)
+    
+    # Clean up and parse for additive and multiplicative specs
+    spectext = re.sub(' ', '', spectext)
+    specslist = [s.split('*') for s in spectext.split('+')]
+    
+    # Find unique terms and extract thresholds
+    specdict = dict()
+    termvals = []
+    for specl in specslist:
+        out = dict()
+        for spec in specl:
+            l = resolve_spec(spec)
+            specdict[l[0]] = l[1:3]
+            out[l[0]] = l[3]
+        termvals.append(out)
+    
+    specs = {'name': list(specdict.keys())}
+    specs.update({k: v for k, v in zip(['spec', 'metric'], 
+                                       map(list, zip(*specdict.values())))})
+    
+    # Build all threshold combinations
+    threshlists = []
+    terms = []
+    nthresh = 0
+    for tval in termvals:
+        #tval = termvals[6]
+        specl = []
+        threshl = []
+        for spec in specs['name']:
+            threshl.append(tval[spec] if spec in tval else [null])
+            if spec in tval: specl.append(spec)
+        n = functools.reduce(lambda x, y: x * y, 
+                                   [len(t) for t in threshl], 1)
+        nthresh += n
+        terms.append([specl, nthresh])
+        threshlists.append(threshl)
+    nterm = len(terms)
+    
+    # Construct generators
+    terms = (l for t, c in terms for l in [t] * c)
+    thresholds = (t for tl in threshlists for t in its.product(*tl))
+    
+    return(specs, nterm, nthresh, terms, thresholds)
 
 def get_validated(raw, args, filename):
     #filname = infilename
@@ -191,9 +201,8 @@ def get_validated(raw, args, filename):
     else:
         sys.exit("Error: no non-target ASVs could be found. Prior data "
                  "filtering may have been too stringent.")
-
-    # Create reference based control list
     
+    # Create reference based control list
     
     wd = filterreference.make_temp_blastwd(args.outputdirectory, "blastdb")
     allcandidates = []
@@ -245,41 +254,35 @@ def get_validated(raw, args, filename):
                    " correct and consider adjusting the matching "
                    " thresholds (carefully!)")
         sys.exit(err)
-
+        
     # Output file with details of targets/non-targets
     path = os.path.join(args.outputdirectory, f"{filename}_control.txt")
     with open(path, 'w') as o:
         for cat, asv in zip(["lengthfail", "stopfail", "refpass"],
                             [nontargetlength, nontargettrans, refmatch]):
             for a in asv: o.write(f"{cat}\t{a}\n")
-
+            
     return(target, nontarget)
 
-
-def counts_from_spec(spec, data):
+def counts_from_spec(specs, data):
     """Count categories for each individual specification in a specification
     set and return a list of the category counts for each specification"""
-    # spec = specs
-
-
+    
     counts = dict()
-
+    
     # Work through specifications
-    for specname, specdict in spec.items():
-        #specname, specdict = list(spec.items())[2]
+    for name, spec, metric in zip(*specs.values()):
+        #name, spec, metric = list(zip(*specs.values()))[1]
         # Check if partitioned and do counting
-        if len(specdict['terms']) == 1 :
-            counts[specname] = categorycounting.count_categories(
-                                                    data[specdict['terms'][0]],
-                                                    specdict['metric'])
+        if len(spec) == 1 :
+            counts[name] = categorycounting.count_categories(data[spec[0]],
+                                                             metric)
         else:
-            parttermsdata = tuple( data[t] for t in specdict['terms'][1:] )
-            multicat = categorycounting.multicategory(
-                                                    data[specdict['terms'][0]],
-                                                    parttermsdata)
-            counts[specname] = categorycounting.count_categories(multicat,
-                                                            specdict['metric'])
-
+            partspecdata = tuple( data[s] for s in spec[1:] )
+            multicat = categorycounting.multicategory(data[spec[0]],
+                                                      partspecdata)
+            counts[name] = categorycounting.count_categories(multicat, metric)
+    
     return(counts)
 
 def calc_score(retained_target, target, retained_nontarget, nontarget,
@@ -311,17 +314,21 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target,
         out = ['NA', 'NA', 'NA', 'NA']
     return(out)
 
-def assess_numts(termorder, counts, anyfail,
+def assess_numts(threshnames, counts, anyfail,
                  asvs, target, nontarget, scoretype, weight,
                  thresholds):
-    rejects = apply_reject(termorder, thresholds, counts, anyfail)
+    rejects = apply_reject(threshnames, thresholds, counts, anyfail)
     stats = calc_stats(rejects, asvs, target, nontarget, scoretype, weight)
-    return(stats)
+    
+    # TODO: send thresholds + stats to a parallel writer instead, and only
+    # output sufficient information to generate resultsets
+    
+    return(list(thresholds) + stats)
 
-def apply_reject(termorder, thresholds, counts, anyfail):
+def apply_reject(threshnames, thresholds, counts, anyfail):
     rejects = []
-    for term, thresh in zip(termorder, thresholds):
-        #term, thresh = list(zip(termorder, thresholds))[3]
+    for term, thresh in zip(threshnames, thresholds):
+        #term, thresh = list(zip(threshnames, thresholds))[3]
         rejects.extend(categorycounting.reject(counts[term], thresh, anyfail))
     return(set(rejects))
 
@@ -331,13 +338,13 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
     retention, calculates scores and estimates statistics. Counts and
     thresholds should be in two lists of equal lengths, where the nth item of
     the thresholds should be the threshold count for the nth counts"""
-
+    
     # TODO: set up multithreading to write to a specs file in parallel to
     # save memory.
-
+    
     # Find all rejected_asvs across counts
     actualrejects = rejects - target
-
+    
     stats = [len(asvs),                              #0: asvs_total
              len(target),                            #1: targets_total
              len(nontarget),                         #2: nontargets_total
@@ -357,32 +364,32 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
     stats += [stats[15] / stats[0],                  #16: asvsactual_retained_p
               len(actualrejects),                    #17: asvsactual_rejected_n
               len(actualrejects) / stats[0]]         #18: asvsactual_rejected_p
-
+    
     # Calculate score
     score = calc_score(stats[8], stats[1], stats[11], stats[2],
                        scoretype, weight)
-
+    
     # Calculate estimates of 0: total input true targets, 1: total input true
     # nontargets, 2: total output true targets, 3: total output true nontargets
     estimates = estimate_true_values(stats[0], stats[3], stats[7], stats[1],
                                      stats[11], stats[2])
-
+    
     # Store list of rejects or retains, whichever is shorter
     store = []
     if len(rejects) < 0.5 * len(asvs):
         store = ('reject', actualrejects)
     else:
         store = ('retain', asvs - actualrejects )
-
+    
     # score, stats, estimates, hash, store
     rejects = tuple(sorted(actualrejects))
     return([score] + stats + estimates + [hash(rejects),  store])
 
-def write_stats_and_cache(terms, thresholds, scores, filename, outdir):
-
+def write_stats_and_cache(specs, scores, terms, filename, outdir):
+    
     sh = open(os.path.join(outdir,f"{filename}_scores.csv"), 'w')
     ch = open(os.path.join(outdir,f"{filename}_resultcache"), 'w')
-
+    
     # Write header
     head = ("score asvs_total targets_total nontargets_total "
             "asvsprelim_retained_n asvsprelim_retained_p "
@@ -396,15 +403,14 @@ def write_stats_and_cache(terms, thresholds, scores, filename, outdir):
             "inputtargets_total_estimate inputnontargets_total_estimate "
             "outputtargets_total_estimate "
             "outputnontargets_total_estimate rejects_hash").split(" ")
-
-    sh.write(",".join(["resultset"]
-                      + [s + "_threshold" for s in terms]
+    
+    sh.write(",".join(["resultset", "term"]
+                      + [s + "_threshold" for s in specs['name']]
                       + head) + '\n')
-
-
+    
     # Write lines
-    for i, (thresh, score) in enumerate(zip(thresholds, scores)):
-        sh.write(",".join(str(v) for v in [i] + list(thresh) + score[:-1])
+    for i, term, score in zip(its.count(), terms, scores):
+        sh.write(",".join(str(v) for v in [i, '*'.join(term)] + score[:-1])
                  +'\n')
         ch.write("\t".join([str(i), score[-1][0]] + list(score[-1][1]))
                  +'\n')
@@ -421,22 +427,22 @@ def get_reject_from_store(asvs, n, store):
         sys.exit(f"store type \'{store[0]}\' for resultset {n} is not "
                   "\'retain\' or \'reject\'")
 
-def find_best_score(scores):
-    #scores = stats
+def find_best_score(scores, nspec):
+    #scores, nspec = stats, len(specs['name'])
     
-    scorelist = [ s[0] for s in scores ]
+    scorelist = [ s[nspec] for s in scores ]
     sys.stdout.write(f"Minimum score of {min(scorelist)} achieved by "
                      f"{scorelist.count(min(scorelist))} threshold sets\n")
-
+    
     return(sorted(scorelist))
 
-def generate_resultsets(genval, stats, scoresort):
+def generate_resultsets(genval, stats, scoresort, nspec):
     #genval = args.generateASVresults
     i = 0
     if type(genval) is float:
         i = round(genval * len(scoresort)) - 1
     maxscore = scoresort[i]
-    return([i for i, s in enumerate(stats) if s[0] <= maxscore])
+    return([i for i, s in enumerate(stats) if s[nspec] <= maxscore])
 
 def write_retained_asvs(infile, outfile, rejects):
 

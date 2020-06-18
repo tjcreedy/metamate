@@ -390,13 +390,16 @@ def main(**kwargs):
     # READ AND PARSE FILTERING SPECIFICATIONS #
     ###########################################
     
-    specs, termorder, thresholdcombos = assessmentcore.parse_specfile(args, 0)
+    specs, nterm, nthresh, terms, thresholds = assessmentcore.parse_specs(
+                                                                      args, 0)
     
-    sys.stdout.write(f"Parsed {len(specs)} specification term"
-                     f"{'s' if len(specs) > 1 else ''}")
+    sys.stdout.write(f"Parsed {nterm} additive specification term"
+                     f"{'s' if nterm > 1 else ''}, comprising "
+                     f"{len(specs['name'])} bin strateg"
+                     f"{'ies' if len(specs['name']) > 1 else 'y'}")
     if args.action == 'find':
-        sys.stdout.write(f", {len(thresholdcombos)} threshold set"
-                         f"{'s' if len(thresholdcombos) > 1 else ''}\n")
+        sys.stdout.write(f"and totalling {nthresh} unique threshold "
+                         f"set{'s' if nthresh > 1 else ''}\n")
     else:
         sys.stdout.write('\n')
     
@@ -431,72 +434,68 @@ def main(**kwargs):
     
     # Output csv of library counts
     categorycounting.write_count_dict(librarycounts, raw['asvs'].keys(),
-                                    os.path.join(args.outputdirectory,
-                                                 f"{infilename}_ASVcounts.csv"
-                                                 ))
-
+                                      os.path.join(args.outputdirectory,
+                                      f"{infilename}_ASVcounts.csv"))
+    
     ##########################
     # DESIGNATE CONTROL SETS #
     ##########################
-
+    
     if args.action == 'find':
-        target, nontarget = assessmentcore.get_validated(raw, args, infilename)
-
+        target, nontarget = assessmentcore.get_validated(raw, args,
+                                                         infilename)
+    
     ####################
     # CONSOLIDATE DATA #
     ####################
-
+    
     data = {"total" : totalcounts,
            "library": librarycounts,
            "clade"  : clades,
            "taxon"  : taxa}
-
+    
     ##############################
     # GENERATE COUNTS AND SCORES #
     ##############################
-
+    
     # Generate category counts for each specification
     sys.stdout.write("Generating binned counts\n")
-
+    
     counts = assessmentcore.counts_from_spec(specs, data)
-
+    
     if args.action == 'find':
-
+        
         # Calculate score for threshold combination
         sys.stdout.write("Assessing counts and scoring for each threshold "
                          "combination.\n")
-
-        chunksize = math.ceil(len(thresholdcombos)/args.threads)
+        
+        chunksize = math.ceil(nthresh/args.threads)
         with Pool(processes = args.threads) as pool:
             stats = pool.map(partial(assessmentcore.assess_numts,
-                                     termorder, counts, args.anyfail,
+                                     specs['name'], counts, args.anyfail,
                                      set(raw['asvs'].keys()), target,
                                      nontarget, "standardised", 0.5),
-                             thresholdcombos, chunksize)
-
-        scoresort = assessmentcore.find_best_score(stats)
-
+                             thresholds, chunksize)
+        
+        scoresort = assessmentcore.find_best_score(stats, len(specs['name']))
+        
     elif args.action == 'dump':
-        rejects = assessmentcore.apply_reject(termorder, thresholdcombos[0],
+        rejects = assessmentcore.apply_reject(specs['name'], next(thresholds),
                                               counts, args.anyfail)
-
-
+    
     ##################
     # OUTPUT RESULTS #
     ##################
-
-    if args.action == 'find':
     
+    if args.action == 'find':
+        
+        # Output ASVs if requested
         if args.generateASVresults > 0:
-            
-            
-            
             resultsets = assessmentcore.generate_resultsets(
                                                        args.generateASVresults,
-                                                       stats, scoresort)
-            
+                                                       stats, scoresort,
+                                                       len(specs['name']))
             sys.stdout.write(f"Writing {len(resultsets)} filtered ASV files\n")
-            
             assessmentcore.write_resultset_asvs(set(raw['asvs'].keys()),
                                                 outfilename, raw['path'],
                                                 args.outputdirectory,
@@ -504,19 +503,14 @@ def main(**kwargs):
                                                 args.action, None)
         
         # Output thresholds and scores
-        
         sys.stdout.write("Writing statistics and result cache\n")
-        
-        assessmentcore.write_stats_and_cache(termorder, thresholdcombos, stats,
+        assessmentcore.write_stats_and_cache(specs, stats, terms,
                                              infilename, args.outputdirectory)
-        
         sys.stdout.write("\nNUMTs: found?\n\n")
     
     elif args.action == 'dump':
-        
         assessmentcore.write_retained_asvs(raw['path'], args.outfasta, 
                                            rejects)
-        
         sys.stdout.write("\nNUMTs: dumped\n\n")
 
 # TODO add resume points?
