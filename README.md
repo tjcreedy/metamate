@@ -16,14 +16,20 @@ The development of this tool was supported by the iBioGen project, funded by the
 * [How NUMTdumper works](#how-numtdumper-works)
 * [Installation](#installation)
 * [Usage](#usage)
-  + [Input data](#input-data)
-  + [`find`](#find)
-  + [Outputs](#outputs)
-  + [`dump`](#dump)
+  + [`find`](#find-introduction-and-examples)
+  + [`dump`](#dump-introduction-and-examples)
+  + [Core arguments](#core-arguments)
+  + [Clade delimitation and binning arguments](#clade-delimitation-and-binning-arguments)
+  + [Taxon binning arguments](#taxon-binning-arguments)
+  + [`find`-specific arguments](#find-specific-arguments)
+  + [Reference-matching arguments](#reference-matching-arguments)
+  + [Length-based arguments](#length-based-arguments)
+  + [Translation-based arguments](#translation-based-arguments)
+  + [`dump`-specific arguments](#dump-specific-arguments)
+* [Outputs](#outputs)
 * [Details](#details)
-  + [Identifying non-targets](#identifying-validated-non-target-ASVs)
-  + [Identifying targets](#identifying-validated-target-ASVs)
-  + [Generating clades](#generating-clades)
+  + [Specifications](#specifications)
+  + [Validation](#validation)
   + [ASV assessment](#asv-assessment)
   + [Scoring and estimation](#scoring-and-estimation)
 * [Development](#development)
@@ -280,7 +286,7 @@ If `-r/--readingframe` is not specified, NUMTdumper will automatically detect th
 
 If `-r/--readingframe` is not specified, NUMTdumper will automatically detect the reading frame. Higher values of this argument increase the minimum number of stops that must be encountered in all reading frames before a reading frame can be selected. In cases of very small datasets, this value may need to be reduced from the default of 100.
 
-### `find`-specific arguments
+### `dump`-specific arguments
 
 #### `-f/--outfasta path`
 
@@ -298,11 +304,11 @@ Each value of `n` should be 0 or a positive integer referring to an result set i
 
 `'[c; m; t]'` should be one or more text strings specifying terms to apply when frequency filtering. These are explained in detail below, but in brief, each term is in the format `[category(/ies); metric; threshold(s)]` where category is one or a combination of "total", "library", "clade" or "taxon", metric is one of "n" or "p", and threshold is a single value. In `dump` mode, terms are always considered simultaneously and only one threshold is permitted per term. For example, `[library|clade, p, 0.05]` would designate as NUMTs any ASVs that occurred as fewer than 5% of the reads within members of its clade within all library in which it occured.
 
-### Outputs
+## Outputs
 
 NUMTdumper returns different outputs depending on mode and arguments. Unless specified by using `-f/--outfasta`, all output files will use the same name as the input ASVs with a suffix appended.
 
-#### NUMTdumped ASV fasta-format file
+### NUMTdumped ASV fasta-format file
 
 As standard, for a given threshold set, NUMTdumper outputs those ASVs that fulfil the following conditions, in order of priority:
 1. ASV is a verified-authentic ASV
@@ -315,9 +321,9 @@ This pipeline is designed to take account of the fact that threshold specificati
 
 There are two non-standard methods that generate outputs with different conditions. Firstly, using `--anyfail` in either `find` or `dump` mode will change condition 3 to "ASV is present in a frequency equal to or exceeding all thresholds in any bins in which it occurs", see above for details.
 
-In the second case, users may optionally skip all validation and simply use mode `dump` to output a file of filtered ASVs based on a single set of term specifications and thresholds. In this case, the output ASVs are only those where the ASV is present in a frequency equal to or exceeding all thresholds in any bins in which it occurs. Thus the set of ASVs output from `find` and `dump` for the same set of term specifications and thresholds *may not be identical*, because `dump` does not perform any validation. 
+In the second case, users may optionally skip all validation and simply use mode `dump` to output a file of filtered ASVs based on a single set of term specifications and thresholds. In this case, the output ASVs are only those where the ASV is present in a frequency equal to or exceeding all thresholds in any bins in which it occurs. Thus the set of ASVs output from `find` and `dump` for the same set of term specifications and thresholds **may not be identical**, because `dump` does not perform any validation. 
 
-#### Results (`find` only)
+### Results (`find` only)
 
 The main output from NUMTdumper `find` mode is the *_results.csv file. This is a comma-delimited table that synthesises all of the results from applying all combinations of the specified terms and thresholds to the input ASVs, given the control groups of authentic- and non-authentic- ASVs. It is designed to be easily parseable and reformatable by downstream processes, in particular for analysis with R (a template for analysis is in development). Its columns comprise:
 
@@ -338,27 +344,27 @@ The main output from NUMTdumper `find` mode is the *_results.csv file. This is a
 * *targets/nontargets_retained_estimate*: the estimated number of verified authentic and verified non-authentic ASVs within those preliminarily retained, based on the calculations described below.
 * *rejects_hash*: the hashed alphabetically sorted list of actual rejected ASVs for this given set. Identical values on different rows denote those rows rejected an identical set of ASVs.
 
-#### ASV counts
+### ASV counts
 
 The *_ASVcounts.csv file is a comma-separated table recording the number of reads of each input ASV found in each library.
 
-#### Clade groupings
+### Clade groupings
 
 The *_clades.csv file is a two-column comma-separated table recording the clade grouping for each input ASV, generated by the script `get_clades.R` supplied as part of NUMTdumper.
 
-#### Control list (`find` only)
+### Control list (`find` only)
 
 The *_control.txt file is a two-column tab-separated table recording all ASVs determined to be validated-authentic or validated-non-authentic. The first column lists the reason for each determination: "lengthfail" means the ASV was too short, too long or otherwise did not fall into the range of acceptable lengths; "stopfail" means the ASV had stop codons in its amino acid translation; "refpass" means the ASV had a passing BLAST match to one of the supplied references, and did not fail either of the non-authentic tests.
 
-#### Result cache (`find` only)
+### Result cache (`find` only)
 
 The *_resultcache file is a compressed text file containing information on the ASVs rejected or retained for each of the supplied specification terms and threshold sets of a `find` run. It can be used in conjunction with the ASVs from the run and one or more result indices to extract the ASVs in a fasta file format using mode `dump`.
 
-#### Aligned/Unaligned fasta
+### Aligned/Unaligned fasta
 
 If the input ASVs were aligned, NUMTdumper unaligns (degaps) them and outputs the sequences to the *_unaligned.fa file, or vice versa if the input ASVs were unaligned.
 
-#### UPGMA tree
+### UPGMA tree
 
 Unless a tree is supplied, NUMTdumper uses the aligned ASVs to build a UPGMA tree using the script `make_tree.R` supplied as part of NUMTdumper. This is a newick-format tree that can be opened by any newick parser or tree viewing software.
 
