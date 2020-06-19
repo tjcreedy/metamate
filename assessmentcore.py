@@ -392,12 +392,12 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
 
 def write_stats_and_cache(specs, scores, terms, filename, outdir):
     
-    sh = open(os.path.join(outdir,f"{filename}_scores.csv"), 'w')
+    sh = open(os.path.join(outdir,f"{filename}_results.csv"), 'w')
     ch = gzip.open(os.path.join(outdir,f"{filename}_resultcache"), 'wt')
     
     # Write header
     head = ("score asvs_total targets_total_observed nontargets_total_observed"
-            "asvsprelim_retained_n asvsprelim_retained_p "
+            " asvsprelim_retained_n asvsprelim_retained_p "
             "asvsprelim_rejected_n asvsprelim_rejected_p "
             "targets_retained_n targets_retained_p "
             "targets_rejected_n targets_rejected_p "
@@ -409,7 +409,7 @@ def write_stats_and_cache(specs, scores, terms, filename, outdir):
             "targets_retained_estimate nontargets_retained_estimate "
             "rejects_hash").split(" ")
     
-    sh.write(",".join(["resultset", "term"]
+    sh.write(",".join(["resultindex", "term"]
                       + [s + "_threshold" for s in specs['name']]
                       + head) + '\n')
     
@@ -417,8 +417,7 @@ def write_stats_and_cache(specs, scores, terms, filename, outdir):
     for i, term, score in zip(its.count(), terms, scores):
         sh.write(",".join(str(v) for v in [i, '*'.join(term)] + score[:-1])
                  +'\n')
-        chout = "\t".join([str(i), score[-1][0]] + list(score[-1][1])) +'\n'
-        ch.write(chout)
+        ch.write('\t'.join([str(i), score[-1][0]] + list(score[-1][1])) +'\n')
     
     sh.close()
     ch.close()
