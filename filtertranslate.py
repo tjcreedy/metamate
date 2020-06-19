@@ -27,8 +27,8 @@ parser.add_argument("-r","--reading_frame",        help = "coding frame of seque
 parser.add_argument("-o","--output_directory", help = "output directory (default is current directory)", default = "./", metavar = "OUTDIR")
 parser.add_argument("-f","--onefile",        help = "rather than outputting two separate files for passing and failing sequences (the default), output sequences in one file, with the specified suffix appended to the header of failing sequences", default = False, metavar = "SUFF")
 
-parser.add_argument("-c","--detection_confidence",     help = "confidence level (0 < x < 1) for detection of reading frame (default 0.95, usually no need to change)", type = float, default = 0.95, metavar = "N")
-parser.add_argument("-m","--detection_minstops",    help = "minimum number of stops to encounter for detection (default 50, may need to decrease for few sequences)", type = int, default = 100, metavar = "N")
+parser.add_argument("-c","--detectionconfidence",     help = "confidence level (0 < x < 1) for detection of reading frame (default 0.95, usually no need to change)", type = float, default = 0.95, metavar = "N")
+parser.add_argument("-m","--detectionminstops",    help = "minimum number of stops to encounter for detection (default 50, may need to decrease for few sequences)", type = int, default = 100, metavar = "N")
 # Function definitions
 
 def detect_frame(seqrecords, table, pthresh = 0.95, minstops = 100):
@@ -59,7 +59,12 @@ def detect_frame(seqrecords, table, pthresh = 0.95, minstops = 100):
     # significantly different - if so stop, else continue
     while((sum(counts) < minstops or p < pthresh)):
         # Extract sequence object depending on input type
-        seqrecord = next(seqrecordsrun)
+        try:
+            seqrecord = next(seqrecordsrun)
+        except:
+            sys.exit("Error in detect_frame: sequences exhausted without "
+                     "reaching minimum counts or significance. Try reducing "
+                     "--detectionminstops or --detectionconfidence")
         
         # Compute counts and add to current counts itemwise
         # Count stops in all reading frames and add to current counts
@@ -67,6 +72,9 @@ def detect_frame(seqrecords, table, pthresh = 0.95, minstops = 100):
         
         # Compute p-value if enough total counts
         p = (1 - scipy.stats.chisquare(counts)[1])
+    
+    
+    
     
     # Returns frame with minimum counts and p-value
     return counts.index(min(counts))+1
