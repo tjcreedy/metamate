@@ -77,8 +77,9 @@ def getcliargs(arglist = None):
     core.add_argument("-L", "--libraries",
                       help = "path to fastx file(s) of individual libraries"
                              "/discrete samples from which ASVs were drawn, "
-                             "or a single fastx with ;samplename=.*; or "
-                             ";barcodelabel=.*; annotations in headers.",
+                             "or a single fastx with \';samplename=NAME;\' "
+                             "or \';barcodelabel=NAME;\' annotations in "
+                             "headers.",
                       metavar = "path", type = str, nargs = '*')
     core.add_argument("-y", "--anyfail",
                       help = "reject ASVs when any incidences fail to meet "
@@ -94,6 +95,9 @@ def getcliargs(arglist = None):
                       help = "force overwriting of output file or directory "
                              "if it already exists",
                       action = "store_true", default = False)
+    core.add_argument("-t", "--threads",
+                      help = "number of threads to use (default 1)",
+                      default = 1, metavar = "n", type = int)
 
         # Clade finder variables
     cladbin = coreparser.add_argument_group('clade binning')
@@ -137,10 +141,7 @@ def getcliargs(arglist = None):
                             default = 0, const = True, nargs = '?',
                             action = Range, minimum = 0, maximum = 1,
                             type = float)
-    findparser.add_argument("-t", "--threads",
-                            help = "number of threads to use (default 1)",
-                            default = 1, metavar = "n", type = int)
-
+    
         # Reference matching parameters
     refmatch = findparser.add_argument_group("reference-matching-based target "
                                              "identification")
@@ -273,6 +274,8 @@ def getcliargs(arglist = None):
             sys.stderr.write( "Warning: -S/--specifications not supplied, "
                               "falling back to the default specifications in "
                              f"{args.specification}\n")
+        if not args.outputdirectory:
+            parser.error('-o/--outputdirectory is required for NUMT finding')
         if not args.libraries:
             parser.error('-L/--libraries is required for NUMT finding')
         # Ensure at least one reference is supplied
@@ -318,7 +321,8 @@ def getcliargs(arglist = None):
         for a, t in zip([args.outputdirectory, args.outfasta],
                         ['-o/--outputdirectory', '-f/--outfasta']):
             if a and os.path.exists(a):
-                sys.exit(f"{t} {a} exists but --overwrite is not set.")
+                if args.action == 'find' or not args.outfasta:
+                    sys.exit(f"{t} {a} exists but --overwrite is not set.")
     
     sys.stderr.flush()
     return(args)
