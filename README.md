@@ -317,9 +317,9 @@ There are two non-standard methods that generate outputs with different conditio
 
 In the second case, users may optionally skip all validation and simply use mode `dump` to output a file of filtered ASVs based on a single set of term specifications and thresholds. In this case, the output ASVs are only those where the ASV is present in a frequency equal to or exceeding all thresholds in any bins in which it occurs. Thus the set of ASVs output from `find` and `dump` for the same set of term specifications and thresholds *may not be identical*, because `dump` does not perform any validation. 
 
-#### Scores (`find` only)
+#### Results (`find` only)
 
-The main output from NUMTdumper `find` mode is the *_scores.csv file. This is a comma-delimited table that synthesises all of the results from applying all combinations of the specified terms and thresholds to the input ASVs, given the control groups of authentic- and non-authentic- ASVs. It is designed to be easily parseable and reformatable by downstream processes, in particular for analysis with R (a template for analysis is in development). Its columns comprise:
+The main output from NUMTdumper `find` mode is the *_results.csv file. This is a comma-delimited table that synthesises all of the results from applying all combinations of the specified terms and thresholds to the input ASVs, given the control groups of authentic- and non-authentic- ASVs. It is designed to be easily parseable and reformatable by downstream processes, in particular for analysis with R (a template for analysis is in development). Its columns comprise:
 
 * *resultindex*: a unique identifier for each term specification and threshold combination, for ease of ASV retrieval using `dump` mode.
 * *term*: each additive term, repeated for a number of rows equal to the number of thresholds supplied to this term. For example, if the first terms in the specifications are `[library; n; 10-100/20] + [library; p; 0.001-0.1/10]`, the first 20 rows will be for term `library_n` and the next 10 rows will be term `library_p`.
