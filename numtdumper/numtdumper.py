@@ -10,19 +10,15 @@ import os
 import sys
 import math
 import textwrap as _textwrap
+
 from multiprocessing import Pool
 from functools import partial
 
-import filterlength
-import findlibraries
-import findclades
-import findtaxa
-
-import categorycounting
-import assessmentcore
+from numtdumper import core
+from numtdumper import binning
+from numtdumper import filterlength
 
 # Class definitions
-
 
 class MultilineFormatter(argparse.HelpFormatter):
     def _fill_text(self, text, width, indent):
@@ -340,6 +336,7 @@ kwargs = {
         '-p', '0',
         '-s', '5',
         '-t', '2',
+        '--overwrite',
         #'--realign',
         '--refmatchpercent', '100'#,
         #'-g'#,
@@ -393,18 +390,15 @@ def main(**kwargs):
     
     if args.action == 'dump' and args.specification is None:
         
-        raw, aligned = findclades.parse_asvs(args, False, '',
-                                             os.path.join('.', 'asvtemp'))
+        raw, aligned = binning.parse_asvs(args, False, '',
+                                          os.path.join('.', 'asvtemp'))
         
-        stores = assessmentcore.parse_resultcache(args.resultcache,
-                                                  set(raw['asvs'].keys()))
+        stores = core.parse_resultcache(args.resultcache,
+                                        set(raw['asvs'].keys()))
         
-        assessmentcore.write_resultset_asvs(set(raw['asvs'].keys()),
-                                            outfilename, raw['path'],
-                                            os.getcwd(),
-                                            args.resultindex, stores,
-                                            args.action, args.outfasta)
-        
+        core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename,
+                                  raw['path'], os.getcwd(), args.resultindex, 
+                                  stores, args.action, args.outfasta)
         
         sys.stdout.write("\nNUMTs: dumped\n\n")
         exit()
@@ -413,8 +407,7 @@ def main(**kwargs):
     # READ AND PARSE FILTERING SPECIFICATIONS #
     ###########################################
     
-    specs, nterm, nthresh, terms, thresholds = assessmentcore.parse_specs(
-                                                                      args, 0)
+    specs, nterm, nthresh, terms, thresholds = core.parse_specs(args, 0)
     
     sys.stdout.write(f"Parsed {nterm} additive specification term"
                      f"{'s' if nterm > 1 else ''}, comprising "
@@ -430,7 +423,7 @@ def main(**kwargs):
     # FIND CLADES #
     ###############
     #TODO: error catch for duplicate headers?
-    clades, raw = findclades.find_clades(args, infilename)
+    clades, raw = binning.find_clades(args, infilename)
     
     #############
     # READ TAXA #
@@ -440,9 +433,9 @@ def main(**kwargs):
     
     if args.taxgroups:
         sys.stdout.write("Reading taxa data\n")
-        taxa = findtaxa.parse_taxa(args.taxgroups, raw['asvs'].keys())
+        taxa = binning.parse_taxa(args.taxgroups, raw['asvs'].keys())
     else:
-        taxa = findtaxa.dummy_taxa(raw['asvs'].keys())
+        taxa = binning.dummy_taxa(raw['asvs'].keys())
     
     ########################################
     # COMPUTE LIBRARY AND TOTAL READCOUNTS #
@@ -451,22 +444,20 @@ def main(**kwargs):
     sys.stdout.write("Matching library reads to ASVs to generate library ASV "
                      "counts.\n")
     
-    librarycounts, totalcounts = findlibraries.count_asvs_in_libraries(
-                                                               raw['asvs'],
+    librarycounts, totalcounts = binning.count_asvs_in_libraries(raw['asvs'],
                                                                args.libraries)
     
     # Output csv of library counts
-    categorycounting.write_count_dict(librarycounts, raw['asvs'].keys(),
-                                      os.path.join(args.outputdirectory,
-                                      f"{infilename}_ASVcounts.csv"))
+    core.write_count_dict(librarycounts, raw['asvs'].keys(),
+                          os.path.join(args.outputdirectory,
+                          f"{infilename}_ASVcounts.csv"))
     
     ##########################
     # DESIGNATE CONTROL SETS #
     ##########################
     
     if args.action == 'find':
-        target, nontarget = assessmentcore.get_validated(raw, args,
-                                                         infilename)
+        target, nontarget = core.get_validated(raw, args, infilename)
     
     ####################
     # CONSOLIDATE DATA #
@@ -484,7 +475,7 @@ def main(**kwargs):
     # Generate category counts for each specification
     sys.stdout.write("Generating binned counts\n")
     
-    counts = assessmentcore.counts_from_spec(specs, data)
+    counts = core.counts_from_spec(specs, data)
     
     if args.action == 'find':
         
@@ -494,16 +485,16 @@ def main(**kwargs):
         
         chunksize = math.ceil(nthresh/args.threads)
         with Pool(processes = args.threads) as pool:
-            stats = pool.map(partial(assessmentcore.assess_numts,
+            stats = pool.map(partial(core.assess_numts,
                                      specs['name'], counts, args.anyfail,
                                      set(raw['asvs'].keys()), target,
                                      nontarget, "standardised", 0.5),
                              thresholds, chunksize)
         
-        scoresort = assessmentcore.find_best_score(stats, len(specs['name']))
+        scoresort = core.find_best_score(stats, len(specs['name']))
         
     elif args.action == 'dump':
-        rejects = assessmentcore.apply_reject(specs['name'], next(thresholds),
+        rejects = core.apply_reject(specs['name'], next(thresholds),
                                               counts, args.anyfail)
     
     ##################
@@ -511,29 +502,24 @@ def main(**kwargs):
     ##################
     
     if args.action == 'find':
-        
         # Output ASVs if requested
         if args.generateASVresults > 0:
-            resultsets = assessmentcore.generate_resultsets(
-                                                       args.generateASVresults,
-                                                       stats, scoresort,
-                                                       len(specs['name']))
+            resultsets = core.generate_resultsets(args.generateASVresults, 
+                                                  stats, scoresort,
+                                                  len(specs['name']))
             sys.stdout.write(f"Writing {len(resultsets)} filtered ASV files\n")
-            assessmentcore.write_resultset_asvs(set(raw['asvs'].keys()),
-                                                outfilename, raw['path'],
-                                                args.outputdirectory,
-                                                resultsets, stats,
-                                                args.action, None)
+            core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename, 
+                                      raw['path'], args.outputdirectory,
+                                      resultsets, stats, args.action, None)
         
         # Output thresholds and scores
         sys.stdout.write("Writing statistics and result cache\n")
-        assessmentcore.write_stats_and_cache(specs, stats, terms,
-                                             infilename, args.outputdirectory)
+        core.write_stats_and_cache(specs, stats, terms, infilename,
+                                   args.outputdirectory)
         sys.stdout.write("\nNUMTs: found?\n\n")
     
     elif args.action == 'dump':
-        assessmentcore.write_retained_asvs(raw['path'], args.outfasta, 
-                                           rejects)
+        core.write_retained_asvs(raw['path'], args.outfasta, rejects)
         sys.stdout.write("\nNUMTs: dumped\n\n")
 
 # TODO add resume points?

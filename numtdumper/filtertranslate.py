@@ -4,31 +4,85 @@
 """Functions for filtering sequences by the presence of stop codons in translation"""
 
 # Imports
+
+
+import os
+import sys
+import warnings
+import argparse
+import scipy.stats
+import textwrap as _textwrap
+
 from Bio import SeqIO
 from Bio import BiopythonWarning
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqIO.FastaIO import SimpleFastaParser
-import scipy.stats
-import argparse
-import os
-import sys
-import warnings
+
+class MultilineFormatter(argparse.HelpFormatter):
+    def _fill_text(self, text, width, indent):
+        text = self._whitespace_matcher.sub(' ', text).strip()
+        paragraphs = text.split('|n ')
+        multiline_text = ''
+        for paragraph in paragraphs:
+            formatted_paragraph = _textwrap.fill(paragraph, width,
+                                                 initial_indent=indent,
+                                                 subsequent_indent=indent
+                                                 ) + '\n\n'
+            multiline_text = multiline_text + formatted_paragraph
+        return multiline_text
+
+class Range(argparse.Action):
+    def __init__(self, minimum=None, maximum=None, *args, **kwargs):
+        self.min = minimum
+        self.max = maximum
+        kwargs["metavar"] = "[%d-%d]" % (self.min, self.max)
+        super(Range, self).__init__(*args, **kwargs)
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if not (self.min <= value <= self.max):
+            msg = 'invalid choice: %r (choose from [%d-%d])' % \
+                (value, self.min, self.max)
+            raise argparse.ArgumentError(self, msg)
+        setattr(namespace, self.dest, value)
 
 # Global variables
+def getcliargs():
+    parser = argparse.ArgumentParser(description = "Standalone tool for filtering the sequences in a multifasta according to whether their translation contains stop codons. All sequences must have the same reading frame. The reading frame can be supplied if known or is automatically determined. All sequences must use the same translation table, which follows the NCBI numbering convention (https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi)")
+    
+    parser.add_argument("input", metavar = "path",
+                        help = "input file path")
+    parser.add_argument("table", metavar = "n",
+                        help = "the number referring to the translation "
+                               "table to use",
+                        type = int)
+    parser.add_argument("-r","--reading_frame", metavar = "n",
+                        help = "coding frame of sequences, if known", 
+                        type = int, choices = [1,2,3])
+    parser.add_argument("-o","--output_directory", metavar = "path",
+                        help = "output directory (default is current "
+                               " directory)", 
+                        type = str, default = "./")
+    parser.add_argument("-f","--onefile", metavar = "_suffix",
+                        help = "rather than outputting two separate files "
+                        "for passing and failing sequences (the default), "
+                        "output sequences in one file, with the specified "
+                        "suffix appended to the header of failing sequences", 
+                        type = str, default = False)
+    parser.add_argument("-c","--detectionconfidence", metavar = "n",
+                        help = "confidence level (0 < x < 1) for detection "
+                               "of reading frame (default 0.95, usually no "
+                               "need to change)",
+                        type = float, default = 0.95,
+                        action = Range, minimum = 0, maxmimum = 1)
+    parser.add_argument("-m","--detectionminstops", metavar = "n", 
+                        help = "minimum number of stops to encounter for "
+                               "detection (default 50, may need to decrease "
+                               "for few sequences)", 
+                        type = int, default = 100)
+    
+    return(parser.parse_args())
 
-parser = argparse.ArgumentParser(description = "Standalone tool for filtering the sequences in a multifasta according to whether their translation contains stop codons. All sequences must have the same reading frame. The reading frame can be supplied if known or is automatically determined. All sequences must use the same translation table, which follows the NCBI numbering convention (https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi)")
-
-parser.add_argument("input", help = "input file path", metavar = "FASTA")
-parser.add_argument("table", help = "the number referring to the translation table to use", metavar = "TABLE")
-
-parser.add_argument("-r","--reading_frame",        help = "coding frame of sequences, if known", type = int, choices = [1,2,3], metavar = "N")
-
-parser.add_argument("-o","--output_directory", help = "output directory (default is current directory)", default = "./", metavar = "OUTDIR")
-parser.add_argument("-f","--onefile",        help = "rather than outputting two separate files for passing and failing sequences (the default), output sequences in one file, with the specified suffix appended to the header of failing sequences", default = False, metavar = "SUFF")
-
-parser.add_argument("-c","--detectionconfidence",     help = "confidence level (0 < x < 1) for detection of reading frame (default 0.95, usually no need to change)", type = float, default = 0.95, metavar = "N")
-parser.add_argument("-m","--detectionminstops",    help = "minimum number of stops to encounter for detection (default 50, may need to decrease for few sequences)", type = int, default = 100, metavar = "N")
 # Function definitions
 
 def detect_frame(seqrecords, table, pthresh = 0.95, minstops = 100):
@@ -116,12 +170,10 @@ def check_stops_multi(seqdict, args, fail = False):
     
     return(out)
 
-
-if __name__ == "__main__":
-    
+def main():
     # Get options
+    args = getcliargs()
     
-    args = parser.parse_args()
     
     # Find the file name
     
@@ -183,3 +235,5 @@ if __name__ == "__main__":
     # Print report
     print("%i of %i sequences passed translation filtering" % (passcount, passcount + failcount))
 
+if __name__ == "__main__":
+    main()

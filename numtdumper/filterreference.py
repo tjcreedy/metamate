@@ -4,12 +4,14 @@
 """Functions for filtering sequences by presence in reference set of sequences"""
 
 # Imports
+import os
+import subprocess
+
 from Bio import AlignIO, SeqIO
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
-import os
-import subprocess
-import findclades
+
+from numtdumper import binning
 
 # Global variables
 
@@ -29,10 +31,10 @@ def make_temp_blastwd(path, name):
 def make_blastdb(subjectfile, workingdir):
     
     # Check if subjectfile is aligned
-    subaln = findclades.detect_aligned(subjectfile)
+    subaln = binning.detect_aligned(subjectfile)
     if(subaln):
         alnsub  = AlignIO.read(subjectfile, "fasta")
-        rawsub = findclades.degap_alignment(alnsub)
+        rawsub = binning.degap_alignment(alnsub)
         name =  os.path.splitext(os.path.basename(subjectfile))[0]
         rawsubpath = os.path.join(workingdir, f"{name}_unaligned.fa")
         SeqIO.write(rawsub.values(), rawsubpath, "fasta")

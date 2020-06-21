@@ -5,54 +5,141 @@
 
 # Imports
 
-import categorycounting
-import filterlength
-import filtertranslate
-import filterreference
-
-from Bio.SeqIO.FastaIO import SimpleFastaParser
-import re
-import numpy
-import itertools as its
 import os
 import sys
 import shutil
+import re
 import functools
 import gzip
+import numpy
+import itertools
 
-# Global variables
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+from collections import defaultdict
 
-# Inputs:
-    # Bad set, as one or more sets of names
-    #bad = {'A', 'B', 'C'}
+from numtdumper import filterlength
+from numtdumper import filtertranslate
+from numtdumper import filterreference
 
-    # Good set, as one or more sets of names
-    #good = {'X', 'Y', 'Z'}
 
-    # Counts dictionaries (for libraries or totals) dict[library][name] : count or dict["total"][name] : count
-    #library_counts = { "l1" : { "A" : 3, "B" : 2, "D" : 5}}
-    #total_counts = {"total" : {"A" : 3, "B" : 2, "D" : 5}}
+def count_categories(catdict, metric):
+    #catdict, metric = [data[specdict['terms'][0]], specdict['metric']]
+    
+    # Set up dict of sets for scores
+    counts = defaultdict(set)
+    
+    # Work through each category
+    for category, catcounts in catdict.items():
+        #category, catcounts = list(catdict.items())[0]
+        # Get total for category
+        total = sum(catcounts.values())
+        
+        # Work through each read
+        for name, count in catcounts.items():
+            # Get proportion for this read and add to dict
+            if(metric == "p"):
+                counts[name].add(count/total)
+            elif(metric == "n"):
+                counts[name].add(count)
+            else:
+                sys.exit("Error: unknown metric passed to score_categories")
+        
+    
+    return(counts)
 
-    # Category dictionaries (for clades or taxa) dict[category] : {names}
-    #clades = {"c1" : {"A", "B"}, "c2" : {"D"}}
+def reject(counts, threshold, anyfail):
+    #counts, threshold = counts[i], t
+    # Work through sets of scores
+    #name = "uniq13;size=257"
+    #count = counts[name]
+    out = []
+    for name, count in counts.items():
+        if ((anyfail and min(count) < threshold)
+            or (not anyfail and all(c < threshold for c in count))):
+            out.append(name)
+    return(out)
 
-    #Specifications, as follows:
+def multicategory(countdict, otherdicts):
+    
+    """Find all combinations of sets in category dictionaries.
+    First dictionary must have counts of incidences, i.e {x : {a : 1, b : 2}},
+    the rest are passed in a tuple of length >= 1, each can have counts or 
+    just sets, i.e. {y : {a , b}}
+    """
+    # countdict, otherdicts = [data[specdict['terms'][0]], parttermsdata]
+    # Check otherdicts is a tuple or error
+    
+    if(type(otherdicts) != tuple):
+        otherdicts = (otherdicts,)
+    
+    # Initialise master dict with count dict
+    multidict = countdict
+    
+    # Work through each further dict combining with master
+    for newdict in otherdicts:
+        # newdict = otherdicts[0]
+        # Create new multdict
+        newmulti = dict()
+        
+        # Work through categories in master
+        for mcat, mcounts in multidict.items():
+            # mcat, mcounts = list(multidict.items())[0]
+            # Work through categories in new dict
+            for ncat, nvalue in newdict.items():
+                # ncat, nvalue = list(newdict.items())[0]
+                # Check if avalue is set of names or dictionary of name:counts
+                nvalueset = nvalue
+                if type(nvalue) == "dict":
+                    nvalueset = nvalue.keys()
+                
+                # Find all names shared between current categories
+                nnames = set(mcounts.keys()).intersection(nvalueset)
+                
+                # Skip combination if no names shared
+                if len(nnames) == 0:
+                    continue
+                
+                # Create the combined category name
+                ncat = mcat + ncat
+                
+                # Create a combined subdictionary
+                newmulti[ncat] = dict()
+                
+                # Add the minimum value of the two counts for each shared name
+                if type(nvalue) == "dict":
+                    newmulti[ncat] = {nn : min(mcounts[nn], nvalue[nn]) 
+                                      for nn in nnames}
+                else:
+                    newmulti[ncat] = {nn : mcounts[nn] for nn in nnames}
+                
+            
+        
+        # Overwrite old multi_dict
+        multidict = newmulti
+    
+    return(multidict)
 
-    # spec = a single specification for a count_categories run, i.e. one each of terms, metric and thresholds
-    # spec set = a set of specifications for a single run (i.e. the dictionary below)
-
-    # specs[0][terms] : "total"
-    # specs[0][metric] : "n"
-    # specs[0][thresholds] : "1-5,1"
-    # specs[1][terms] : "library"
-    # specs[1][metric] : "p"
-    # specs[1][thresholds] : "0.1-0.5,0.05"
-
-    # terms should be specified as "a", "a | b", " a | b + c" where a is the count_dict to use and b (and c) are the category dicts
-
-# Class definitions
-
-# Function definitions
+def write_count_dict(countdict, asvs, path):
+    ""
+    
+    # TODO: Check the count dict is of the right structure
+    
+    # Order asvs name
+    asvs_sort = sorted(asvs)
+    
+    # Write to file
+    
+    with open(path, 'w') as o:
+        
+        # Write header
+        o.write(",".join([""] + asvs_sort) + "\n")
+        
+        # Write data lines
+        for lib, counts in countdict.items():
+            values = []
+            for asv in asvs_sort:
+                values.append(str(counts[asv] if asv in counts else 0))
+            o.write(",".join([lib] + values) + "\n")
 
 def resolve_ranges(range_string):
     # Split into segments
@@ -70,10 +157,10 @@ def resolve_ranges(range_string):
         else:
             rangeout.append([float(r[0])])
     # Collapse list of lists
-    return(list(its.chain(*rangeout)))
+    return(list(itertools.chain(*rangeout)))
 
 def resolve_spec(spec):
-
+    
     values = re.sub("[\[\]]", '', spec).split(';')
     name = f"{values[0]}_{values[1]}"
     # Set up error
@@ -170,7 +257,7 @@ def parse_specs(args, null = float('nan')):
     
     # Construct generators
     terms = (l for t, c in terms for l in [t] * c)
-    thresholds = (t for tl in threshlists for t in its.product(*tl))
+    thresholds = (t for tl in threshlists for t in itertools.product(*tl))
     
     return(specs, nterm, nthresh, terms, thresholds)
 
@@ -280,13 +367,13 @@ def counts_from_spec(specs, data):
         #name, spec, metric = list(zip(*specs.values()))[1]
         # Check if partitioned and do counting
         if len(spec) == 1 :
-            counts[name] = categorycounting.count_categories(data[spec[0]],
+            counts[name] = count_categories(data[spec[0]],
                                                              metric)
         else:
             partspecdata = tuple( data[s] for s in spec[1:] )
-            multicat = categorycounting.multicategory(data[spec[0]],
+            multicat = multicategory(data[spec[0]],
                                                       partspecdata)
-            counts[name] = categorycounting.count_categories(multicat, metric)
+            counts[name] = count_categories(multicat, metric)
     
     return(counts)
 
@@ -334,7 +421,7 @@ def apply_reject(threshnames, thresholds, counts, anyfail):
     rejects = []
     for term, thresh in zip(threshnames, thresholds):
         #term, thresh = list(zip(threshnames, thresholds))[3]
-        rejects.extend(categorycounting.reject(counts[term], thresh, anyfail))
+        rejects.extend(reject(counts[term], thresh, anyfail))
     return(set(rejects))
 
 def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
@@ -414,7 +501,7 @@ def write_stats_and_cache(specs, scores, terms, filename, outdir):
                       + head) + '\n')
     
     # Write lines
-    for i, term, score in zip(its.count(), terms, scores):
+    for i, term, score in zip(itertools.count(), terms, scores):
         sh.write(",".join(str(v) for v in [i, '*'.join(term)] + score[:-1])
                  +'\n')
         ch.write('\t'.join([str(i), score[-1][0]] + list(score[-1][1])) +'\n')
