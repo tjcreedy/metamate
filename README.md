@@ -4,8 +4,6 @@
 
 NUMTdumper analyses a set of amplicons derived through metabarcoding of a mitochondrial coding locus to determine putative NUMT and other erroneous sequences based on relative read abundance thresholds within libraries, phylogenetic clades and/or taxonomic groupings. 
 
-This documentation is a work in progress! Check back very soon.
-
 The paper for NUMTdumper is in review:  Andújar, C., Creedy, T.J., Arribas, P., López, H., Salces-Castellano, A., Pérez-Delgado, A., Vogler, A.P. & B.C. Emerson (in review). NUMTdumper: a self-validating method for generating reliable haplotype data from mtDNA metabarcoding. Methods in Ecology and Evolution. 
 
 If you use NUMTdumper in your work, please cite this paper.
@@ -57,22 +55,38 @@ A `dump` run is used to enact a single desired threshold set, either by providin
 
 ## Installation
 
-Currently NUMTdumper is supplied as a set of python and R scripts. You can install by downloading and unpacking this repository. You should ensure that you have all of the dependencies listed below installed and accessible on the PATH. 
+The best place to get NUMTdumper is to install from [the PyPI package](https://pypi.org/project/NUMTdumper/). The NUMTdumper source is available on [GitHub](https://github.com/tjcreedy/numtdumper).
 
-Then you simply need to run `python3 ./numtdumper/numtdumper.py`
+NUMTdumper was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most linux systems, and likely Mac OS as well. No idea about Windows.
 
-We plan to build an automatic installer and complete package soon.
+Note that just installing from the PyPI package is not sufficient to run NUMTdumper, it also requires some system dependencies and R packages.
 
 ### Dependencies
 
-NUMTdumper requires python 3 and the python 3 library biopython
+NUMTdumper requires python3 and the python3 libraries biopython and scipy. These should automatically be installed if using the pip installer above.
 
-NUMTdumper also requires R and the R packages getopt, ape and phangorn
+NUMTdumper requires the following executables to be available on the command line:
+* Rscript (part of [R](https://cran.r-project.org/)
+* blastn and makeblastdb (part of [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
+* [mafft](https://mafft.cbrc.jp/alignment/software/)
 
-The following tools must be installed and accessible on the path:
-* Rscript (R)
-* blastn
-* mafft
+The R packages getopt, ape and phangorn are also required.
+
+### Quick install
+
+Make sure you have all of the system dependencies: Python3, pip, [MAFFT](https://mafft.cbrc.jp/alignment/software/linux.html), [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [R](https://cran.r-project.org/). If you're on ubuntu linux, you can run:
+```
+sudo apt install python3 python3-pip mafft ncbi-blast+ r-base
+```
+Install NUMTdumper from the PyPI package:
+```
+pip install NUMTdumper
+```
+Ensure the necessary R libraries are installed:
+```
+Rscript <(echo "install.packages(c('getopt', 'ape', 'phangorn'))")
+```
+Done!
 
 ## Usage
 
