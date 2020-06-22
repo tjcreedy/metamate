@@ -83,7 +83,7 @@ pip install NUMTdumper
 ```
 Ensure the necessary R libraries are installed:
 ```
-Rscript <(echo "install.packages(c('getopt', 'ape', 'phangorn'))")
+Rscript <(echo "install.packages(c('getopt', 'ape', 'phangorn'), repos = "https://cloud.r-project.org")")
 ```
 Done!
 
