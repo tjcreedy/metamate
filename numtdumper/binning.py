@@ -20,8 +20,6 @@ from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from Bio.Align.Applications import MafftCommandline
 
-import rscripts
-
 # Function definitions
 
 
