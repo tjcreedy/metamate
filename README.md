@@ -4,8 +4,7 @@
 
 NUMTdumper analyses a set of amplicons derived through metabarcoding of a mitochondrial coding locus to determine putative NUMT and other erroneous sequences based on relative read abundance thresholds within libraries, phylogenetic clades and/or taxonomic groupings. 
 
-The paper for NUMTdumper is in review:  Andújar, C., Creedy, T.J., Arribas, P., López, H., Salces-Castellano, A., Pérez-Delgado, A., Vogler, A.P. & B.C. Emerson (in review). NUMTdumper: a self-validating method for generating reliable haplotype data from mtDNA metabarcoding. Methods in Ecology and Evolution. 
-
+The paper for NUMTdumper is [available on bioRxiv](https://www.biorxiv.org/content/10.1101/2020.06.17.157347v1) and in review at Methods in Ecology and Evolution. 
 If you use NUMTdumper in your work, please cite this paper.
 
 The development of this tool was supported by the iBioGen project, funded by the H2020 European Research Council, Grant/Award Number: 810729.
