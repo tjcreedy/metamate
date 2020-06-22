@@ -89,14 +89,13 @@ Done!
 
 ## Usage
 
-NUMTdumper has summary help built in for the overall tool and the two run modes. These can be accessed by running the below:
+NUMTdumper has summary help built in for the overall tool and the two run modes. These can be accessed by running the below commands.
 
 ```
-numtdumper.py --help
-numtdumper.py find --help
-numtdumper.py dump --help
+numtdumper --help
+numtdumper find --help
+numtdumper dump --help
 ```
-
 This documentation provides further explanation for input data and argument selection, and the [details](#details) section goes in depth into the way that the key parts of NUMTdumper work.
 
 Note that all commandline arguments can be provided in a file, one per line, with the path to the file supplied on the commandline preceeded by `@`. For example, running `numtdumper.py find -A asvs.fasta -R references.fasta --realign` would be the same as `numtdumper.py find @args.txt` where the contents of @args.txt are:
