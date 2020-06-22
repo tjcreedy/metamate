@@ -66,8 +66,8 @@ Note that just installing from the PyPI package is not sufficient to run NUMTdum
 NUMTdumper requires python3 and the python3 libraries biopython and scipy. These should automatically be installed if using the pip installer above.
 
 NUMTdumper requires the following executables to be available on the command line:
-* Rscript (part of [R](https://cran.r-project.org/)
-* blastn and makeblastdb (part of [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
+* Rscript (part of [R](https://cran.r-project.org/))
+* blastn and makeblastdb (part of [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download))
 * [mafft](https://mafft.cbrc.jp/alignment/software/)
 
 The R packages getopt, ape and phangorn are also required.
