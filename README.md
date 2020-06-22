@@ -219,11 +219,10 @@ In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to
 
 ### `find`-specific arguments
 
-#### `-S/--specification [path]`
+#### `-S/--specification [path]` *required*
 
-`path` should be the path to a text file containing a specification for the terms apply when applying frequency filtering. These are explained in detail below, and an example specifications.txt file is supplied. In brief, a specification consists of one or more terms, in the format `[category(/ies); metric; threshold(s)]` where category is one or a combination of "total", "library", "clade" or "taxon", metric is one of "n" or "p", and threshold is a specification of one or more maximum values in a comma separated list of individual values or ranges (specified in the form "start-stop/count"). Multiple terms can be considered sequentially, separated by `+` or simultaneously, separated by `*`. 
+`path` should be the path to a text file containing a specification for the terms apply when applying frequency filtering. These are explained in detail below, and an example specifications.txt file is [supplied in the GitHub repository](https://github.com/tjcreedy/numtdumper/specifications.txt). In brief, a specification consists of one or more terms, in the format `[category(/ies); metric; threshold(s)]` where category is one or a combination of "total", "library", "clade" or "taxon", metric is one of "n" or "p", and threshold is a specification of one or more maximum values in a comma separated list of individual values or ranges (specified in the form "start-stop/count"). Multiple terms can be considered sequentially, separated by `+` or simultaneously, separated by `*`. 
 
-If a specification file is not supplied, NUMTdumper will use the specifications.txt file in the source directory. Unless this is modified, this contains the example after the original description of the pipeline in Andujar et al. (2020).
 
 #### `-g/--generateASVresults [n]`
 
