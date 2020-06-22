@@ -10,19 +10,16 @@ import os
 import sys
 import math
 import textwrap as _textwrap
+
 from multiprocessing import Pool
 from functools import partial
+from shutil import which
 
-import filterlength
-import findlibraries
-import findclades
-import findtaxa
-
-import categorycounting
-import assessmentcore
+from numtdumper import core
+from numtdumper import binning
+from numtdumper import filterlength
 
 # Class definitions
-
 
 class MultilineFormatter(argparse.HelpFormatter):
     def _fill_text(self, text, width, indent):
@@ -56,16 +53,29 @@ class Range(argparse.Action):
 
 # Function definitions
 
+def is_tool(name):
+    """Check whether `name` is on PATH and marked as executable."""
+    return which(name) is not None
+
+def check_tools():
+    """Check to see whether the required external tools are available."""
+    tools = ['mafft', 'blastn', 'Rscript']
+    for tool in tools:
+        if not is_tool(tool):
+            sys.exit(f"Error: cannot locate executable \'{tool}\'. Please "
+                      "ensure it is installed and available for command "
+                      "line execution.")
+
 def getcliargs(arglist = None):
     # B D E F H I J K M N O P Q U V W Y Z
     # e f g h i j k m q u v w z
 
     parser = argparse.ArgumentParser(description = "arguments can be passed on the command line or in a file, one per line, and the file specified as @args.txt on the commandline",
                                      fromfile_prefix_chars = '@')
-    parser._positionals.title = "action to perform"
+    parser._positionals.title = "mode to run"
     parser._optionals.title = "optional arguments"
 
-    subparsers = parser.add_subparsers(help = '', dest = 'action')
+    subparsers = parser.add_subparsers(help = '', dest = 'mode')
     subparsers.required = True
         # Core inputs on a separate parser which acts as parent to subs
 
@@ -129,8 +139,9 @@ def getcliargs(arglist = None):
     findparser._optionals.title = "find arguments"
     findparser.add_argument("-S", "--specification",
                             help = "path to a text file detailing the read "
-                                   "count binning strategy and thresholds",
-                            metavar = "path", type = str)
+                                   "count binning strategy and thresholds. "
+                                   "An example can be found in the github",
+                            required = True, metavar = "path", type = str)
     findparser.add_argument("-g", "--generateASVresults",
                             help = "generate fasta files of retained ASVs for "
                                    "for threshold sets: if no value is given, "
@@ -268,12 +279,6 @@ def getcliargs(arglist = None):
     
     if args.action == 'find':
         # Ensure a value is supplied to libraries
-        if not args.specification :
-            args.specification = os.path.join(os.path.dirname(__file__),
-                                               'specifications.txt')
-            sys.stderr.write( "Warning: -S/--specifications not supplied, "
-                              "falling back to the default specifications in "
-                             f"{args.specification}\n")
         if not args.outputdirectory:
             parser.error('-o/--outputdirectory is required for NUMT finding')
         if not args.libraries:
@@ -327,51 +332,16 @@ def getcliargs(arglist = None):
     sys.stderr.flush()
     return(args)
 
-kwargs = {
-'al' : ['find',
-            '-A', '6_coleoptera_fftnsi.fasta',
-            '-R', 'dummy_reference.fasta',
-#        #'-L', 'merge_fixed/10D_F_C2_.fasta', 'merge_fixed/10S_F_B5_.fasta', 'merge_fixed/11D_F_D2_.fasta', 'merge_fixed/11S_F_C5_.fasta', 'merge_fixed/12D_G_E2_.fasta', 'merge_fixed/12S_G_D5_.fasta', 'merge_fixed/13D_G_F2_.fasta', 'merge/13S_G_G6_.fasta', 'merge_fixed/14D_G_G2_.fasta', 'merge_fixed/14S_G_E5_.fasta', 'merge_fixed/15D_F_H2_.fasta', 'merge_fixed/15S_F_G5_.fasta', 'merge_fixed/16D_F_A3_.fasta', 'merge_fixed/16S_F_F5_.fasta', 'merge_fixed/17D_F_B3_.fasta', 'merge_fixed/17S_F_E6_.fasta', 'merge_fixed/18D_F_C3_.fasta', 'merge_fixed/18S_F_F6_.fasta', 'merge_fixed/19D_G_B2_.fasta', 'merge_fixed/19S_G_H5_.fasta', 'merge_fixed/1D_F_A1_.fasta', 'merge_fixed/1S_F_A4_.fasta', 'merge_fixed/20D_F_D3_.fasta', 'merge_fixed/20S_F_C6_.fasta', 'merge_fixed/21D_F_E3_.fasta', 'merge_fixed/21S_F_H6_.fasta', 'merge_fixed/22D_G_G3_.fasta', 'merge_fixed/22S_G_A6_.fasta', 'merge_fixed/23D_F_F3_.fasta', 'merge_fixed/23S_F_D6_.fasta', 'merge_fixed/24D_G_H3_.fasta', 'merge_fixed/24S_G_B6_.fasta', 'merge_fixed/2D_F_B1_.fasta', 'merge_fixed/2S_F_B4_.fasta', 'merge_fixed/3D_F_C1_.fasta', 'merge_fixed/3S_F_C4_.fasta', 'merge_fixed/4D_G_D1_.fasta', 'merge_fixed/4S_G_D4_.fasta', 'merge_fixed/5D_G_E1_.fasta', 'merge_fixed/5S_G_E4_.fasta', 'merge_fixed/6D_G_F1_.fasta', 'merge_fixed/6S_G_F4_.fasta', 'merge_fixed/7D_G_G1_.fasta', 'merge_fixed/7S_G_H4_.fasta', 'merge_fixed/8D_G_H1_.fasta', 'merge_fixed/8S_G_G4_.fasta', 'merge_fixed/9D_G_A2_.fasta', 'merge_fixed/9S_G_A5_.fasta', 'merge_fixed/N_DOM_REPS_A7_.fasta', 'merge_fixed/N_GRA_A7_.fasta',
-        #'-L', 'merge/T4.fastq', 'merge/T6.fastq', 'merge/T7.fastq', 'merge/T8.fastq', 'merge/T9.fastq', 'merge/T10.fastq', 'merge/T11.fastq', 'merge/T12.fastq', 'merge/T13.fastq', 'merge/T14.fastq', 'merge/T15.fastq', 'merge/T16.fastq',
-        '-L', '1_concat.fastq',
-        '-S', '/home/thomas/Documents/programming/bioinformatics/numtdumper/specifications.txt',
-        '-o', 'livetest/',
-        '-l', '418',
-        '-p', '0',
-        '-s', '5',
-        '-t', '2',
-        #'--realign',
-        '--refmatchpercent', '100'#,
-        #'-g'#,
-#    #    '-T', 'numtdumper/5_denoise_coleoptera_fftnsi_UPGMA.nwk'
-        ],
-# 'al' : ['dump', 
-#         '-A', '6_coleoptera.fasta', 
-#         '-C', 'test1/6_coleoptera_resultcache',
-#         '-i', '43',
-#         '-f', 'test8.fa'],
-# 'al' : ['dump',
-#         '-A', '6_coleoptera.fasta',
-#         '-S', '[library; n; 3]', '[library; p; 0.0025]',
-#         '[library|clade; p; 0.04]',
-#         '-f', 'test10.fa'],
-'sd' : "/home/thomas/Documents/programming/bioinformatics/numtdumper/",
-'wd' : "/home/thomas/seqtesting/NUMTdumper/amm/"
-}
-
-def main(**kwargs):
-    # Set debug variables
-    if kwargs.get('wd', None):
-        os.chdir(kwargs.get('wd'))
-    if kwargs.get('sd', None):
-        scriptdir = kwargs.get('sd')
-    
+def main():
     #######################
     # INITIAL PREPARATION #
     #######################
     
+    # Check for required programs
+    check_tools()
+    
     # Get inputs
-    args = getcliargs(kwargs.get('al')) if kwargs.get('al') else getcliargs()
+    args = getcliargs()
     
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
@@ -393,18 +363,15 @@ def main(**kwargs):
     
     if args.action == 'dump' and args.specification is None:
         
-        raw, aligned = findclades.parse_asvs(args, False, '',
-                                             os.path.join('.', 'asvtemp'))
+        raw, aligned = binning.parse_asvs(args, False, '',
+                                          os.path.join('.', 'asvtemp'))
         
-        stores = assessmentcore.parse_resultcache(args.resultcache,
-                                                  set(raw['asvs'].keys()))
+        stores = core.parse_resultcache(args.resultcache,
+                                        set(raw['asvs'].keys()))
         
-        assessmentcore.write_resultset_asvs(set(raw['asvs'].keys()),
-                                            outfilename, raw['path'],
-                                            os.getcwd(),
-                                            args.resultindex, stores,
-                                            args.action, args.outfasta)
-        
+        core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename,
+                                  raw['path'], os.getcwd(), args.resultindex, 
+                                  stores, args.action, args.outfasta)
         
         sys.stdout.write("\nNUMTs: dumped\n\n")
         exit()
@@ -413,15 +380,14 @@ def main(**kwargs):
     # READ AND PARSE FILTERING SPECIFICATIONS #
     ###########################################
     
-    specs, nterm, nthresh, terms, thresholds = assessmentcore.parse_specs(
-                                                                      args, 0)
+    specs, nterm, nthresh, terms, thresholds = core.parse_specs(args, 0)
     
     sys.stdout.write(f"Parsed {nterm} additive specification term"
                      f"{'s' if nterm > 1 else ''}, comprising "
                      f"{len(specs['name'])} bin strateg"
                      f"{'ies' if len(specs['name']) > 1 else 'y'}")
     if args.action == 'find':
-        sys.stdout.write(f"and totalling {nthresh} unique threshold "
+        sys.stdout.write(f" and totalling {nthresh} unique threshold "
                          f"set{'s' if nthresh > 1 else ''}\n")
     else:
         sys.stdout.write('\n')
@@ -430,7 +396,7 @@ def main(**kwargs):
     # FIND CLADES #
     ###############
     #TODO: error catch for duplicate headers?
-    clades, raw = findclades.find_clades(args, infilename)
+    clades, raw = binning.find_clades(args, infilename)
     
     #############
     # READ TAXA #
@@ -440,9 +406,9 @@ def main(**kwargs):
     
     if args.taxgroups:
         sys.stdout.write("Reading taxa data\n")
-        taxa = findtaxa.parse_taxa(args.taxgroups, raw['asvs'].keys())
+        taxa = binning.parse_taxa(args.taxgroups, raw['asvs'].keys())
     else:
-        taxa = findtaxa.dummy_taxa(raw['asvs'].keys())
+        taxa = binning.dummy_taxa(raw['asvs'].keys())
     
     ########################################
     # COMPUTE LIBRARY AND TOTAL READCOUNTS #
@@ -451,22 +417,20 @@ def main(**kwargs):
     sys.stdout.write("Matching library reads to ASVs to generate library ASV "
                      "counts.\n")
     
-    librarycounts, totalcounts = findlibraries.count_asvs_in_libraries(
-                                                               raw['asvs'],
+    librarycounts, totalcounts = binning.count_asvs_in_libraries(raw['asvs'],
                                                                args.libraries)
     
     # Output csv of library counts
-    categorycounting.write_count_dict(librarycounts, raw['asvs'].keys(),
-                                      os.path.join(args.outputdirectory,
-                                      f"{infilename}_ASVcounts.csv"))
+    core.write_count_dict(librarycounts, raw['asvs'].keys(),
+                          os.path.join(args.outputdirectory,
+                          f"{infilename}_ASVcounts.csv"))
     
     ##########################
     # DESIGNATE CONTROL SETS #
     ##########################
     
     if args.action == 'find':
-        target, nontarget = assessmentcore.get_validated(raw, args,
-                                                         infilename)
+        target, nontarget = core.get_validated(raw, args, infilename)
     
     ####################
     # CONSOLIDATE DATA #
@@ -484,7 +448,7 @@ def main(**kwargs):
     # Generate category counts for each specification
     sys.stdout.write("Generating binned counts\n")
     
-    counts = assessmentcore.counts_from_spec(specs, data)
+    counts = core.counts_from_spec(specs, data)
     
     if args.action == 'find':
         
@@ -494,16 +458,16 @@ def main(**kwargs):
         
         chunksize = math.ceil(nthresh/args.threads)
         with Pool(processes = args.threads) as pool:
-            stats = pool.map(partial(assessmentcore.assess_numts,
+            stats = pool.map(partial(core.assess_numts,
                                      specs['name'], counts, args.anyfail,
                                      set(raw['asvs'].keys()), target,
                                      nontarget, "standardised", 0.5),
                              thresholds, chunksize)
         
-        scoresort = assessmentcore.find_best_score(stats, len(specs['name']))
+        scoresort = core.find_best_score(stats, len(specs['name']))
         
     elif args.action == 'dump':
-        rejects = assessmentcore.apply_reject(specs['name'], next(thresholds),
+        rejects = core.apply_reject(specs['name'], next(thresholds),
                                               counts, args.anyfail)
     
     ##################
@@ -511,29 +475,24 @@ def main(**kwargs):
     ##################
     
     if args.action == 'find':
-        
         # Output ASVs if requested
         if args.generateASVresults > 0:
-            resultsets = assessmentcore.generate_resultsets(
-                                                       args.generateASVresults,
-                                                       stats, scoresort,
-                                                       len(specs['name']))
+            resultsets = core.generate_resultsets(args.generateASVresults, 
+                                                  stats, scoresort,
+                                                  len(specs['name']))
             sys.stdout.write(f"Writing {len(resultsets)} filtered ASV files\n")
-            assessmentcore.write_resultset_asvs(set(raw['asvs'].keys()),
-                                                outfilename, raw['path'],
-                                                args.outputdirectory,
-                                                resultsets, stats,
-                                                args.action, None)
+            core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename, 
+                                      raw['path'], args.outputdirectory,
+                                      resultsets, stats, args.action, None)
         
         # Output thresholds and scores
         sys.stdout.write("Writing statistics and result cache\n")
-        assessmentcore.write_stats_and_cache(specs, stats, terms,
-                                             infilename, args.outputdirectory)
+        core.write_stats_and_cache(specs, stats, terms, infilename,
+                                   args.outputdirectory)
         sys.stdout.write("\nNUMTs: found?\n\n")
     
     elif args.action == 'dump':
-        assessmentcore.write_retained_asvs(raw['path'], args.outfasta, 
-                                           rejects)
+        core.write_retained_asvs(raw['path'], args.outfasta, rejects)
         sys.stdout.write("\nNUMTs: dumped\n\n")
 
 # TODO add resume points?

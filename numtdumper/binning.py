@@ -5,20 +5,141 @@
 
 # Imports
 
-from Bio import AlignIO
-from Bio.Align.Applications import MafftCommandline
-import io
-from Bio import SeqIO
-from Bio.Seq import Seq
+
 import os
 import sys
 import subprocess
 import re
-from collections import defaultdict
+import io
+import csv
 
-# Class definitions
+from collections import defaultdict, Counter
+from Bio import SeqIO, AlignIO
+from Bio.Seq import Seq
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
+from Bio.Align.Applications import MafftCommandline
 
 # Function definitions
+
+
+def parse_taxa(taxafile, names):
+    
+    taxa = defaultdict(set)
+    allnames = set()
+    
+    # Load in taxon file csv to dict
+    with open(taxafile, 'r') as fh:
+        reader = csv.reader(fh)
+        for row in reader:
+            taxa[row[1]].add(row[0])
+            allnames.add(row[0])
+    
+    # Check that all of the names are represented
+    if(set(names) != allnames):
+        sys.exit("Error: haplotype names in taxon file do not completely match haplotype names in zotu file")
+    
+    return(taxa)
+
+def dummy_taxa(names):
+    
+    taxa = { 'x' : names}
+    
+    return(taxa)
+
+def detect_format(path):
+    with open(path) as f:
+        fline = f.readline().strip()
+    
+    if(fline[0] == "@"):
+        return("fastq")
+    elif(fline[0] == ">"):
+        return("fasta")
+    else:
+        return("unknown")
+
+def count_asvs_in_libraries(master, librarypaths):
+    # master, librarypaths = [raw['asvs'], args.libraries]
+    "Work through libraries counting incidences of each master sequence"
+    
+    # Convert master into a simple string dictionary
+    asvseqs = {str(r.seq).upper() : n for n, r in master.items()}
+    
+    # TODO: ensure number of items in master_dict matches number of items in master
+    
+    # Set up empty dictionary for librarywise results
+    countsbylibrary = dict()
+    
+    # Set up empty list for all zotu incidences
+    asvcounts = []
+    
+    libnames = []
+    
+    if len(librarypaths) > 1:
+        # Loop through libraries
+        for path in librarypaths:
+            #path = librarypaths[0]
+            # Extract library name
+            libname = os.path.splitext(os.path.basename(path))[0]
+            libnames.append(libname)
+            # Get sequences
+            seqformat = detect_format(path)
+            seqs = []
+            with open(path) as fh:
+                if seqformat == 'fasta':
+                    seqs = [s.upper() for h, s in SimpleFastaParser(fh)]
+                elif seqformat == 'fastq':
+                    seqs = [s.upper() for h, s, q in FastqGeneralIterator(fh)]
+                else:
+                    sys.exit(f"Error: can't detect format of {path}\n")
+            # Get list of all zotus in library
+            libasvs = [asvseqs[seq] for seq in seqs if seq in asvseqs]
+            # Add to librarywise results
+            countsbylibrary[libname] = Counter(libasvs)
+            # Add to master zotu incidences
+            asvcounts.extend(libasvs)
+    else:
+        nameregex = ";(?:barcodelabel|sample)=([^;]+);"
+        seqn = 0
+        seqformat = detect_format(librarypaths[0])
+        for seqr in SeqIO.parse(librarypaths[0], seqformat):
+            #seqr = next(SeqIO.parse(librarypaths[0], seqformat))
+            seqn += 1
+            seq = str(seqr.seq).upper()
+            if seq in asvseqs:
+                libname = re.search(nameregex, seqr.id).group(1)
+                if not libname:
+                    sys.exit( "Error: can't detect a library name in header "
+                             f"\"{seqr.id}\" on line {seqn} of "
+                             f"{librarypaths[0]}\n")
+                asvname = asvseqs[seq]
+                if libname not in countsbylibrary:
+                    countsbylibrary[libname] = {asvname: 1}
+                elif asvname not in countsbylibrary[libname]:
+                    countsbylibrary[libname][asvname] = 1
+                else:
+                    countsbylibrary[libname][asvname] += 1
+                asvcounts.append(asvname)
+    
+    # Set up dictionary for totals results
+    countstotal = {'total': Counter(asvcounts)}
+    
+    # Check if all ASVs were in at least one master
+    asvabsent = [n for n, r in master.items() if n not in countstotal['total']]
+    if len(asvabsent) > 0:
+        sys.exit(f"Error: {len(asvabsent)} ASV(s) were not found in the "
+                 f"library file(s):\n{', '.join(asvabsent)}\n")
+    
+    # Check if all libraries had at least one match
+    libabsent = [n for n in libnames if n not in countsbylibrary]
+    if len(libabsent) > 0:
+        sys.stderr.write(f"Warning: libraries {', '.join(libabsent)} had no "
+                          "sequences matching any ASVs\n")
+    
+    # Return final dictionaries
+    return countsbylibrary, countstotal
+
+
 
 def detect_aligned(fasta):
     try:
@@ -72,7 +193,6 @@ def make_tree_R(scriptdir, alignpath, model):
 def get_clades_R(scriptdir, tree, height):
     # Generate script location
     getcladespath = os.path.join(scriptdir, 'getclades.R')
-    
     
     if(type(tree) == str):
         tree = tree.encode()
