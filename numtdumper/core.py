@@ -21,7 +21,6 @@ from numtdumper import filterlength
 from numtdumper import filtertranslate
 from numtdumper import filterreference
 
-
 def count_categories(catdict, metric):
     #catdict, metric = [data[specdict['terms'][0]], specdict['metric']]
     
