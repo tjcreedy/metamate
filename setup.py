@@ -1,17 +1,23 @@
 import setuptools
 
+#from distutils.command.install import INSTALL_SCHEMES
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="NUMTdumper-tjcreedy", # Replace with your own username
-    version="0.1b",
+    name="NUMTdumper", # Replace with your own username
+    version="0.1b0",
     author="Thomas J. Creedy",
     author_email="thomas.creedy@gmail.com",
     description="NUMTdumper: validated NUMT removal for mitochondrial "
                 "metabarcoding",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    install_requires=[
+        'biopython>=1.76',
+        'scipy>=1.4.1'
+        ],
     url="https://github.com/tjcreedy/numtdumper",
     packages=setuptools.find_packages(),
     classifiers=[
@@ -25,15 +31,7 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
     python_requires='>=3.6',
-    package_data={
-        'Rscripts':[
-            'numtdumper/getclades.R',
-            'numtdumper/maketree.R'
-            ],
-        'specifications':[
-            'specifications.txt'
-            ]
-    },
+    include_package_data=True,
     entry_points={
         "console_scripts":[
             "numtdumper = numtdumper.numtdumper:main",
