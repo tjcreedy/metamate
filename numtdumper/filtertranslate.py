@@ -69,19 +69,19 @@ def getcliargs():
                         "output sequences in one file, with the specified "
                         "suffix appended to the header of failing sequences", 
                         type = str, default = False)
-    parser.add_argument("-c","--detectionconfidence", metavar = "n",
-                        help = "confidence level (0 < x < 1) for detection "
+    parser.add_argument("-c","--detectionconfidence",
+                        help = "confidence level for detection "
                                "of reading frame (default 0.95, usually no "
                                "need to change)",
                         type = float, default = 0.95,
-                        action = Range, minimum = 0, maxmimum = 1)
+                        action = Range, minimum = 0, maximum = 1)
     parser.add_argument("-m","--detectionminstops", metavar = "n", 
                         help = "minimum number of stops to encounter for "
                                "detection (default 50, may need to decrease "
                                "for few sequences)", 
                         type = int, default = 100)
     
-    return(parser.parse_args())
+    return(parser.parse_args(['-h']))
 
 # Function definitions
 
