@@ -166,7 +166,7 @@ def getcliargs(arglist = None):
     refmatch.add_argument("--refmatchlength",
                           help = "the minimum alignment length to consider a "
                                  "BLAST match when comparing ASVs against "
-                                 "reference sequences (default is 80% of "
+                                 "reference sequences (default is 80%% of "
                                  "[calculated value of] -n/--minimumlength)",
                           type = int, metavar = "n")
     refmatch.add_argument("--refmatchpercent",
@@ -178,7 +178,7 @@ def getcliargs(arglist = None):
     refmatch.add_argument("--dbmatchlength",
                           help = "the minimum alignment length to consider a "
                                  "BLAST match when comparing ASVs against "
-                                 "a blast database (default is 80% of "
+                                 "a blast database (default is 80%% of "
                                  "[calculated value of] -n/--minimumlength)",
                           type = int, metavar = "n")
     refmatch.add_argument("--dbmatchpercent",
