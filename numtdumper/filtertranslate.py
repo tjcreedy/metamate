@@ -56,10 +56,10 @@ def getcliargs():
                         help = "the number referring to the translation "
                                "table to use",
                         type = int)
-    parser.add_argument("-r","--reading_frame", metavar = "n",
+    parser.add_argument("-r","--readingframe", metavar = "n",
                         help = "coding frame of sequences, if known", 
                         type = int, choices = [1,2,3])
-    parser.add_argument("-o","--output_directory", metavar = "path",
+    parser.add_argument("-o","--outputdirectory", metavar = "path",
                         help = "output directory (default is current "
                                " directory)", 
                         type = str, default = "./")
@@ -181,22 +181,22 @@ def main():
     
     # Make the output directory
     
-    if not os.path.exists(args.output_directory):
-        os.makedirs(args.output_directory)
+    if not os.path.exists(args.outputdirectory):
+        os.makedirs(args.outputdirectory)
     
     # Check for bad options
     
-    if((args.detection_confidence != 0.95 or args.detection_minstops != 100) and args.reading_frame):
+    if((args.detectionconfidence != 0.95 or args.detectionminstops != 100) and args.readingframe):
         print("Warning: specifying a detection confidence or detection minstops is useless if the reading frame is known, this will be ignored")
     
     # Find frame
     
     frame = ""
     pvalue = ""
-    if(args.reading_frame):
-        frame = args.reading_frame
+    if(args.readingframe):
+        frame = args.readingframe
     else:
-        frame = detect_frame(args.input, args.table, args.detection_confidence, args.detection_minstops)
+        frame = detect_frame(args.input, args.table, args.detectionconfidence, args.detectionminstops)
         print("Reading frame %i detected " % (frame))
     
     
@@ -207,8 +207,8 @@ def main():
         
         if not args.onefile :        # The default, two files
             
-            with open(os.path.join(args.output_directory, filename + "_transpass.fa"), "w") as passout:
-                with open(os.path.join(args.output_directory, filename + "_transfail.fa"), "w") as failout:
+            with open(os.path.join(args.outputdirectory, filename + "_transpass.fa"), "w") as passout:
+                with open(os.path.join(args.outputdirectory, filename + "_transfail.fa"), "w") as failout:
                     
                     for head, seq in SimpleFastaParser(infasta):
                         
@@ -221,7 +221,7 @@ def main():
             
         else:
             
-            with open(os.path.join(args.output_directory, filename + "_transfiltered.fa"), "w") as outfasta:
+            with open(os.path.join(args.outputdirectory, filename + "_transfiltered.fa"), "w") as outfasta:
                 
                 for head, seq in SimpleFastaParser(infasta):
                     
