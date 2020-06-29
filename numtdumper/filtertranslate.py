@@ -81,7 +81,7 @@ def getcliargs():
                                "for few sequences)", 
                         type = int, default = 100)
     
-    return(parser.parse_args(['-h']))
+    return(parser.parse_args())
 
 # Function definitions
 
