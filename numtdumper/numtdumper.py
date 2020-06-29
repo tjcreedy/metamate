@@ -277,7 +277,7 @@ def getcliargs(arglist = None):
     
     # Check for all required variables
     
-    if args.action == 'find':
+    if args.mode == 'find':
         # Ensure a value is supplied to libraries
         if not args.outputdirectory:
             parser.error('-o/--outputdirectory is required for NUMT finding')
@@ -299,7 +299,7 @@ def getcliargs(arglist = None):
             args.refmatchlength = int(0.8 * args.minimumlength)
         args.outfasta = None
     
-    elif args.action == 'dump':
+    elif args.mode == 'dump':
         ressum = sum([args.resultcache is not None,
                       args.resultindex is not None])
         if args.specification:
@@ -326,7 +326,7 @@ def getcliargs(arglist = None):
         for a, t in zip([args.outputdirectory, args.outfasta],
                         ['-o/--outputdirectory', '-f/--outfasta']):
             if a and os.path.exists(a):
-                if args.action == 'find' or not args.outfasta:
+                if args.mode == 'find' or not args.outfasta:
                     sys.exit(f"{t} {a} exists but --overwrite is not set.")
     
     sys.stderr.flush()
@@ -346,7 +346,7 @@ def main():
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
     outfilename = infilename
-    if args.action == 'dump' and args.outfasta:
+    if args.mode == 'dump' and args.outfasta:
         outfilename = os.path.splitext(os.path.basename(args.outfasta))[0]
     
     # Make the output directory
@@ -354,14 +354,14 @@ def main():
     if args.outputdirectory and not os.path.exists(args.outputdirectory):
         os.makedirs(args.outputdirectory)
     
-    sys.stdout.write(f"\nWelcome to NUMTdumper, let's {args.action} "
+    sys.stdout.write(f"\nWelcome to NUMTdumper, let's {args.mode} "
                       "those NUMTs!\n\n")
     
     #################################################
     # DO EXTRACTION IF EXTRACTING FROM PREVIOUS RUN #
     #################################################
     
-    if args.action == 'dump' and args.specification is None:
+    if args.mode == 'dump' and args.specification is None:
         
         raw, aligned = binning.parse_asvs(args, False, '',
                                           os.path.join('.', 'asvtemp'))
@@ -371,7 +371,7 @@ def main():
         
         core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename,
                                   raw['path'], os.getcwd(), args.resultindex, 
-                                  stores, args.action, args.outfasta)
+                                  stores, args.mode, args.outfasta)
         
         sys.stdout.write("\nNUMTs: dumped\n\n")
         exit()
@@ -386,7 +386,7 @@ def main():
                      f"{'s' if nterm > 1 else ''}, comprising "
                      f"{len(specs['name'])} bin strateg"
                      f"{'ies' if len(specs['name']) > 1 else 'y'}")
-    if args.action == 'find':
+    if args.mode == 'find':
         sys.stdout.write(f" and totalling {nthresh} unique threshold "
                          f"set{'s' if nthresh > 1 else ''}\n")
     else:
@@ -429,7 +429,7 @@ def main():
     # DESIGNATE CONTROL SETS #
     ##########################
     
-    if args.action == 'find':
+    if args.mode == 'find':
         target, nontarget = core.get_validated(raw, args, infilename)
     
     ####################
@@ -450,7 +450,7 @@ def main():
     
     counts = core.counts_from_spec(specs, data)
     
-    if args.action == 'find':
+    if args.mode == 'find':
         
         # Calculate score for threshold combination
         sys.stdout.write("Assessing counts and scoring for each threshold "
@@ -466,7 +466,7 @@ def main():
         
         scoresort = core.find_best_score(stats, len(specs['name']))
         
-    elif args.action == 'dump':
+    elif args.mode == 'dump':
         rejects = core.apply_reject(specs['name'], next(thresholds),
                                               counts, args.anyfail)
     
@@ -474,7 +474,7 @@ def main():
     # OUTPUT RESULTS #
     ##################
     
-    if args.action == 'find':
+    if args.mode == 'find':
         # Output ASVs if requested
         if args.generateASVresults > 0:
             resultsets = core.generate_resultsets(args.generateASVresults, 
@@ -483,7 +483,7 @@ def main():
             sys.stdout.write(f"Writing {len(resultsets)} filtered ASV files\n")
             core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename, 
                                       raw['path'], args.outputdirectory,
-                                      resultsets, stats, args.action, None)
+                                      resultsets, stats, args.mode, None)
         
         # Output thresholds and scores
         sys.stdout.write("Writing statistics and result cache\n")
@@ -491,7 +491,7 @@ def main():
                                    args.outputdirectory)
         sys.stdout.write("\nNUMTs: found?\n\n")
     
-    elif args.action == 'dump':
+    elif args.mode == 'dump':
         core.write_retained_asvs(raw['path'], args.outfasta, rejects)
         sys.stdout.write("\nNUMTs: dumped\n\n")
 
