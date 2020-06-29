@@ -194,7 +194,7 @@ def parse_specs(args, null = float('nan')):
     "Parse through the specification to expand terms and thresholds"
     #null = 0
     
-    if args.action == 'find':
+    if args.mode == 'find':
         # Open specifications file and parse lines into specifications
         fh = open(args.specification, 'r')
         spectext = ''
@@ -205,7 +205,7 @@ def parse_specs(args, null = float('nan')):
             else:
                 spectext += l.strip()
         fh.close()
-    elif args.action == 'dump':
+    elif args.mode == 'dump':
         spectext = '*'.join([re.sub("\'", '', s) for s in args.specification])
     
     # Check
@@ -250,7 +250,7 @@ def parse_specs(args, null = float('nan')):
         threshlists.append(threshl)
     nterm = len(terms)
     
-    if args.action == 'dump' and nthresh > 1:
+    if args.mode == 'dump' and nthresh > 1:
         sys.exit("Error: mode 'dump' allows only a single threshold set. To "
                  "run wih multiple threshold sets, use mode 'find'\n")
     
