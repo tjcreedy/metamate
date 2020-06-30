@@ -246,7 +246,7 @@ def parse_specs(args, null = float('nan')):
         n = functools.reduce(lambda x, y: x * y, 
                                    [len(t) for t in threshl], 1)
         nthresh += n
-        terms.append([specl, nthresh])
+        terms.append([specl, n])
         threshlists.append(threshl)
     nterm = len(terms)
     
