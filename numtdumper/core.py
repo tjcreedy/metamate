@@ -167,8 +167,8 @@ def resolve_spec(spec):
 
     # Check there are 3 values
     if len(values) != 3:
-        sys.exit(f"{err}: specification line should have three "
-                 "tab-separated entries")
+        sys.exit(f"{err}: each specification term should have three semicolon-"
+                 "-separated entries, with terms enclosed in square brackets")
 
     # Split terms into parts
     values[0]  = re.split("[\|\+]", values[0])
