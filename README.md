@@ -112,9 +112,9 @@ The purpose of `find` mode is to comprehensively assess a range of frequency fil
 
 Running in `find` mode requires the most input data, as NUMTdumper will be undertaking all of its core processes. This will generally be the first mode that is used, in order to generate a set of output statistics to analyse. The most simple `find` command would look like this:
 ```
-numtdumper.py find -A asvs.fasta -R references.fasta -L libs/L1.fasta libs/L2.fasta -S specifications.txt -o outputdir --length 400 --percentvar 1 --table 5
+numtdumper.py find -A asvs.fasta -R references.fasta -L libs/L1.fasta libs/L2.fasta -S specifications.txt -o outputdir --expectedlength 400 --percentvar 1 --table 5
 ```
-Here, the user has specified two fasta files in the current directory, the ASVs to filter (`-A`), a reference set to use for finding verified-authentic-ASVs (`-R`). They have also supplied the paths to two libraries from which the ASVs derive (`-L`) and the path to the specifications file (`-S`). NUMTdumper is instructed to write the results into a directory named "outputdir" (`-o`). The last arguments specify how to find verified-non-authenic-ASVs: any ASVs that fall outside a target length 400bp (`-length`) +/- 1% (`--percentvar`), and any ASVs that have stops in their translation according to translation table 5 (`--table`)
+Here, the user has specified two fasta files in the current directory, the ASVs to filter (`-A`), a reference set to use for finding verified-authentic-ASVs (`-R`). They have also supplied the paths to two libraries from which the ASVs derive (`-L`) and the path to the specifications file (`-S`). NUMTdumper is instructed to write the results into a directory named "outputdir" (`-o`). The last arguments specify how to find verified-non-authenic-ASVs: any ASVs that fall outside a target length 400bp (`--expectedlength`) +/- 1% (`--percentvar`), and any ASVs that have stops in their translation according to translation table 5 (`--table`)
 
 Alternatively, the user might run:
 ```
@@ -124,9 +124,9 @@ Here, the input ASVs (`-A`) and output directory (`-o`) paths are the same. Inst
 
 A final user wants to overwrite many of the defaults. 
 ```
-numtdumper.py find -A asvs.fasta -o outputdir -D blastdb/myrefs -L reads.fasta  -s 5 --length 400 -b 6 --onlyvarybycodon --distancemodel K80 -r 3 --dbmatchpercent 99 --dbmatchlength 390 
+numtdumper.py find -A asvs.fasta -o outputdir -D blastdb/myrefs -L reads.fasta  -s 5 --expectedlength 400 -b 6 --onlyvarybycodon --distancemodel K80 -r 3 --dbmatchpercent 99 --dbmatchlength 390 
 ```
-They have specified a target length of 400bp (`--length`), allowed 6 bases of variation around this (`-b`), but specified that this should `--onlyvarybycodon` meaning that the final specification is that any ASVs that are not 394, 397, 400, 403 or 406 bp in length will be designated as verified-non-authentic. When translating amino acids to check for stop codons, they have specified that NUMTdumper should use the 3rd  (`-r`) reading frame (i.e. the sequences start on the second codon position). They have specified that the UPGMA tree built on an alignment of the ASVs should be constructed acording to Kimura's two-parameter distance (`--distancemodel`). Finally, when searching against the references supplied in a blastdatabase, ASVs should be selected as verified-authentic if the match is 99% identical or greater (`--dbmatchpercent`) with a pairwise alignment between query and hit of at least 390 bp (`--bdmatchlength`). 
+They have specified a target length of 400bp (`--expectedlength`), allowed 6 bases of variation around this (`-b`), but specified that this should `--onlyvarybycodon` meaning that the final specification is that any ASVs that are not 394, 397, 400, 403 or 406 bp in length will be designated as verified-non-authentic. When translating amino acids to check for stop codons, they have specified that NUMTdumper should use the 3rd  (`-r`) reading frame (i.e. the sequences start on the second codon position). They have specified that the UPGMA tree built on an alignment of the ASVs should be constructed acording to Kimura's two-parameter distance (`--distancemodel`). Finally, when searching against the references supplied in a blastdatabase, ASVs should be selected as verified-authentic if the match is 99% identical or greater (`--dbmatchpercent`) with a pairwise alignment between query and hit of at least 390 bp (`--bdmatchlength`). 
 
 For more information on individual arguments, or how NUMTdumper works, see below.
 
