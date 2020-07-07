@@ -509,6 +509,7 @@ def write_stats_and_cache(specs, scores, terms, filename, outdir):
     ch.close()
 
 def get_reject_from_store(asvs, n, store):
+    #store = rsstore
     if store[0] == 'retain':
         return(asvs - store[1])
     elif store[0] == 'reject':
@@ -542,8 +543,10 @@ def write_retained_asvs(infile, outfile, rejects):
                 outfa.write(f">{head}\n{seq}\n")
 
 def write_resultset_asvs(asvs, filename, infile, outdir, resultsets, store,
-                         action, name):
-    storei = 1 if action == 'dump' else -1
+                         mode, name):
+    #asvs, filename, infile, outdir, resultsets, store,                         mode, name = [set(raw['asvs'].keys()), outfilename, raw['path'], os.getcwd(), args.resultindex, stores, args.mode, args.outfasta]
+    
+    storei = 1 if mode == 'dump' else -1
     
     for rs in resultsets:
         #rs = resultsets[0]
@@ -578,7 +581,7 @@ def parse_resultcache(path, asvs):
         if len(missing) > 0:
             sys.exit(f"{err} ASVs {', '.join(missing)} are not present or "
                       "identifiable in the supplied ASV file")
-        store.append([setn, (action, vals)])
+        store.append([setn, (action, set(vals))])
     fh.close()
     
     return(store)

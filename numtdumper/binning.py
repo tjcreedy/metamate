@@ -107,11 +107,12 @@ def count_asvs_in_libraries(master, librarypaths):
             seqn += 1
             seq = str(seqr.seq).upper()
             if seq in asvseqs:
-                libname = re.search(nameregex, seqr.id).group(1)
+                libname = re.search(nameregex, seqr.id)
                 if not libname:
                     sys.exit( "Error: can't detect a library name in header "
                              f"\"{seqr.id}\" on line {seqn} of "
                              f"{librarypaths[0]}\n")
+                libname = libname.group(1)
                 asvname = asvseqs[seq]
                 if libname not in countsbylibrary:
                     countsbylibrary[libname] = {asvname: 1}

@@ -61,10 +61,12 @@ def check_tools():
     """Check to see whether the required external tools are available."""
     tools = ['mafft', 'blastn', 'Rscript']
     for tool in tools:
+        #tool = tools[1]
         if not is_tool(tool):
-            sys.exit(f"Error: cannot locate executable \'{tool}\'. Please "
-                      "ensure it is installed and available for command "
-                      "line execution.")
+            err = (f"Error: cannot locate executable \'{tool}\'. Please "
+                    "ensure it is installed and available for command line "
+                    "execution.")
+            sys.exit(err)
 
 def getcliargs(arglist = None):
     # B D E F H I J K M N O P Q U V W Y Z

@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="NUMTdumper", # Replace with your own username
-    version="0.1b7",
+    version="0.1b9",
     author="Thomas J. Creedy",
     author_email="thomas.creedy@gmail.com",
     description="NUMTdumper: validated NUMT removal for mitochondrial "
@@ -35,6 +35,7 @@ setuptools.setup(
     entry_points={
         "console_scripts":[
             "numtdumper = numtdumper.numtdumper:main",
+            "NUMTdumper = numtdumper.numtdumper:main",
             "filtertranslate = numtdumper.filtertranslate:main"
             #"filterlength = numtdumper.filterlength:main"
             #"filterreference = numtdumper.filterreference:main"
