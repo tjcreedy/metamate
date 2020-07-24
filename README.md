@@ -4,8 +4,7 @@
 
 NUMTdumper analyses a set of amplicons derived through metabarcoding of a mitochondrial coding locus to determine putative NUMT and other erroneous sequences based on relative read abundance thresholds within libraries, phylogenetic clades and/or taxonomic groupings. 
 
-The paper for NUMTdumper is [available on bioRxiv](https://www.biorxiv.org/content/10.1101/2020.06.17.157347v1) and in review at Methods in Ecology and Evolution. 
-If you use NUMTdumper in your work, please cite this paper.
+The paper for NUMTdumper is [available on bioRxiv](https://www.biorxiv.org/content/10.1101/2020.06.17.157347v1). If you use NUMTdumper in your work, please cite this paper.
 
 The development of this tool was supported by the iBioGen project, funded by the H2020 European Research Council, Grant/Award Number: 810729.
 
@@ -79,7 +78,11 @@ sudo apt install python3 python3-pip mafft ncbi-blast+ r-base
 ```
 Install NUMTdumper from the PyPI package:
 ```
-pip install NUMTdumper
+python3 -m pip install NUMTdumper
+```
+or
+```
+sudo -H python3 -m pip install NUMTdumper
 ```
 Ensure the necessary R libraries are installed:
 ```
