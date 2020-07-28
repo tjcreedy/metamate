@@ -1,7 +1,7 @@
 # This directory contains dummy data for testing NUMTdumper
 # 
 #
-# SEQUENCE DATA
+# METABARCODING DATA
 #
 # The commands given here are a guideline for how data could be prepared for NUMTdumper,
 # no metabarcoding pipeline is universal and each dataset should be processed in whatever
@@ -39,8 +39,11 @@ vsearch --fastx_filter 4_denoise.fasta --fastq_minlen 416 --fastq_maxlen 421 -fa
 # 6_coleoptera.fasta - denoised unique sequences that are putatively Coleoptera. These are the ASVs
 #                      to be input into NUMTdumper
 #
-# METADATA
+# OTHER DATA
 #
 # 6_coleoptera_taxon.csv - a two-column table specifying a (dummy, random) taxon for each ASV
+#
+#
+# dummy_reference.fasta - a fasta of reference sequences
 #
 
