@@ -34,7 +34,7 @@ The development of this tool was supported by the iBioGen project, funded by the
   + [Scoring and estimation](#scoring-and-estimation)
 * [Development](#development)
 
-## How NUMTdumper works
+## Introduction
 
 NUMTdumper takes the guesswork and faff out of applying frequency-based filtering thresholds in NGS amplicon pipelines by utilising a modular threshold specification approach combined with detailed outputs to efficiently provide detailed insight into the effects of different filtering and binning strategies. This approach is explicitly developed towards removing putative NUMT sequences from a population of ASVs, but the methodology is broad enough that it will work simultaneously on any other types of low-frequency erroneous sequences, such as sequencing errors. A principal benefit of NUMTdumper over closely related tools is its validation approach, whereby input ASVs are assessed for membership of control groups for known authenticity. The effect of frequency thresholds and binning strategies on retention or rejection of the members of these is used to assess the optimal methodology for NUMT and error removal.
 
@@ -46,7 +46,7 @@ NUMTdumper operates using two submodules, `find` and `dump`, with the former bei
 2. Independently analyse the tabulated results to decide on the best strategy
 3. Run `dump` on the results cache for a given threshold set to extract the filtered ASVs
 
-### `find`
+### `find` examples
 
 The purpose of `find` mode is to comprehensively assess a range of frequency filtering specifications to analyse the impact of these on determining NUMTs. By default, `find` doesn't actually output filtered ASV sequences; instead, it outputs comprehensive information about the effect of each term and threshold set on the number of ASVs filtered and, crucially, the numbers of validated ASVs retained or rejected by each threshold set. This information can then be used to guide a `dump` run to actually output filtered ASV sequences without putative NUMTs.
 
@@ -63,7 +63,7 @@ A default `find` run carries out five main tasks:
 
 This report can then be easily interrogated by the user according to project-specific requirements to balance rejection and retention. 
 
-### `dump`
+### `dump` examples
 
 The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs. It does this by enacting a single desired threshold set, either by providing the results from a `find` run and selecting the desired threshold set, or by providing an ASV set, other necessary inputs, and a single threshold specification. In this latter case, NUMTdumper runs a slimmed-down version of a `find` run, skipping step 2, running step 4 only once (rather than once for every combination of thresholds), and skipping step 5. This functionality is provided for enhanced versatility of the tool for differing applications, but it is recommended that for the most accuracy, `dump` is used on the analysed outputs from a `find` run.
 
@@ -406,7 +406,7 @@ The following commands detail example runs of NUMTdumper using metabarcoding dat
 
 Note that the target amplicon size of this dataset is 418bp, so length specifications will be based on this; your data will vary! 
 
-### `find`
+### `find` examples
 
 This is probably the simplest `find` run that cound be run on this data:
 
@@ -443,7 +443,7 @@ numtdumper.py find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.1
 ```
 The input ASV alignment and tree are the same, but clades will be delimited at 15% divergence rather than the default 20%. Verified-authentic ASVs will be determined by matches against two references, the references fasta file (against which passing hits must be 98% similar over at least 400 bp), and the nt dataset (which uses the default similarity and length settings). The expected length is unchanged, but we now specify a more complicated way of determining verified-non-authentic ASVs: any ASVs that are less than 6 bases of variation around 418 **and** do not vary by exactly 3 bases from 418. Thus any reads that are not 412, 415, 418, 421 or 424 bp will be designated as verified-non-authentic. Finally, the translation table has been supplied using the short option `-s` rather than the long option `--table`.
 
-### `dump`
+### `dump` examples
 
 The most straightforward, and recommended, way to run `dump` is to do so simply to extract the results of a specified result set:
 ```
