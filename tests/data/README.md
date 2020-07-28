@@ -42,7 +42,13 @@ vsearch --fastx_filter 4_denoise.fasta --fastq_minlen 416 --fastq_maxlen 421 -fa
 #### 6_coleoptera.fasta
 Denoised unique sequences that are putatively Coleoptera. These are the ASVs to be input into NUMTdumper
 
+#### 6_coleoptera_fftnsi.fasta
+An alignment of 6_coleoptera.fasta, generated using the FFTNSI algorithm of MAFFT
+
 ### OTHER DATA
+
+#### 6_coleoptera_UPGMA.nwk
+A UPGMA tree built from the 6_coleoptera_fftnsi.fasta alignment
 
 #### 6_coleoptera_taxon.csv
 A two-column table specifying a (dummy, random) taxon for each ASV
