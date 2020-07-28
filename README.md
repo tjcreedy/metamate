@@ -321,7 +321,7 @@ These arguments control matching against a reference fasta or blast database for
 
 #### `-R/--references path` and/or `-D/--blastdb path`
 
-`path` should be the path to a fasta file (`-R/--references`) or blast database (`-D/--blastdb`) of sequences that represent known species that are likely to occure in the dataset. These should be carefully curated to ensure that no NUMTs are present: it is not recommended to blindly use sequences from databases that may contain records from bulk NGS amplicon sequencing. For example, the GenBank nt database contains OTU sequences from bulk environmental samples that may not have been stringently filtered. A BLAST search against these sequences will be used to designate a set of ASVs as verified-authentic.
+`path` should be the path to a fasta file (`-R/--references`) or blast database (`-D/--blastdb`) of sequences that represent known species that are likely to occur in the dataset. Both arguments are available for cases where multiple reference sources are desired, with different parameterisation of hits, but only one is required. For example, you may have a set of sanger-sequenced barcodes from your project's morphospecies, and which have been carefully curated to ensure accuracy and no NUMTs, against which you want to allow matches of 99% to allow for some minor sanger sequencing error and true haplotypes. You may also want to find 100% matches to a local copy of GenBank nt. You would supply the former to `-R` and the latter to `-D`. A BLAST search against these sequences will be used to designate a set of ASVs as verified-authentic. 
 
 #### `-refmatchlength n` and/or `--dbmatchlength n`
 
@@ -331,6 +331,8 @@ These arguments control matching against a reference fasta or blast database for
 
 The supplied value is the minimum percent identity against to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is 100%
 
+
+
 ### Length-based arguments
 
 `find`: *required* | `dump` *not used*
@@ -338,9 +340,9 @@ The supplied value is the minimum percent identity against to consider a BLAST m
 Length based parameters are used to calculate a set of lengths; an ASV with length outside this set will be designated a verified-non-authentic-ASV. A number of different arguments are available for flexible delimitation of this range. The user must specify sufficient information to compute the range, i.e.
 1. the minimum and maximum length of the range, OR
 2. the expected length of the centre of the range, AND one of
-a) the number of bases around this expectation,
-b) the percentage variation around this expectation,
-c) the number of codons around this expectation
+   1. the number of bases around this expectation,
+   2. the percentage variation around this expectation,
+   3. the number of codons around this expectation
 
 Additionally, `--onlyvarybycodon` may be specified, which further restricts the range to only values differing from the expected length by a multiple of three. If used in conjunction with a minimum and maximum length specification, `--onlyvarybycodon` requires that `-l/--expectedlength` is also specified.
 
