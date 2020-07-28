@@ -39,8 +39,8 @@ The downside of this approach is that NUMTdumper is more data- and parameter- hu
 NUMTdumper operates using two submodules, `find` and `dump`, with the former being the main workhorse of the tool. A default `find` run carries out five main tasks:
 1. Parse the input frequency filtering specification into a set of binning strategies and thresholds.
 2. Assess all ASVs for potential membership of the authentic or non-authentic control groups, by
-a) Finding ASVs that match to the supplied reference set(s) using BLAST
-b) Finding ASVs that fall outside acceptable length or translation parameters
+    a) Finding ASVs that match to the supplied reference set(s) using BLAST
+    b) Finding ASVs that fall outside acceptable length or translation parameters
 3. Bin ASVs according to the specified binning strategies and generate counts of ASV reads within these bins
 4. For each specified set of thresholds, assess all ASVs for retention or rejection according to their binned read frequencies
 5. Output a report detailing counts of ASV rejection and retention overall and for the two control groups, over all thresholds.
