@@ -108,7 +108,7 @@ The R packages getopt, ape and phangorn are also required.
 ### Quick install
 
 
-Make sure you have all of the system dependencies: Python3, pip, [MAFFT](https://mafft.cbrc.jp/alignment/software/linux.html), [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [R](https://cran.r-project.org/). If you're on ubuntu linux, you can run:
+Make sure you have all of the system dependencies: Python3 (3.6+), pip, [MAFFT](https://mafft.cbrc.jp/alignment/software/linux.html), [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [R](https://cran.r-project.org/). If you're on ubuntu linux, you can run:
 
 ```
 sudo apt install python3 python3-pip mafft ncbi-blast+ r-base
@@ -126,7 +126,9 @@ or
 sudo -H python3 -m pip install NUMTdumper
 ```
 
-Ensure the necessary R libraries are installed:
+If the above fails, ensure that the python version that `python3` refers to in your current environment is >=3.6 (`python3 --version`).
+
+Finally, ensure the necessary R libraries are installed:
 
 ```
 Rscript <(echo "install.packages(c('getopt', 'ape', 'phangorn'), repos = 'https://cloud.r-project.org')")
