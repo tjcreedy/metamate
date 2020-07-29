@@ -334,13 +334,13 @@ These arguments control matching against a reference fasta or blast database for
 
 `path` should be the path to a fasta file (`-R/--references`) or blast database (`-D/--blastdb`) of sequences that represent known species that are likely to occur in the dataset. Both arguments are available for cases where multiple reference sources are desired, with different parameterisation of hits, but only one is required. For example, you may have a set of sanger-sequenced barcodes from your project's morphospecies, and which have been carefully curated to ensure accuracy and no NUMTs, against which you want to allow matches of 99% to allow for some minor sanger sequencing error and true haplotypes. You may also want to find 100% matches to a local copy of GenBank nt. You would supply the former to `-R` and the latter to `-D`. A BLAST search against these sequences will be used to designate a set of ASVs as verified-authentic. 
 
-#### `-refmatchlength n` and/or `--dbmatchlength n`
+#### `--refmatchlength n` and/or `--dbmatchlength n`
 
-`n` should be a positive integer specifying the minimum alignment length to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is calculated from the length-based arguments, i.e. 80% of the length below which ASVs will be designated as verified-non-authentic. 
+`n` should be a positive integer specifying the minimum alignment length to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is calculated as 80% of the length below which ASVs will be designated as verified-non-authentic. 
 
-#### `-refmatchpercent [0-100]` and/or `--dbmatchpercent [0-100]`
+#### `--refmatchpercent [0-100]` and/or `--dbmatchpercent [0-100]`
 
-The supplied value is the minimum percent identity against to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is 100%
+The supplied value is the minimum percent identity against to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is 99.9 for `--refmatchpercent` and 100 for `--dbmatchpercent`.
 
 
 
