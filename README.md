@@ -145,7 +145,7 @@ Note that all commandline arguments can be provided in a file, one per line, wit
 
 ### Specifications
 
-NUMTdumper enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. 
+NUMTdumper enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. This is described in detail here, but for a quick start, you can simply use the [specifications.txt file available in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt). We recommend starting with this, looking at the results, and then modifying it as necessary for your data.
 
 A filtering specification consists of one or more 'terms'. Each term comprises three parts, as follows:
 
@@ -306,8 +306,7 @@ In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to
 
 #### `-S/--specification [path]` *required*
 
-`path` should be the path to a text file containing a specification for the terms apply when applying frequency filtering. These are explained in detail below, and an example specifications.txt file is [supplied in the GitHub repository](https://github.com/tjcreedy/numtdumper/specifications.txt). In brief, a specification consists of one or more terms, in the format `[category(/ies); metric; threshold(s)]` where category is one or a combination of "total", "library", "clade" or "taxon", metric is one of "n" or "p", and threshold is a specification of one or more maximum values in a comma separated list of individual values or ranges (specified in the form "start-stop/count"). Multiple terms can be considered sequentially, separated by `+` or simultaneously, separated by `*`. 
-
+`path` should be the path to a text file containing a specification for the terms apply when applying frequency filtering. These are explained in detail above, and an example specifications.txt file is [supplied in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt).
 
 #### `-g/--generateASVresults [n]`
 
@@ -413,25 +412,25 @@ Note that the target amplicon size of this dataset is 418bp, so length specifica
 This is probably the simplest `find` run that cound be run on this data:
 
 ```
-numtdumper.py find -A 6_coleoptera.fasta -L 0_merge/*.fastq -S specifications.txt -X 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
+numtdumper.py find -A 6_coleoptera.fasta -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
 ```
 The path to a fasta containing input ASVs to be filtered have been supplied to `-A`, and the paths to each of set of libraries to `-L` (note the bash parameter expansion: `0_merge/*.fastq` will expand to all files ending with `.fastq` in `0_merge/`). Each of the library files will be searched for each of the ASVs to find the count of ASVs per library. Note that these sequences have not been quality filtered - NUMTdumper is likely to be more accurate with quality filtered reads.
 The specifications file path has been supplied to `-S`, this will be parsed to find all specification terms, thresholds and combinations and generate all iterations to run.
 To find verified-authentic-ASVs, NUMTdumper will search the ASVs against the sequences in the `dummy_references.fasta` file path provided to `-R`. To find verified-non-authentic-ASVs, NUMTdumper will check the length of each ASV and translate it using NCBI translation table 5 (`--table`). Any ASV falling outside 418 +- 0% in length and/or containing any stops in translation will be designated as verified-non-authentic.
-NUMTdumper will align and build a UPGMA tree from the input ASVs to group ASVs into clades. ASVs will also be grouped into taxa according to the tablular file path supplied to `-X`.
+NUMTdumper will align and build a UPGMA tree from the input ASVs to group ASVs into clades. ASVs will also be grouped into taxa according to the tablular file path supplied to `-G`.
 Once filtering has been performed for all specified threshold sets, the results will be written to `outputdir` (which will be created if not present). As the input ASVs are unaligned and no tree was provided, these results will contain a fasta with aligned ASVs and a newick format text file with a UPGMA tree of the ASVs.
 
 If your reads are in a single file, with library information in the headers, rather than multiple files for each different library, you would supply the path to that file to `-L` instead:
 
 ```
-numtdumper.py find -A 6_coleoptera.fasta -L 6_concat.fasta -S specifications.txt -X 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
+numtdumper.py find -A 6_coleoptera.fasta -L 6_concat.fasta -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
 ```
 Note that either `6_concat.fastq` or `6_concat.fasta` can be used here. The former has not been quality filtered, so read counts will be higher, which will affect the output of NUMTdumper. It is suggested that quality filtered reads be used as the input.
 
 
 If you already have aligned ASVs and a tree file, but don't have any references, you could instead run:
 ```
-numtdumper.py find -A 6_coleoptera_fftnsi.fasta  -T 6_coleoptera_UPGMA.nwk -L 0_merge/*.fastq -S specifications.txt -X 6_coleoptera_taxon.csv -D /blastdb/nt -expectedlength 418 --percentvar 0 --table 5 -o outputdir 
+numtdumper.py find -A 6_coleoptera_fftnsi.fasta  -T 6_coleoptera_UPGMA.nwk -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -D /blastdb/nt -expectedlength 418 --percentvar 0 --table 5 -o outputdir 
 ```
 The path to aligned ASVs is supplied to the same argument as unaligned ASVs, NUMTdumper will detect whether the file is aligned or not. The path to a tree file has been supplied to `-T`. The `-L`ibraries and `-S`pecifications arguments are the same as in the first example. 
 The `-D` argument is used to supply a path to a [blast-formatted database generated by `makeblastdb`](https://www.ncbi.nlm.nih.gov/books/NBK279688/). In this case, it looks like this is a local copy of GenBank nt (note this is not supplied in the test data). The remaining arguments are the same as the previous command.
@@ -441,7 +440,7 @@ This command will be faster than the previous command, as NUMTdumper does not ne
 This final example overwrites many of these sorts of defaults:
 
 ```
-numtdumper.py find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.15 -L 0_merge/*.fastq -S specifications.txt -X 6_coleoptera_taxon.csv -R dummy_references.fasta --refmatchpercent 98 --refmatchlength 400 -D /blastdb/nt -expectedlength 418 --basesvariation 6 --onlyvarybycodon -s 5 -o outputdir 
+numtdumper.py find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.15 -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --refmatchpercent 98 --refmatchlength 400 -D /blastdb/nt -expectedlength 418 --basesvariation 6 --onlyvarybycodon -s 5 -o outputdir 
 ```
 The input ASV alignment and tree are the same, but clades will be delimited at 15% divergence rather than the default 20%. Verified-authentic ASVs will be determined by matches against two references, the references fasta file (against which passing hits must be 98% similar over at least 400 bp), and the nt dataset (which uses the default similarity and length settings). The expected length is unchanged, but we now specify a more complicated way of determining verified-non-authentic ASVs: any ASVs that are less than 6 bases of variation around 418 **and** do not vary by exactly 3 bases from 418. Thus any reads that are not 412, 415, 418, 421 or 424 bp will be designated as verified-non-authentic. Finally, the translation table has been supplied using the short option `-s` rather than the long option `--table`.
 
