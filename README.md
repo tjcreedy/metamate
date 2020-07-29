@@ -46,6 +46,16 @@ NUMTdumper operates using two submodules, `find` and `dump`, with the former bei
 2. Independently analyse the tabulated results to decide on the best strategy
 3. Run `dump` on the results cache for a given threshold set to extract the filtered ASVs
 
+### Input data required
+
+The ideal dataset for NUMTdumper is **a set of ASVs** arising from a **multi-sample metabarcoding dataset** accompanied by a solid set of **reference sequences** that are expected to be present in the dataset. Optionally, NUMTdumper can also utilise data assigning each ASV to a taxonomic group. 
+
+The ASVs (amplicon sequence variants) should comprise all unique sequences found across the dataset, optionally denoised, singletons removed, and filtered to remove outlying length variants.
+
+The multi-sample aspect is crucial, as the main novelty and power of NUMTdumper comes from assessing read counts of ASVs across descrete sampling units, as opposed to just using read counts of ASVs across the dataset as a whole. NUMTdumper refers to sampling units as 'libraries', under the assumption that a sample has likely been sequenced as a descrete pool of amplicons sharing the same identifying index. Depending on your pipeline, your descrete samples of amplicons may be stored in different files or in one file with sequences identified in the sequence header. NUMTdumper can deal with either of these ([see below](#-l--libraries-path-path)), assuming the format is correct.
+
+Reference sequences allow NUMTdumper to identify some of the input ASVs as verified authentic, that is to say definitely *not* NUMTs. The reference sequences are not expected to be comprehensive, nor are all references necessarily expected to occur, but the more ASVs that can be designated as verified authentic, the better NUMTdumper is able to estimate the impact on filtering and the more accurate the selection of filtering thresholds can be. If necessary, references can be drawn from global databases, such as BOLD or GenBank, or curated versions of these such as MIDORI, but [we suggest](#reference-matching-arguments) that the hit thresholds be more stringent in this case.
+
 ### `find` introduction
 
 The purpose of `find` mode is to comprehensively assess a range of frequency filtering specifications to analyse the impact of these on determining NUMTs. By default, `find` doesn't actually output filtered ASV sequences; instead, it outputs comprehensive information about the effect of each term and threshold set on the number of ASVs filtered and, crucially, the numbers of validated ASVs retained or rejected by each threshold set. This information can then be used to guide a `dump` run to actually output filtered ASV sequences without putative NUMTs.
@@ -147,8 +157,6 @@ Note that all commandline arguments can be provided in a file, one per line, wit
 
 NUMTdumper enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. This is described in detail here, but for a quick start, you can simply use the [specifications.txt file available in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt). We recommend starting with this, looking at the results, and then modifying it as necessary for your data.
 
-
-
 A filtering specification consists of one or more 'terms'. Each term comprises three parts, as follows:
 
 #### 1. Categories
@@ -156,11 +164,10 @@ Read frequencies can be binned according to four categories or combinations of t
 
 The four available categories are:
 * "total" = the total number of reads for a haplotype across the entire dataset
-* "library" = the number of reads of a haplotype per library or sample*
+* "library" = the number of reads of a haplotype per library (or sample, [see above](#input-data-required)
 * "clade" = the clade assignment of a haplotype
 * "taxon" = the taxon assignment of a haplotype
 
-\*IMPORTANT NOTE: NUMTdumper uses the term 'library' to refer to a descrete pool of amplicons sequenced together that share the same identifying indices. Each library is therefore likely to be a descrete sample of an ecological community (or subsample or replicate thereof).
 
 The binning strategy must start with either "total" or "library". Counts will be further subdivided by any further terms. For example: 
 * "total|clade" will bin reads by clade over the whole dataset
@@ -246,7 +253,7 @@ B * C
 
 `find`: *always required* | `dump`: *always required*
 
-`path` should be the path to a fasta file of unique sequences with unique header names to filter. There are no header format requirements. For best operation of NUMTdumper, the sequences in this file should have had primers trimmed and low-quality sequences removed. It is recommended that sequences that are more than 100bp longer or shorter than the expected range of your target locus should have been removed, but other length variants remain. This file must contain some unwanted length variants (see [below](#identify-validated-non-target-ASVs) for why.). If this file contains over 10,000 ASVs, it is suggested that denoising should be run before NUMTdumper.
+`path` should be the path to a fasta file of unique sequences with unique header names to filter. There are no header format requirements. For best operation of NUMTdumper, the sequences in this file should have had primers trimmed and low-quality sequences removed. It is recommended that sequences that are more than 100bp longer or shorter than the expected range of your target locus should have been removed, but other length variants remain. This file must contain some unwanted length variants ([see below](#identify-validated-non-target-ASVs) for why.). If this file contains over 10,000 ASVs, it is suggested that denoising should be run before NUMTdumper.
 
 The fasta file may be aligned or unaligned. If NUMTdumper requires an alignment (to build a UPGMA tree and delimit clades), an unaligned input will be aligned using [MAFFT FFT-NS-1](https://mafft.cbrc.jp/alignment/software/manual/manual.html). Supply an aligned set of ASVs if alignment is required but FFT-NS-1 is not expected to perform well with your data. 
 
@@ -304,7 +311,7 @@ A value between 0 and 1 specifiying the maximum percent divergence (1 = 100%) by
 
 `find`: *optional* | `dump`: *optional* 
 
-In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to be performed on a per-taxon basis (see specifications), `path` should be the path to a comma-delimited text file with as many rows as ASVs supplied to `-A/--asvs` and two columns. The first column should give the ASV read names, the second should give a grouping value for each ASV. This group is intended to allow for taxonomic bias in NUMT frequency, so is expected to be a taxonomic group, but NUMTdumper simply bins ASVs by unique group names so the actual content could be any string. The number of groups should be relatively low, less than 1% of the number of ASVs, and the ratio of ASVs to group number should be carefully considered when setting thresholds, remembering that when binning by library and taxonomic group, each library / taxon combination has only a small subset of the total ASV number.
+In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to be performed on a per-taxon basis ([see specifications](#specifications)), `path` should be the path to a comma-delimited text file with as many rows as ASVs supplied to `-A/--asvs` and two columns. The first column should give the ASV read names, the second should give a grouping value for each ASV. This group is intended to allow for taxonomic bias in NUMT frequency, so is expected to be a taxonomic group, but NUMTdumper simply bins ASVs by unique group names so the actual content could be any string. The number of groups should be relatively low, less than 1% of the number of ASVs, and the ratio of ASVs to group number should be carefully considered when setting thresholds, remembering that when binning by library and taxonomic group, each library / taxon combination has only a small subset of the total ASV number.
 
 ### `find`-specific arguments
 
@@ -314,7 +321,7 @@ In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to
 
 #### `-g/--generateASVresults [n]`
 
-By default, `find` mode does not output filtered ASVs, instead providing detailed statistics for assessment to determine the optimal threshold set for the dataset in question. This option provides for the output of a fasta file for each threshold set, containing the sequences that were not rejected by that threshold set and/or were determined to be verified-authentic ASVs. If supplied without a value, a fasta file will be output for each threshold set that recieved the best score. If a value is supplied, NUMTdumper will output a fasta file for each threshold set that scored within the top `n` proportion of threshold sets. If `n` is 1, a fasta will be output for every threshold set. This can generate a large number of fasta files! For more information about scoring, see below.
+By default, `find` mode does not output filtered ASVs, instead providing detailed statistics for assessment to determine the optimal threshold set for the dataset in question. This option provides for the output of a fasta file for each threshold set, containing the sequences that were not rejected by that threshold set and/or were determined to be verified-authentic ASVs. If supplied without a value, a fasta file will be output for each threshold set that recieved the best score. If a value is supplied, NUMTdumper will output a fasta file for each threshold set that scored within the top `n` proportion of threshold sets. If `n` is 1, a fasta will be output for every threshold set. This can generate a large number of fasta files! For more information about scoring, [see below](#scoring-and-estimation).
 
 ### Reference-matching arguments
 
@@ -407,7 +414,7 @@ Each value of `n` should be 0 or a positive integer referring to an result set i
 
 ## Examples
 
-The following commands detail example runs of NUMTdumper using metabarcoding data provided in the [GitHub tests directory](https://github.com/tjcreedy/numtdumper/tree/master/tests/data). See the README file in that directory for how this data was generated. Where a specifications file is used, this refers to the [default specifications available on the GitHub](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt)
+The following commands detail example runs of NUMTdumper using metabarcoding data provided in the [GitHub tests directory](https://github.com/tjcreedy/numtdumper/tree/master/tests/data). The README in that directory details how this data was generated. Where a specifications file is used, this refers to the [default specifications available on the GitHub](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt)
 
 Note that the target amplicon size of this dataset is 418bp, so length specifications will be based on this; your data will vary! 
 
@@ -465,7 +472,7 @@ The main differences between this and a `find` run are:
 * no arguments specifying how to delimit control groups are used
 `dump` mode resolves any binning strategies, building a tree if needed for clade-based strategies, and then applies the specified thresholds, writing all ASVs that pass the thresholds to a file in the output directory. This method is provided for rapid filtering on a known dataset.
 
-*Important note:* using `dump` by specifying thresholds is unlikely to return the same set ASVs for the same input data and threshold specification than using `find`, outputting a resultcache and running this in `dump`. See the ASV output section below for more details.
+*Important note:* using `dump` by specifying thresholds is unlikely to return the same set ASVs for the same input data and threshold specification than using `find`, outputting a resultcache and running this in `dump`. [See below](#numtdumped-asv-fasta-format-file) for more details.
 
 ## Outputs
 
@@ -482,7 +489,7 @@ The standard way to generate these files is by first running NUMTdumper in mode 
 
 This pipeline is designed to take account of the fact that threshold specifications and decisions on the optimal output should be dataset-dependent, and filtering with a single threshold set without validation is arbitrary.
 
-There are two non-standard methods that generate outputs with different conditions. Firstly, using `--anyfail` in either `find` or `dump` mode will change condition 3 to "ASV is present in a frequency equal to or exceeding all thresholds in any bins in which it occurs", see above for details.
+There are two non-standard methods that generate outputs with different conditions. Firstly, using `--anyfail` in either `find` or `dump` mode will change condition 3 to "ASV is present in a frequency equal to or exceeding all thresholds in any bins in which it occurs", [see above](#-y--anyfail-flag) for details.
 
 In the second case, users may optionally skip all validation and simply use mode `dump` to output a file of filtered ASVs based on a single set of term specifications and thresholds. In this case, the output ASVs are only those where the ASV is present in a frequency equal to or exceeding all thresholds in any bins in which it occurs. Thus the set of ASVs output from `find` and `dump` for the same set of term specifications and thresholds **may not be identical**, because `dump` does not perform any validation. 
 
@@ -493,7 +500,7 @@ The main output from NUMTdumper `find` mode is the *_results.csv file. This is a
 * *resultindex*: a unique identifier for each term specification and threshold combination, for ease of ASV retrieval using `dump` mode.
 * *term*: each additive term, repeated for a number of rows equal to the number of thresholds supplied to this term. For example, if the first terms in the specifications are `[library; n; 10-100/20] + [library; p; 0.001-0.1/10]`, the first 20 rows will be for term `library_n` and the next 10 rows will be term `library_p`.
 * *_threshold*: one or more columns giving threshold values for all bins/metric combinations in the specification. If a term does not include a bin/metric combination, this value will be 0. For the example above, the third column would be `library_n_threshold` and contain 20 values from 10 - 100, followed by 10 0s. The fourth column would be `library_p_threshold` and contain 20 0s followed by 10 values from 0.001 - 0.1.
-* *score*: an experimental value used to asssess relative success among threshold sets, see below for details
+* *score*: an experimental value used to asssess relative success among threshold sets, [see below](#scoring-and-estimation) for details
 * *asvs_total*: the total number of ASVs in the dataset.
 * *targets_total_observed*: the total number of verified authentic ASVs 
 * *nontargets_total_observed*: the total number of verified non-authentic ASVs
