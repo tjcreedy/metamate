@@ -10,6 +10,7 @@ The development of this tool was supported by the iBioGen project, funded by the
 
 ## Table of contents
 * [Introduction](#Introduction)
+  + [Input data](#input-data-required)
   + [`find`](#find-introduction)
   + [`dump`](#dump-introduction)
 * [Installation](#installation)
