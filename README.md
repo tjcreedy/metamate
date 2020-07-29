@@ -147,6 +147,8 @@ Note that all commandline arguments can be provided in a file, one per line, wit
 
 NUMTdumper enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. This is described in detail here, but for a quick start, you can simply use the [specifications.txt file available in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt). We recommend starting with this, looking at the results, and then modifying it as necessary for your data.
 
+
+
 A filtering specification consists of one or more 'terms'. Each term comprises three parts, as follows:
 
 #### 1. Categories
@@ -154,9 +156,11 @@ Read frequencies can be binned according to four categories or combinations of t
 
 The four available categories are:
 * "total" = the total number of reads for a haplotype across the entire dataset
-* "library" = the number of reads of a haplotype per library
+* "library" = the number of reads of a haplotype per library or sample*
 * "clade" = the clade assignment of a haplotype
 * "taxon" = the taxon assignment of a haplotype
+
+\*IMPORTANT NOTE: NUMTdumper uses the term 'library' to refer to a descrete pool of amplicons sequenced together that share the same identifying indices. Each library is therefore likely to be a descrete sample of an ecological community (or subsample or replicate thereof).
 
 The binning strategy must start with either "total" or "library". Counts will be further subdivided by any further terms. For example: 
 * "total|clade" will bin reads by clade over the whole dataset
