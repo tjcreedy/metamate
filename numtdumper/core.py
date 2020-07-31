@@ -539,8 +539,8 @@ def generate_resultsets(genval, stats, scoresort, nspec):
     return([i for i, s in enumerate(stats) if s[nspec] <= maxscore])
 
 def write_retained_asvs(infile, outfile, rejects):
-
-    with open(infile, 'r') as infa, open(outfile, 'w') as outfa:
+    
+    with open(infile, 'r') as infa, open(f"{outfile}.fasta", 'w') as outfa:
         for head, seq in SimpleFastaParser(infa):
             if head not in rejects:
                 outfa.write(f">{head}\n{seq}\n")

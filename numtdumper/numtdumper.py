@@ -323,6 +323,9 @@ def getcliargs(arglist = None):
                          'to -i/--resultindex. Supply -o/--outputdirectory '
                          'instead')
             args.outfasta = None
+        elif not args.outfasta and not args.outputdirectory:
+            parser.error('one or both of -f/--outfasta or -o/-outputdirectory'
+                         'is required')
     
     if not args.overwrite:
         for a, t in zip([args.outputdirectory, args.outfasta],
@@ -431,9 +434,10 @@ def main():
                                                                args.libraries)
     
     # Output csv of library counts
-    core.write_count_dict(librarycounts, raw['asvs'].keys(),
-                          os.path.join(args.outputdirectory,
-                          f"{infilename}_ASVcounts.csv"))
+    if args.outputdirectory:
+        core.write_count_dict(librarycounts, raw['asvs'].keys(),
+                              os.path.join(args.outputdirectory,
+                              f"{infilename}_ASVcounts.csv"))
     
     ##########################
     # DESIGNATE CONTROL SETS #
@@ -502,7 +506,10 @@ def main():
         sys.stdout.write("\nNUMTs: found?\n\n")
     
     elif args.mode == 'dump':
-        core.write_retained_asvs(raw['path'], args.outfasta, rejects)
+        outfile = (args.outfasta if args.outfasta else 
+                   os.path.join(args.ouputdirectory, outfilename))
+        
+        core.write_retained_asvs(raw['path'], outfile, rejects)
         sys.stdout.write("\nNUMTs: dumped\n\n")
 
 # TODO add resume points?
