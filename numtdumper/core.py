@@ -161,15 +161,16 @@ def resolve_ranges(range_string):
 def resolve_spec(spec):
     
     values = re.sub("[\[\]]", '', spec).split(';')
-    name = f"{values[0]}_{values[1]}"
+    
     # Set up error
     err = f"Error, malformed specification in {spec}"
-
+    
     # Check there are 3 values
     if len(values) != 3:
         sys.exit(f"{err}: each specification term should have three semicolon-"
                  "-separated entries, with terms enclosed in square brackets")
-
+    
+    name = f"{values[0]}_{values[1]}"
     # Split terms into parts
     values[0]  = re.split("[\|\+]", values[0])
 
