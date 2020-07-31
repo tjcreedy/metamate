@@ -208,7 +208,7 @@ def parse_specs(args, null = float('nan')):
         fh.close()
     elif args.mode == 'dump':
         spectext = '*'.join([re.sub("\'", '', s) for s in args.specification])
-    spectext = '[library; p; 0.3]'
+    
     # Check
     if( not args.taxgroups and any("taxon" in e for e in spectext)):
         sys.exit("Error, taxon specified as a binning strategy but no taxon "
