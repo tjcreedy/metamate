@@ -407,7 +407,7 @@ def main():
     if 'clade' in terms:
         clades, raw = binning.find_clades(args, infilename)
     else:
-        raw, aligned = binning.parse_asvs(args, False, '',
+        raw, aligned = binning.parse_asvs(args, True, '',
                                           os.path.join('.', 'asvtemp'))
         clades = binning.dummy_grouping(raw['asvs'].keys())
     
