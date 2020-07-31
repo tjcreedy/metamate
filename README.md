@@ -468,7 +468,7 @@ Alongside the same ASV file as used for a `find` run (`-A`), this command specif
 
 Alternatively, `dump` mode can work very similarly to `find` mode. Rather than taking a resultcache and result index, you can supply any arguments needed for binning and threshold specification. For example:
 ```
-numtdumper dump -A 6_coleoptera.fasta -L 2_concat.fasta -S '[library|clade, p, 0.05]' -o outputdir
+numtdumper dump -A 6_coleoptera.fasta -L 2_concat.fasta -S '[library|clade; p; 0.05]' -o outputdir
 ```
 The main differences between this and a `find` run are:
 * filtering specifications are supplied directly to the commandline
