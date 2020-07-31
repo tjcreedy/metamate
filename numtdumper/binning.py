@@ -41,11 +41,11 @@ def parse_taxa(taxafile, names):
     
     return(taxa)
 
-def dummy_taxa(names):
+def dummy_grouping(names):
     
-    taxa = { 'x' : names}
+    grouping = { 'x' : names}
     
-    return(taxa)
+    return(grouping)
 
 def detect_format(path):
     with open(path) as f:
@@ -237,15 +237,15 @@ def write_clade_dict(clade_dict, path):
                 o.write(asv + "," + clade + '\n')
 
 def parse_asvs(args, skipalign, skipmessage, outfile):
-    #args, skipalign, skipmessage, outfile = [args, args.tree,                              ", but tree supplied so need to align",                               os.path.join(args.outputdirectory, filename)]
-
+    #args, skipalign, skipmessage, outfile = [args, args.tree,", but tree supplied so need to align",                               os.path.join(args.outputdirectory, filename)]
+    
     # Set up variables
     raw = dict()
     aligned = dict()
-
+    
     # Detect alignment
     isaligned = detect_aligned(args.asvs)
-
+    
     # Parse in ASVs and align if necessary
     if isaligned and not args.realign:
         sys.stdout.write("Input ASVs detected as aligned (if this is not the "
@@ -279,17 +279,17 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
     return(raw, aligned)
 
 def find_clades(args, filename):
-
+    
     # Locate the script directory
     scriptdir = os.path.dirname(__file__)
-
+    
     # Get the asv dicts
     raw, aligned = parse_asvs(args, args.tree,
-                              ", but tree supplied so need to align",
+                              ", but tree supplied so no need to align",
                               os.path.join(args.outputdirectory, filename))
-
+    
     tree = 0
-
+    
     # Read in tree or build tree as required
     if(args.tree):
         sys.stdout.write("Reading supplied UPGMA tree from previous run.\n")

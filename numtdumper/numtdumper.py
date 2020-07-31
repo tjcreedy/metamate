@@ -398,7 +398,14 @@ def main():
     # FIND CLADES #
     ###############
     #TODO: error catch for duplicate headers?
-    clades, raw = binning.find_clades(args, infilename)
+    clades, raw = None, None
+    
+    if 'clade' in specs['name']:
+        clades, raw = binning.find_clades(args, infilename)
+    else:
+        raw, aligned = binning.parse_asvs(args, False, '',
+                                          os.path.join('.', 'asvtemp'))
+        clades = binning.dummy_grouping(raw['asvs'].keys())
     
     #############
     # READ TAXA #
@@ -410,7 +417,7 @@ def main():
         sys.stdout.write("Reading taxa data\n")
         taxa = binning.parse_taxa(args.taxgroups, raw['asvs'].keys())
     else:
-        taxa = binning.dummy_taxa(raw['asvs'].keys())
+        taxa = binning.dummy_grouping(raw['asvs'].keys())
     
     ########################################
     # COMPUTE LIBRARY AND TOTAL READCOUNTS #
