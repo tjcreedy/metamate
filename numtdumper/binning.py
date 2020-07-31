@@ -262,12 +262,14 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
             if(args.realign):
                 sys.stdout.write(", --realign ignored")
             sys.stdout.write(".")
+            sys.stdout.flush()
             raw['asvs'] = SeqIO.to_dict(SeqIO.parse(args.asvs, "fasta"))
             raw['path'] = args.asvs
         else:
            sys.stdout.write(", running MAFFT FFT-NS-1 to align. This may "
                              "take some time, skip this step by supplying an "
                              "alignment to -A/--asvs\n")
+           sys.stdout.flush()
            aligned['asvs'] = do_alignment(args.asvs, args.threads)
            aligned['path'] = outfile + "_aligned.fa"
            AlignIO.write(aligned['asvs'], aligned['path'], "fasta")
@@ -298,6 +300,7 @@ def find_clades(args, filename):
         sys.stdout.write("Making a UPGMA tree from the alignment. This may "
                          "take some time, skip this step in re-runs by "
                          "supplying the tree to -T/--tree\n")
+        sys.stdout.flush()
         tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel)
 
         # Output the tree
