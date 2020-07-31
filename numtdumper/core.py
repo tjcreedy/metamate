@@ -208,7 +208,7 @@ def parse_specs(args, null = float('nan')):
         fh.close()
     elif args.mode == 'dump':
         spectext = '*'.join([re.sub("\'", '', s) for s in args.specification])
-    
+    spectext = '[library; p; 0.3]'
     # Check
     if( not args.taxgroups and any("taxon" in e for e in spectext)):
         sys.exit("Error, taxon specified as a binning strategy but no taxon "
@@ -221,10 +221,12 @@ def parse_specs(args, null = float('nan')):
     # Find unique terms and extract thresholds
     specdict = dict()
     termvals = []
+    doclades = False
     for specl in specslist:
         out = dict()
         for spec in specl:
             l = resolve_spec(spec)
+            doclades = any(t == 'clade' for t in l[1])
             specdict[l[0]] = l[1:3]
             out[l[0]] = l[3]
         termvals.append(out)
@@ -259,7 +261,7 @@ def parse_specs(args, null = float('nan')):
     terms = (l for t, c in terms for l in [t] * c)
     thresholds = (t for tl in threshlists for t in itertools.product(*tl))
     
-    return(specs, nterm, nthresh, terms, thresholds)
+    return(specs, nterm, nthresh, terms, thresholds, doclades)
 
 def get_validated(raw, args, filename):
     #filname = infilename
