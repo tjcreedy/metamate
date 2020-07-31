@@ -221,15 +221,16 @@ def parse_specs(args, null = float('nan')):
     # Find unique terms and extract thresholds
     specdict = dict()
     termvals = []
-    doclades = False
+    termset = set()
     for specl in specslist:
         out = dict()
         for spec in specl:
             l = resolve_spec(spec)
-            doclades = any(t == 'clade' for t in l[1])
+            termset.update(l[1])
             specdict[l[0]] = l[1:3]
             out[l[0]] = l[3]
         termvals.append(out)
+    nterm = len(termset)
     
     specs = {'name': list(specdict.keys())}
     specs.update({k: v for k, v in zip(['spec', 'metric'], 
@@ -237,7 +238,7 @@ def parse_specs(args, null = float('nan')):
     
     # Build all threshold combinations
     threshlists = []
-    terms = []
+    termdetails = []
     nthresh = 0
     for tval in termvals:
         #tval = termvals[6]
@@ -249,19 +250,18 @@ def parse_specs(args, null = float('nan')):
         n = functools.reduce(lambda x, y: x * y, 
                                    [len(t) for t in threshl], 1)
         nthresh += n
-        terms.append([specl, n])
+        termdetails.append([specl, n])
         threshlists.append(threshl)
-    nterm = len(terms)
     
     if args.mode == 'dump' and nthresh > 1:
         sys.exit("Error: mode 'dump' allows only a single threshold set. To "
                  "run wih multiple threshold sets, use mode 'find'\n")
     
     # Construct generators
-    terms = (l for t, c in terms for l in [t] * c)
+    termgen = (l for t, c in termdetails for l in [t] * c)
     thresholds = (t for tl in threshlists for t in itertools.product(*tl))
     
-    return(specs, nterm, nthresh, terms, thresholds, doclades)
+    return(specs, termset, nterm, nthresh, termgen, thresholds)
 
 def get_validated(raw, args, filename):
     #filname = infilename

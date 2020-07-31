@@ -382,7 +382,8 @@ def main():
     # READ AND PARSE FILTERING SPECIFICATIONS #
     ###########################################
     
-    specs, nterm, nthresh, terms, thresholds, docl = core.parse_specs(args, 0)
+    specparse = core.parse_specs(args, 0)
+    specs, terms, nterm, nthresh, termgen, thresholds = specparse
     
     sys.stdout.write(f"Parsed {nterm} additive specification term"
                      f"{'s' if nterm > 1 else ''}, comprising "
@@ -400,7 +401,7 @@ def main():
     #TODO: error catch for duplicate headers?
     clades, raw = None, None
     
-    if docl:
+    if 'clade' in terms:
         clades, raw = binning.find_clades(args, infilename)
     else:
         raw, aligned = binning.parse_asvs(args, False, '',
@@ -496,7 +497,7 @@ def main():
         
         # Output thresholds and scores
         sys.stdout.write("Writing statistics and result cache\n")
-        core.write_stats_and_cache(specs, stats, terms, infilename,
+        core.write_stats_and_cache(specs, stats, termgen, infilename,
                                    args.outputdirectory)
         sys.stdout.write("\nNUMTs: found?\n\n")
     
