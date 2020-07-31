@@ -244,6 +244,8 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
     aligned = dict()
     
     # Detect alignment
+    sys.stdout.write("Detecting ASV alignment status.\r")
+    sys.stdout.flush()
     isaligned = detect_aligned(args.asvs)
     
     # Parse in ASVs and align if necessary

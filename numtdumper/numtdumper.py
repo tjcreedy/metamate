@@ -382,7 +382,7 @@ def main():
     # READ AND PARSE FILTERING SPECIFICATIONS #
     ###########################################
     
-    specs, nterm, nthresh, terms, thresholds = core.parse_specs(args, 0)
+    specs, nterm, nthresh, terms, thresholds, docl = core.parse_specs(args, 0)
     
     sys.stdout.write(f"Parsed {nterm} additive specification term"
                      f"{'s' if nterm > 1 else ''}, comprising "
@@ -400,7 +400,7 @@ def main():
     #TODO: error catch for duplicate headers?
     clades, raw = None, None
     
-    if 'clade' in specs['name']:
+    if docl:
         clades, raw = binning.find_clades(args, infilename)
     else:
         raw, aligned = binning.parse_asvs(args, False, '',
