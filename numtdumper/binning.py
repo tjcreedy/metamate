@@ -50,6 +50,8 @@ def dummy_grouping(names):
 def detect_format(path):
     with open(path) as f:
         fline = f.readline().strip()
+    if len(fline)== 0:
+        sys.stdout.write(f"Error: the first line of {path} is blank\n")
     
     if(fline[0] == "@"):
         return("fastq")
@@ -261,7 +263,7 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
         SeqIO.write(raw['asvs'].values(), raw['path'], "fasta")
     else:
         sys.stdout.write("Input ASVs detected as not aligned")
-        if skipalign :
+        if skipalign:
             sys.stdout.write(skipmessage)
             if(args.realign):
                 sys.stdout.write(", --realign ignored")
