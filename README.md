@@ -151,8 +151,10 @@ This documentation provides further explanation for input data and argument sele
 Note that all commandline arguments can be provided in a file, one per line, with the path to the file supplied on the commandline preceeded by `@`. For example, running `numtdumper find -A asvs.fasta -R references.fasta --realign` would be the same as `numtdumper find @args.txt` where the contents of `args.txt` is:
 
 ```
--A asvs.fasta
--R references.fasta
+-A
+asvs.fasta
+-R
+references.fasta
 --realign
 ```
 
