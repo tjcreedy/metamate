@@ -44,10 +44,10 @@ cuts <- cutree(as.hclust.phylo(tree), h = opt$height)
 # the upgma function is a wrapper for hclust(method = "average"), converting the output to a phylogeny
 # In an ultrametric phylogeny, the branching time of a node is equal to the distance from a node to its tips
 # The distance between two tips in an ultrametric phylogeny is 2x the distance from either tip to their MRCA
-# Therefore if looking for 3% clusters in a phylogeny, need to find nodes with a branching time of <= 0.15
+# Therefore if looking for 3% clusters in a phylogeny, need to find nodes with a branching time of <= 0.015
 # In a hclust dendrogram, the height value of a merge (=node) is equal to the dissimilarity between its tips.
 # Therefore a hclust dendrogram can be considered to be 2x amplified
-# So to to look for 3% clusters in a dendrogram, need to cut at a height of 0.3
+# So to to look for 3% clusters in a dendrogram, need to cut at a height of 0.03
 # as.hclust.phylo() converts from phylo to hclust to run cutree on a hclust object, hclust$heights = 2x branching.times(phylo)
 
 cuts <- cbind(opt$height, gsub('-', ';', names(cuts)), cuts)
