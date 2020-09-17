@@ -396,7 +396,7 @@ def main():
         sys.stdout.write(f" and totalling {nthresh} unique threshold "
                          f"set{'s' if nthresh > 1 else ''}\n")
     else:
-        sys.stdout.write('\n')
+        sys.stdout.write('.\n')
     
     ###############
     # FIND CLADES #

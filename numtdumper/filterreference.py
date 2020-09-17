@@ -31,7 +31,7 @@ def make_temp_blastwd(path, name):
 def make_blastdb(subjectfile, workingdir):
     
     # Check if subjectfile is aligned
-    subaln = binning.detect_aligned(subjectfile)
+    subaln = binning.detect_aligned(subjectfile, 2000)
     if(subaln):
         alnsub  = AlignIO.read(subjectfile, "fasta")
         rawsub = binning.degap_alignment(alnsub)
