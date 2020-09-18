@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="NUMTdumper", # Replace with your own username
-    version="0.1b12",
+    version="0.1b13",
     author="Thomas J. Creedy",
     author_email="thomas.creedy@gmail.com",
     description="NUMTdumper: validated NUMT removal for mitochondrial "
