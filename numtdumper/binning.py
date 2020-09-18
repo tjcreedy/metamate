@@ -146,7 +146,7 @@ def count_asvs_in_libraries(master, librarypaths):
 
 def detect_aligned(fasta, n):
     with open(fasta) as fh:
-        head = [next(fh) for i in range(n)]
+        head = [next(fh,'') for i in range(n)]
     try:
         AlignIO.read(io.StringIO(''.join(head)), "fasta")
         return(True)
