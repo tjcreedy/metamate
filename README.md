@@ -2,7 +2,7 @@
 
 ### Overview
 
-metaMATE analyses a set of amplicons derived through metabarcoding of a mitochondrial coding locus to determine putative NUMT and other erroneous sequences based on relative read abundance thresholds within libraries, phylogenetic clades and/or taxonomic groupings. 
+metaMATE (metabarcoding Multiple Abundance Threshold Evaluator) analyses a set of amplicons derived through metabarcoding of a mitochondrial coding locus to determine putative NUMT and other erroneous sequences based on relative read abundance thresholds within libraries, phylogenetic clades and/or taxonomic groupings. 
 
 The paper for metaMATE is [available on bioRxiv](https://www.biorxiv.org/content/10.1101/2020.06.17.157347v1) under the previous name of NUMTdumper. If you use metaMATE in your work, please cite this paper.
 
