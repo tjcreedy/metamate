@@ -326,7 +326,11 @@ In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to
 
 #### `-g/--generateASVresults [n]`
 
-By default, `find` mode does not output filtered ASVs, instead providing detailed statistics for assessment to determine the optimal threshold set for the dataset in question. This option provides for the output of a fasta file for each threshold set, containing the sequences that were not rejected by that threshold set and/or were determined to be verified-authentic ASVs. If supplied without a value, a fasta file will be output for each threshold set that recieved the best score. If a value is supplied, metaMATE will output a fasta file for each threshold set that scored within the top `n` proportion of threshold sets. If `n` is 1, a fasta will be output for every threshold set. This can generate a large number of fasta files! For more information about scoring, [see below](#scoring-and-estimation).
+By default, `find` mode does not output filtered ASVs, instead providing detailed statistics for assessment to determine the optimal threshold set for the dataset in question. This option provides for the output of a fasta file for each threshold set, containing the sequences that were not rejected by that threshold set and/or were determined to be verified-authentic ASVs. If supplied without a value, a fasta file will be output for each threshold set that recieved the best score (see below). If a value is supplied, metaMATE will output a fasta file for each threshold set that scored within the top `n` proportion of threshold sets. If `n` is 1, a fasta will be output for every threshold set. This can generate a large number of fasta files! For more information about scoring, [see below](#scoring-and-estimation).
+
+#### `-q/--scoremetric [metric]`
+
+When using `-g/--generateASVresults`, you can select which scoring metric (accuracy, precision or recall) is used to select the best threshold set(s) by supplying the metric name to `-q/--scoremetric`. [See below](#scoring-and-estimation) for more details on these metrics.
 
 ### Reference-matching arguments
 
@@ -505,18 +509,18 @@ The main output from metaMATE `find` mode is the *_results.csv file. This is a c
 * *resultindex*: a unique identifier for each term specification and threshold combination, for ease of ASV retrieval using `dump` mode.
 * *term*: each additive term, repeated for a number of rows equal to the number of thresholds supplied to this term. For example, if the first terms in the specifications are `[library; n; 10-100/20] + [library; p; 0.001-0.1/10]`, the first 20 rows will be for term `library_n` and the next 10 rows will be term `library_p`.
 * *_threshold*: one or more columns giving threshold values for all bins/metric combinations in the specification. If a term does not include a bin/metric combination, this value will be 0. For the example above, the third column would be `library_n_threshold` and contain 20 values from 10 - 100, followed by 10 0s. The fourth column would be `library_p_threshold` and contain 20 0s followed by 10 values from 0.001 - 0.1.
-* *score*: an experimental value used to asssess relative success among threshold sets, [see below](#scoring-and-estimation) for details
+* *accuracy_score, precision_score, recall_score*: the accuracy, [precision and recall](https://en.wikipedia.org/wiki/Precision_and_recall) scores for this threshold set based on the rejection/retention of va- and vna-ASVs, [see below](#scoring-and-estimation) for details
 * *asvs_total*: the total number of ASVs in the dataset.
-* *targets_total_observed*: the total number of verified authentic ASVs 
-* *nontargets_total_observed*: the total number of verified non-authentic ASVs
+* *verifiedauthentic_total_observed*: the total number of verified authentic ASVs 
+* *verifiednonauthentic_total_observed*: the total number of verified non-authentic ASVs
 * *asvs_prelim_retained_n/p*: the number of ASVs and proportion of total ASVs that passed the given threshold(s), before rejecting any surviving verified-non-authentic ASVs and retaining any lost verified-authentics ASVs
 * *asvs_prelim_rejected_n/p*: the number of ASVs and proportion of total ASVs that failed the given threshold(s), before rejecting any surviving verified-non-authentic ASVs and retaining any lost verified-authentics ASVs
-* *targets_retained/rejected_n/p*: the number of and proportion of total verified authentic ASVs that passed/failed the given threshold(s)
-* *nontargets_retained/rejected_n/p*: the number of and proportion of total verified non-authentic ASVs that passed/failed the given threshold(s)
+* *verifiedauthentic_retained/rejected_n/p*: the number of and proportion of total verified authentic ASVs that passed/failed the given threshold(s)
+* *verifiednonauthentic_retained/rejected_n/p*: the number of and proportion of total verified non-authentic ASVs that passed/failed the given threshold(s)
 * *asvsactual_retained_n/p*: the total number of and proportion of total ASVs that were verified authentic, not verified non-authentic, and passed the given threshold(s)
 * *asvsactual_rejected_n/p*: the total number of and proportion of total ASVs that were verified non-authentic and/or failed the given threshold(s)
-* *targets/nontargets_total_estimate*: the estimated number of verified authentic and verified non-authentic ASVs in the initial dataset, prior to filtering, based on the calculations described below.
-* *targets/nontargets_retained_estimate*: the estimated number of verified authentic and verified non-authentic ASVs within those preliminarily retained, based on the calculations described below.
+* *verifiedauthentic/nonauthentic_total_estimate*: the estimated number of verified authentic and verified non-authentic ASVs in the initial dataset, prior to filtering, based on the calculations described below.
+* *verifiedauthentic/nonauthentic_retained_estimate*: the estimated number of verified authentic and verified non-authentic ASVs within those preliminarily retained, based on the calculations described below.
 * *rejects_hash*: the hashed alphabetically sorted list of actual rejected ASVs for this given set. Identical values on different rows denote those rows rejected an identical set of ASVs.
 
 ### ASV counts
@@ -549,14 +553,18 @@ Unless a tree is supplied, metaMATE uses the aligned ASVs to build a UPGMA tree 
 
 As part of a metaMATE run, the user must parameterise the determination of two control groups of ASVs. Control ASVs are those that can be determined _a priori_ to be either validly authentic or non-authentic: authentic ASVs are determined by a match against a reference set of sequences, non-authentic ASVs are determined by falling outside acceptable length and translation properties. The user must provide a reference set and specify acceptable sequence lengths, and may fine-tune reference matching and translation assessment. 
 
-#### Identifying validated non-target ASVs
-
-#### Identifying validated target ASVs
-
 ### Generating clades
 
-### ASV assessment
+Clades are generated as following:
+1. If the input ASVs are not aligned, they are aligned using the mafft FFT-NSI algorithm. This algorithm is used because ASV sets may be very large and a more accurate algorithm could be very time consuming to run. It is strongly suggested that if this algorithm is not likely to be accurate for your ASVs, that you pre-align your ASVs using a suitable method
+2. A distance matrix is computed for all sequences, using Felsenstein's distance implemented in Phylip (1984), unless an alternative metric is provided to `--distancemodel`.
+3. A UPGMA tree is constructed based on the distance matrix
+4. The UPGMA tree is cut into subtrees at the divergence level supplied to `-d/--divergence`.
+5. The members of each subtree are considered to belong to the same clade
 
 ### Scoring and estimation
+
+metaMATE scores the successful rejection of verified non-authentic ASVs and retention of verified authentic ASVs using three metrics: accuracy, precision and recall. These are standard metrics employed in cases where a model is tested on known data, for example when training machine learning models. Accuracy is simply the proportion of verified ASVs that were dealt with accurately, with a value of 1 denoting complete accuracy - all vna-ASVs were rejected by a given set of thresholds while all va-ASVs were retained. Precision and recall [are more specific metrics](https://en.wikipedia.org/wiki/Precision_and_recall).  Note that we do not suggest this as the only way to select the best threshold set - multiple threshold sets may recieve the same score, and it's important to carefully select the levels of va-ASV retention and vna-ASV rejection that you are happy with rather than using a reductive score to decide for you. However these scores may be useful in helping you decide.
+
 
 ## Development
