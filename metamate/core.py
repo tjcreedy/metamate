@@ -379,17 +379,11 @@ def counts_from_spec(specs, data):
     
     return(counts)
 
-def calc_score(retained_target, target, retained_nontarget, nontarget,
-               score_type, weight = 0.5):
-    if(score_type == "standardised"):
-        return(2 * ( weight * (1 - retained_target/target)
-               + (1-weight) * retained_nontarget/nontarget))
-    elif(score_type == "unstandardised"):
-        return(( weight * (target - retained_target)
-                + (1 - weight) * (nontarget - retained_target))
-               / ( weight * target + (1 - weight) * nontarget))
-    else:
-        sys.ext("Error: unknown score_type value passed to calc_score")
+def calc_scores(truepositive, falsepositive, truenegative, falsenegative):
+    return([(truepositive + truenegative) / 
+            (truepositive + truenegative + falsepositive + falsenegative),
+            truepositive / (truepositive + falsepositive),
+            truepositive / (truepositive + falsenegative)])
 
 def estimate_true_values(asvs, retained_asvs, retained_target, target,
                          retained_nontarget, nontarget):
@@ -408,16 +402,6 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target,
         out = ['NA', 'NA', 'NA', 'NA']
     return(out)
 
-def assess_numts(threshnames, counts, anyfail,
-                 asvs, target, nontarget, scoretype, weight,
-                 thresholds):
-    rejects = apply_reject(threshnames, thresholds, counts, anyfail)
-    stats = calc_stats(rejects, asvs, target, nontarget, scoretype, weight)
-    
-    # TODO: send thresholds + stats to a parallel writer instead, and only
-    # output sufficient information to generate resultsets
-    
-    return(list(thresholds) + stats)
 
 def apply_reject(threshnames, thresholds, counts, anyfail):
     rejects = []
@@ -426,8 +410,19 @@ def apply_reject(threshnames, thresholds, counts, anyfail):
         rejects.extend(reject(counts[term], thresh, anyfail))
     return(set(rejects))
 
-def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
-    #asvs, anyfail, scoretype, thresholds, weight =  [set(raw['asvs'].keys()), args.anyfail, "standardised" , thresholdcombos[0], 0.5]
+
+def assess_numts(threshnames, counts, anyfail, asvs, target, nontarget, 
+                 scoretype, threshvals):
+    #threshnames, anyfail, asvs, scoretype, weight, threshvals = specs['name'], args.anyfail, set(raw['asvs'].keys()), "standardised", 0.5, next(thresholds)
+    rejects = apply_reject(threshnames, threshvals, counts, anyfail)
+    stats = calc_stats(rejects, asvs, target, nontarget, scoretype)
+    
+    # TODO: send thresholds + stats to a parallel writer instead, and only
+    # output sufficient information to generate resultsets
+    
+    return(list(threshvals) + stats)
+
+def calc_stats(rejects, asvs, target, nontarget, scoretype):
     """For a given set of category counts and a given set of thresholds, counts
     retention, calculates scores and estimates statistics. Counts and
     thresholds should be in two lists of equal lengths, where the nth item of
@@ -437,7 +432,7 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
     # save memory.
     
     # Find all rejected_asvs across counts
-    actualrejects = rejects - target
+    actualrejects = rejects.union(nontarget) - target
     
     stats = [len(asvs),                              #0: asvs_total
              len(target),                            #1: targets_total
@@ -459,9 +454,9 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
               len(actualrejects),                    #17: asvsactual_rejected_n
               len(actualrejects) / stats[0]]         #18: asvsactual_rejected_p
     
-    # Calculate score
-    score = calc_score(stats[8], stats[1], stats[11], stats[2],
-                       scoretype, weight)
+    # Calculate score from truepositives, falsepositives, truenegatives and
+    # falsenegatives
+    scores = calc_scores(stats[7], stats[9], stats[13], stats[11])
     
     # Calculate estimates of 0: total input true targets, 1: total input true
     # nontargets, 2: total output true targets, 3: total output true nontargets
@@ -470,32 +465,34 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype, weight):
     
     # Store list of rejects or retains, whichever is shorter
     store = []
-    if len(rejects) < 0.5 * len(asvs):
+    if len(actualrejects) < 0.5 * len(asvs):
         store = ('reject', actualrejects)
     else:
         store = ('retain', asvs - actualrejects )
     
     # score, stats, estimates, hash, store
     rejects = tuple(sorted(actualrejects))
-    return([score] + stats + estimates + [hash(rejects),  store])
+    return(scores + stats + estimates + [hash(rejects),  store])
 
-def write_stats_and_cache(specs, scores, terms, filename, outdir):
+def write_stats_and_cache(specs, stats, terms, filename, outdir):
     
     sh = open(os.path.join(outdir,f"{filename}_results.csv"), 'w')
     ch = gzip.open(os.path.join(outdir,f"{filename}_resultcache"), 'wt')
     
     # Write header
-    head = ("score asvs_total targets_total_observed nontargets_total_observed"
-            " asvsprelim_retained_n asvsprelim_retained_p "
+    head = ("accuracy_score precision_score recall_score "
+            "asvs_total verifiedauthentic_total_observed "
+            "verifiednonauthentic_total_observed "
+            "asvsprelim_retained_n asvsprelim_retained_p "
             "asvsprelim_rejected_n asvsprelim_rejected_p "
-            "targets_retained_n targets_retained_p "
-            "targets_rejected_n targets_rejected_p "
-            "nontargets_retained_n nontargets_retained_p "
-            "nontargets_rejected_n nontargets_rejected_p "
+            "verifiedauthentic_retained_n verifiedauthentic_retained_p "
+            "verifiedauthentic_rejected_n verifiedauthentic_rejected_p "
+            "verifiednonauthentic_retained_n verifiednonauthentic_retained_p "
+            "verifiednonauthentic_rejected_n verifiednonauthentic_rejected_p "
             "asvsactual_retained_n asvsactual_retained_p "
             "asvsactual_rejected_n asvsactual_rejected_p "
-            "targets_total_estimate nontargets_total_estimate "
-            "targets_retained_estimate nontargets_retained_estimate "
+            "authentic_total_estimate nonauthentic_total_estimate "
+            "authentic_retained_estimate nonauthentic_retained_estimate "
             "rejects_hash").split(" ")
     
     sh.write(",".join(["resultindex", "term"]
@@ -503,10 +500,10 @@ def write_stats_and_cache(specs, scores, terms, filename, outdir):
                       + head) + '\n')
     
     # Write lines
-    for i, term, score in zip(itertools.count(), terms, scores):
-        sh.write(",".join(str(v) for v in [i, '*'.join(term)] + score[:-1])
+    for i, term, statl in zip(itertools.count(), terms, stats):
+        sh.write(",".join(str(v) for v in [i, '*'.join(term)] + statl[:-1])
                  +'\n')
-        ch.write('\t'.join([str(i), score[-1][0]] + list(score[-1][1])) +'\n')
+        ch.write('\t'.join([str(i), statl[-1][0]] + list(statl[-1][1])) +'\n')
     
     sh.close()
     ch.close()
@@ -521,14 +518,16 @@ def get_reject_from_store(asvs, n, store):
         sys.exit(f"store type \'{store[0]}\' for resultset {n} is not "
                   "\'retain\' or \'reject\'")
 
-def find_best_score(scores, nspec):
+def find_best_score(scores, scoretype, nspec):
     #scores, nspec = stats, len(specs['name'])
+    scoreloc = {'accuracy': 0,
+                'precision': 1,
+                'recall': 2}
+    scorelist = [ s[nspec + scoreloc[scoretype]] for s in scores ]
+    sys.stdout.write(f"Maxmimum {scoretype} score of {max(scorelist)} achieved"
+                     f" by {scorelist.count(max(scorelist))} threshold sets\n")
     
-    scorelist = [ s[nspec] for s in scores ]
-    sys.stdout.write(f"Minimum score of {min(scorelist)} achieved by "
-                     f"{scorelist.count(min(scorelist))} threshold sets\n")
-    
-    return(sorted(scorelist))
+    return(sorted(scorelist)[::-1])
 
 def generate_resultsets(genval, stats, scoresort, nspec):
     #genval = args.generateASVresults
@@ -536,28 +535,34 @@ def generate_resultsets(genval, stats, scoresort, nspec):
     if type(genval) is float:
         i = round(genval * len(scoresort)) - 1
     maxscore = scoresort[i]
-    return([i for i, s in enumerate(stats) if s[nspec] <= maxscore])
+    return([i for i, s in enumerate(stats) if s[nspec] >= maxscore])
 
 def write_retained_asvs(infile, outfile, rejects):
-    
-    with open(infile, 'r') as infa, open(f"{outfile}.fasta", 'w') as outfa:
+    with open(infile, 'r') as infa, open(f"{outfile}", 'w') as outfa:
         for head, seq in SimpleFastaParser(infa):
             if head not in rejects:
                 outfa.write(f">{head}\n{seq}\n")
 
 def write_resultset_asvs(asvs, filename, infile, outdir, resultsets, store,
-                         mode, name):
-    #asvs, filename, infile, outdir, resultsets, store,                         mode, name = [set(raw['asvs'].keys()), outfilename, raw['path'], os.getcwd(), args.resultindex, stores, args.mode, args.outfasta]
+                         mode):
+    #asvs, filename, infile, outdir, resultsets, store,                         mode, name = set(raw['asvs'].keys()), outfilename,                                  raw['path'], os.getcwd(), args.resultindex,                                   stores, args.mode
     
     storei = 1 if mode == 'dump' else -1
     
+    sys.stdout.write(f"Writing fastas for {len(resultsets)} results...")
+    
+    if len(resultsets) > 0:
+        outnames = {rs: f"{filename}_resultset{rs}.fasta" for rs in resultsets}
+    else:
+        outnames = {resultsets[0]: filename}
+    
     for rs in resultsets:
         #rs = resultsets[0]
-        out = f"{filename}_numtdumpresultset{rs}.fa" if name is None else name
-        outfile = os.path.join(outdir, out)
+        outfile = os.path.join(outdir, outnames[rs])
         rsstore = store[rs][storei]
         rejects = get_reject_from_store(asvs, rs, rsstore)
         write_retained_asvs(infile, outfile, rejects)
+    sys.stdout.write("done.\n")
 
 def parse_resultcache(path, asvs):
     #path, asvs = [args.resultcache, set(raw['asvs'].keys())]
@@ -586,6 +591,8 @@ def parse_resultcache(path, asvs):
                       "identifiable in the supplied ASV file")
         store.append([setn, (action, set(vals))])
     fh.close()
+    
+    sys.stdout.write(f"Read {len(store)} cached results.\n")
     
     return(store)
 

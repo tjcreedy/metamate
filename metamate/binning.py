@@ -248,33 +248,32 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
     aligned = dict()
     
     # Detect alignment
-    sys.stdout.write("Detecting ASV alignment status...\r")
-    sys.stdout.flush()
     isaligned = detect_aligned(args.asvs, 2000)
     
     # Parse in ASVs and align if necessary
     if isaligned and not args.realign:
-        sys.stdout.write("Input ASVs detected as aligned (if this is not the "
-                         "case, run with the --realign option).")
+        if not skipalign:
+            sys.stdout.write("Input ASVs detected as aligned (if this is not "
+                             "the case, run with the --realign option). ")
         aligned['asvs'] = AlignIO.read(args.asvs, "fasta")
         aligned['path'] = args.asvs
         raw['asvs'] = degap_alignment(aligned['asvs'])
         raw['path'] = outfile + "_unaligned.fa"
         SeqIO.write(raw['asvs'].values(), raw['path'], "fasta")
     else:
-        sys.stdout.write("Input ASVs detected as not aligned")
         if skipalign:
             sys.stdout.write(skipmessage)
             if(args.realign):
-                sys.stdout.write(", --realign ignored")
-            sys.stdout.write(".")
+                sys.stdout.write("Input ASVs detected as not aligned, but --"
+                                 "realign ignored as alignment is unneeded. ")
             sys.stdout.flush()
             raw['asvs'] = SeqIO.to_dict(SeqIO.parse(args.asvs, "fasta"))
             raw['path'] = args.asvs
         else:
-           sys.stdout.write(", running MAFFT FFT-NS-1 to align. This may "
-                             "take some time, skip this step by supplying an "
-                             "alignment to -A/--asvs\n")
+           sys.stdout.write("Input ASVs detected as not aligned, running "
+                            "MAFFT FFT-NS-1 to align. This may take some "
+                            "time, skip this step by supplying an alignment "
+                            "to -A/--asvs\n")
            sys.stdout.flush()
            aligned['asvs'] = do_alignment(args.asvs, args.threads)
            aligned['path'] = outfile + "_aligned.fa"
@@ -282,7 +281,7 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
            raw['asvs'] = degap_alignment(aligned['asvs'])
            raw['path'] = args.asvs
 
-    sys.stdout.write(f" Read {len(raw['asvs'])} ASVs.\n")
+    sys.stdout.write(f"Read {len(raw['asvs'])} ASVs.\n")
 
     return(raw, aligned)
 

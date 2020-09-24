@@ -144,6 +144,13 @@ def getcliargs(arglist = None):
                                    "count binning strategy and thresholds. "
                                    "An example can be found in the github",
                             required = True, metavar = "path", type = str)
+    findparser.add_argument("-q", "--scoremetric",
+                            help = "which of the three calculated scoring "
+                                   "metrics ('accuracy', 'precision' or "
+                                   "'recall') to use for selecting the top "
+                                   "scoring set(s) (default accuracy)",
+                            default = 'accuracy', metavar = 'metric', 
+                            type = str)
     findparser.add_argument("-g", "--generateASVresults",
                             help = "generate fasta files of retained ASVs for "
                                    "for threshold sets: if no value is given, "
@@ -154,6 +161,7 @@ def getcliargs(arglist = None):
                             default = 0, const = True, nargs = '?',
                             action = Range, minimum = 0, maximum = 1,
                             type = float)
+    
     
         # Reference matching parameters
     refmatch = findparser.add_argument_group("reference-matching-based target "
@@ -285,6 +293,10 @@ def getcliargs(arglist = None):
             parser.error('-o/--outputdirectory is required for NUMT finding')
         if not args.libraries:
             parser.error('-L/--libraries is required for NUMT finding')
+        # Ensure the metric supplied is valid
+        if args.scoremetric not in ['accuracy', 'precision', 'recall']:
+            parser.error("-q/--scoremetric must be one of 'accuracy', "
+                         "'precision' or 'recall'")
         # Ensure at least one reference is supplied
         if not args.references and not args.blastdb:
             parser.error('at least one of -R/--references and/or '
@@ -347,20 +359,24 @@ def main():
     
     # Get inputs
     args = getcliargs()
+    #args = getcliargs('dump -A data/6_coleoptera.fasta -S'.split(' ') +  ['[library; n; 3]','[library; p; 0.0025]','[library|clade; p; 0.04]'] + '-L data/1_concat.fastq -f otest13.fa'.split(' '))
+    #args = getcliargs('dump -A data/6_coleoptera.fasta -C otest01/6_coleoptera_resultcache -i 43 56 29 -o otest12'.split(' '))
+    
+    #os.chdir('tests/')
+    
     
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
     outfilename = infilename
     if args.mode == 'dump' and args.outfasta:
-        outfilename = os.path.splitext(os.path.basename(args.outfasta))[0]
+        outfilename = args.outfasta
     
     # Make the output directory
-    
     if args.outputdirectory and not os.path.exists(args.outputdirectory):
-        os.makedirs(args.outputdirectory)
+            os.makedirs(args.outputdirectory)
+        
     
-    sys.stdout.write(f"\nWelcome to NUMTdumper, let's {args.mode} "
-                      "those NUMTs!\n\n")
+    sys.stdout.write(f"\nWelcome to metaMATE, let's {args.mode}!\n\n")
     
     #################################################
     # DO EXTRACTION IF EXTRACTING FROM PREVIOUS RUN #
@@ -368,17 +384,19 @@ def main():
     
     if args.mode == 'dump' and args.specification is None:
         
-        raw, aligned = binning.parse_asvs(args, False, '',
+        raw, aligned = binning.parse_asvs(args, True, '',
                                           os.path.join('.', 'asvtemp'))
         
         stores = core.parse_resultcache(args.resultcache,
                                         set(raw['asvs'].keys()))
         
-        core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename,
-                                  raw['path'], os.getcwd(), args.resultindex, 
-                                  stores, args.mode, args.outfasta)
+        outdir = args.outputdirectory if args.outputdirectory else os.getcwd()
         
-        sys.stdout.write("\nNUMTs: dumped\n\n")
+        core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename,
+                                  raw['path'], outdir, args.resultindex, 
+                                  stores, args.mode)
+        
+        sys.stdout.write("\nCompleted dump\n\n")
         exit()
         
     ###########################################
@@ -408,7 +426,7 @@ def main():
         clades, raw = binning.find_clades(args, infilename)
     else:
         raw, aligned = binning.parse_asvs(args, True, '',
-                                          os.path.join('.', 'asvtemp'))
+                                          os.path.join(os.getcwd(), 'asvtemp'))
         clades = binning.dummy_grouping(raw['asvs'].keys())
     
     #############
@@ -437,7 +455,7 @@ def main():
     if args.outputdirectory:
         core.write_count_dict(librarycounts, raw['asvs'].keys(),
                               os.path.join(args.outputdirectory,
-                              f"{infilename}_ASVcounts.csv"))
+                                           f"{infilename}_ASVcounts.csv"))
     
     ##########################
     # DESIGNATE CONTROL SETS #
@@ -475,10 +493,11 @@ def main():
             stats = pool.map(partial(core.assess_numts,
                                      specs['name'], counts, args.anyfail,
                                      set(raw['asvs'].keys()), target,
-                                     nontarget, "standardised", 0.5),
+                                     nontarget, args.scoremetric),
                              thresholds, chunksize)
         
-        scoresort = core.find_best_score(stats, len(specs['name']))
+        scoresort = core.find_best_score(stats, args.scoremetric,
+                                         len(specs['name']))
         
     elif args.mode == 'dump':
         rejects = core.apply_reject(specs['name'], next(thresholds),
@@ -497,20 +516,19 @@ def main():
             sys.stdout.write(f"Writing {len(resultsets)} filtered ASV files\n")
             core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename, 
                                       raw['path'], args.outputdirectory,
-                                      resultsets, stats, args.mode, None)
+                                      resultsets, stats, args.mode)
         
         # Output thresholds and scores
         sys.stdout.write("Writing statistics and result cache\n")
         core.write_stats_and_cache(specs, stats, termgen, infilename,
                                    args.outputdirectory)
-        sys.stdout.write("\nNUMTs: found?\n\n")
+        sys.stdout.write("\nCompleted find\n\n")
     
     elif args.mode == 'dump':
-        outfile = (args.outfasta if args.outfasta else 
-                   os.path.join(args.ouputdirectory, outfilename))
-        
+        outdir = args.outputdirectory if args.outputdirectory else os.getcwd()
+        outfile = os.path.join(outdir, outfilename)
         core.write_retained_asvs(raw['path'], outfile, rejects)
-        sys.stdout.write("\nNUMTs: dumped\n\n")
+        sys.stdout.write("\nCompleted dump\n\n")
 
 # TODO add resume points?
 if __name__ == "__main__":
