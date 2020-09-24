@@ -1,10 +1,10 @@
-## NUMTdumper: let's dump those NUMTs!
+## metaMATE: your metabarcoding friend!
 
 ### Overview
 
-NUMTdumper analyses a set of amplicons derived through metabarcoding of a mitochondrial coding locus to determine putative NUMT and other erroneous sequences based on relative read abundance thresholds within libraries, phylogenetic clades and/or taxonomic groupings. 
+metaMATE analyses a set of amplicons derived through metabarcoding of a mitochondrial coding locus to determine putative NUMT and other erroneous sequences based on relative read abundance thresholds within libraries, phylogenetic clades and/or taxonomic groupings. 
 
-The paper for NUMTdumper is [available on bioRxiv](https://www.biorxiv.org/content/10.1101/2020.06.17.157347v1). If you use NUMTdumper in your work, please cite this paper.
+The paper for metaMATE is [available on bioRxiv](https://www.biorxiv.org/content/10.1101/2020.06.17.157347v1) under the previous name of NUMTdumper. If you use metaMATE in your work, please cite this paper.
 
 The development of this tool was supported by the iBioGen project, funded by the H2020 European Research Council, Grant/Award Number: 810729.
 
@@ -37,11 +37,11 @@ The development of this tool was supported by the iBioGen project, funded by the
 
 ## Introduction
 
-NUMTdumper takes the guesswork and faff out of applying frequency-based filtering thresholds in NGS amplicon pipelines by utilising a modular threshold specification approach combined with detailed outputs to efficiently provide detailed insight into the effects of different filtering and binning strategies. This approach is explicitly developed towards removing putative NUMT sequences from a population of ASVs, but the methodology is broad enough that it will work simultaneously on any other types of low-frequency erroneous sequences, such as sequencing errors. A principal benefit of NUMTdumper over closely related tools is its validation approach, whereby input ASVs are assessed for membership of control groups for known authenticity. The effect of frequency thresholds and binning strategies on retention or rejection of the members of these is used to assess the optimal methodology for NUMT and error removal.
+metaMATE takes the guesswork and faff out of applying frequency-based filtering thresholds in NGS amplicon pipelines by utilising a modular threshold specification approach combined with detailed outputs to efficiently provide detailed insight into the effects of different filtering and binning strategies. This approach wase explicitly developed towards removing putative NUMT sequences from a population of ASVs, but the methodology is broad enough that it will work simultaneously on any other types of low-frequency erroneous sequences, such as sequencing errors. A principal benefit of metaMATE over closely related tools is its validation approach, whereby input ASVs are assessed for membership of control groups for known authenticity. The effect of frequency thresholds and binning strategies on retention or rejection of the members of these is used to assess the optimal methodology for NUMT and error removal.
 
-The downside of this approach is that NUMTdumper is more data- and parameter- hungry than other similar tools. Rather than being content with being fed a set of ASVs, NUMTdumper requires inputs that a) enable the binning of ASV reads to provide pools upon which frequency thresholds can be applied and b) parameterise the determination of the two control groups. 
+The downside of this approach is that metaMATE is more data- and parameter- hungry than other similar tools. Rather than being content with being fed a set of ASVs, metaMATE requires inputs that a) enable the binning of ASV reads to provide pools upon which frequency thresholds can be applied and b) parameterise the determination of the two control groups. 
 
-NUMTdumper operates using two submodules, `find` and `dump`, with the former being the main workhorse of the tool. The standard workflow would be as follows:
+metaMATE operates using two submodules, `find` and `dump`, with the former being the main workhorse of the tool. The standard workflow would be as follows:
 
 1. Run `find` on your ASVs with other data and output tabulated results and results cache
 2. Independently analyse the tabulated results to decide on the best strategy
@@ -49,19 +49,19 @@ NUMTdumper operates using two submodules, `find` and `dump`, with the former bei
 
 ### Input data required
 
-The ideal dataset for NUMTdumper is **a set of ASVs** arising from a **multi-sample metabarcoding dataset** accompanied by a solid set of **reference sequences** that are expected to be present in the dataset. Optionally, NUMTdumper can also utilise data assigning each ASV to a taxonomic group. 
+The ideal dataset for metaMATE is **a set of ASVs** arising from a **multi-sample metabarcoding dataset** accompanied by a solid set of **reference sequences** that are expected to be present in the dataset. Optionally, metaMATE can also utilise data assigning each ASV to a taxonomic group. 
 
 The ASVs (amplicon sequence variants) should comprise all unique sequences found across the dataset, optionally denoised, singletons removed, and filtered to remove outlying length variants.
 
-The multi-sample aspect is crucial, as the main novelty and power of NUMTdumper comes from assessing read counts of ASVs across descrete sampling units, as opposed to just using read counts of ASVs across the dataset as a whole. NUMTdumper refers to sampling units as 'libraries', under the assumption that a sample has likely been sequenced as a descrete pool of amplicons sharing the same identifying index. Depending on your pipeline, your descrete samples of amplicons may be stored in different files or in one file with sequences identified in the sequence header. NUMTdumper can deal with either of these ([see below](#-l--libraries-path-path)), assuming the format is correct.
+The multi-sample aspect is crucial, as the main novelty and power of metaMATE comes from assessing read counts of ASVs across descrete sampling units, as opposed to just using read counts of ASVs across the dataset as a whole. metaMATE refers to sampling units as 'libraries', under the assumption that a sample has likely been sequenced as a descrete pool of amplicons sharing the same identifying index. Depending on your pipeline, your descrete samples of amplicons may be stored in different files or in one file with sequences identified in the sequence header. metaMATE can deal with either of these ([see below](#-l--libraries-path-path)), assuming the format is correct.
 
-Reference sequences allow NUMTdumper to identify some of the input ASVs as verified authentic, that is to say definitely *not* NUMTs. The reference sequences are not expected to be comprehensive, nor are all references necessarily expected to occur, but the more ASVs that can be designated as verified authentic, the better NUMTdumper is able to estimate the impact on filtering and the more accurate the selection of filtering thresholds can be. If necessary, references can be drawn from global databases, such as BOLD or GenBank, or curated versions of these such as MIDORI, but [we suggest](#reference-matching-arguments) that the hit thresholds be more stringent in this case.
+Reference sequences allow metaMATE to identify some of the input ASVs as verified authentic, that is to say definitely *not* NUMTs. The reference sequences are not expected to be comprehensive, nor are all references necessarily expected to occur, but the more ASVs that can be designated as verified authentic, the better metaMATE is able to estimate the impact on filtering and the more accurate the selection of filtering thresholds can be. If necessary, references can be drawn from global databases, such as BOLD or GenBank, or curated versions of these such as MIDORI, but [we suggest](#reference-matching-arguments) that the hit thresholds be more stringent in this case.
 
 ### `find` introduction
 
 The purpose of `find` mode is to comprehensively assess a range of frequency filtering specifications to analyse the impact of these on determining NUMTs. By default, `find` doesn't actually output filtered ASV sequences; instead, it outputs comprehensive information about the effect of each term and threshold set on the number of ASVs filtered and, crucially, the numbers of validated ASVs retained or rejected by each threshold set. This information can then be used to guide a `dump` run to actually output filtered ASV sequences without putative NUMTs.
 
-Running in `find` mode requires the most input data, as NUMTdumper will be undertaking all of its core processes. This will generally be the first mode that is used, in order to generate a set of output statistics to analyse. 
+Running in `find` mode requires the most input data, as metaMATE will be undertaking all of its core processes. This will generally be the first mode that is used, in order to generate a set of output statistics to analyse. 
 
 A default `find` run carries out five main tasks:
 1. Parse the input frequency filtering specification into a set of binning strategies and thresholds.
@@ -76,27 +76,27 @@ This report can then be easily interrogated by the user according to project-spe
 
 ### `dump` introduction
 
-The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs. It does this by enacting a single desired threshold set, either by providing the results from a `find` run and selecting the desired threshold set, or by providing an ASV set, other necessary inputs, and a single threshold specification. In this latter case, NUMTdumper runs a slimmed-down version of a `find` run, skipping step 2, running step 4 only once (rather than once for every combination of thresholds), and skipping step 5. This functionality is provided for enhanced versatility of the tool for differing applications, but it is recommended that for the most accuracy, `dump` is used on the analysed outputs from a `find` run.
+The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs. It does this by enacting a single desired threshold set, either by providing the results from a `find` run and selecting the desired threshold set, or by providing an ASV set, other necessary inputs, and a single threshold specification. In this latter case, metaMATE runs a slimmed-down version of a `find` run, skipping step 2, running step 4 only once (rather than once for every combination of thresholds), and skipping step 5. This functionality is provided for enhanced versatility of the tool for differing applications, but it is recommended that for the most accuracy, `dump` is used on the analysed outputs from a `find` run.
 
 ## Installation
 
 
-The best place to get NUMTdumper is to install from [the PyPI package](https://pypi.org/project/NUMTdumper/). The NUMTdumper source is available on [GitHub](https://github.com/tjcreedy/numtdumper).
+The best place to get metaMATE is to install from [the PyPI package](https://pypi.org/project/metaMATE/). The metaMATE source is available on [GitHub](https://github.com/tjcreedy/metamate).
 
 
-NUMTdumper was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most linux systems, and likely Mac OS as well. No idea about Windows.
+metaMATE was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most linux systems, and likely Mac OS as well. No idea about Windows.
 
 
-Note that just installing from the PyPI package is not sufficient to run NUMTdumper, it also requires some system dependencies and R packages.
+Note that just installing from the PyPI package is not sufficient to run metaMATE, it also requires some system dependencies and R packages.
 
 
 ### Dependencies
 
 
-NUMTdumper requires python3 and the python3 libraries biopython and scipy. These should automatically be installed if using the pip installer above.
+metaMATE requires python3 and the python3 libraries biopython and scipy. These should automatically be installed if using the pip installer above.
 
 
-NUMTdumper requires the following executables to be available on the command line:
+metaMATE requires the following executables to be available on the command line:
 * Rscript (part of [R](https://cran.r-project.org/))
 * blastn and makeblastdb (part of [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download))
 * [mafft](https://mafft.cbrc.jp/alignment/software/)
@@ -114,16 +114,16 @@ Make sure you have all of the system dependencies: Python3 (3.6+), pip, [MAFFT](
 sudo apt install python3 python3-pip mafft ncbi-blast+ r-base
 ```
 
-Install NUMTdumper from the PyPI package:
+Install metaMATE from the PyPI package:
 
 ```
-python3 -m pip install NUMTdumper
+python3 -m pip install metaMATE
 ```
 
 or
 
 ```
-sudo -H python3 -m pip install NUMTdumper
+sudo -H python3 -m pip install metaMATE
 ```
 
 If the above fails, ensure that the python version that `python3` refers to in your current environment is >=3.6 (`python3 --version`).
@@ -138,7 +138,7 @@ Done!
 
 ## Usage
 
-NUMTdumper has summary help built in for the overall tool and the two run modes. These can be accessed by running the below commands.
+metaMATE has summary help built in for the overall tool and the two run modes. These can be accessed by running the below commands.
 
 ```
 numtdumper --help
@@ -146,7 +146,7 @@ numtdumper find --help
 numtdumper dump --help
 ```
 
-This documentation provides further explanation for input data and argument selection, and the [details](#details) section goes in depth into the way that the key parts of NUMTdumper work.
+This documentation provides further explanation for input data and argument selection, and the [details](#details) section goes in depth into the way that the key parts of metaMATE work.
 
 Note that all commandline arguments can be provided in a file, one per line, with the path to the file supplied on the commandline preceeded by `@`. For example, running `numtdumper find -A asvs.fasta -R references.fasta --realign` would be the same as `numtdumper find @args.txt` where the contents of `args.txt` is:
 
@@ -160,7 +160,7 @@ references.fasta
 
 ### Specifications
 
-NUMTdumper enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. This is described in detail here, but for a quick start, you can simply use the [specifications.txt file available in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt). We recommend starting with this, looking at the results, and then modifying it as necessary for your data.
+metaMATE enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. This is described in detail here, but for a quick start, you can simply use the [specifications.txt file available in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt). We recommend starting with this, looking at the results, and then modifying it as necessary for your data.
 
 A filtering specification consists of one or more 'terms'. Each term comprises three parts, as follows:
 
@@ -201,7 +201,7 @@ This specification would run five iterations. In each iteration, ASVs would be d
 
 #### Multiple terms
 
-When running NUMTdumper in `find` mode, multiple specification terms can be compared sequentially, or 'additively', in the same run. These are included with the `+` symbol between terms in the specifications text file, either on one line or split over multiple lines, e.g.:
+When running metaMATE in `find` mode, multiple specification terms can be compared sequentially, or 'additively', in the same run. These are included with the `+` symbol between terms in the specifications text file, either on one line or split over multiple lines, e.g.:
 `[total; p; 0.001,0.005,0.01] + [library|taxon; p; 0.4,0.6,0.8]`
 can also be written as
 ```
@@ -213,12 +213,12 @@ These terms would run 6 total iterations:
 * the second 3 would designate ASVs as NUMTs if they were present as less than 40%, 60% or 80% of the total reads per taxon per
   library in all* of the taxon-library combinations in which they occur.
 
-Multiple terms can also be compared simultaneously, or 'multiplicitively'. When running NUMTdumper in `find` mode, thes would be specified using the `*` betwene terms in the specifications text file, e.g.:
+Multiple terms can also be compared simultaneously, or 'multiplicitively'. When running metaMATE in `find` mode, thes would be specified using the `*` betwene terms in the specifications text file, e.g.:
 `[library; p; .001,0.005,0.01] * [total|clade; n; 2,5,10]`
 These lines would run 9 total iterations, comprising all possible combinations of thresholds from each set. 
 In the first iteration, ASVs would be designated as NUMTs if they had less than 1% of the reads in all* libraries in which they were present AND/OR if they had fewer than 2 reads within their clade across the entire dataset, and so on.
 
-When running NUMTdumper in `dump` mode and not supplying a `-C/--resultcache`, simultaneous terms can be specified on the command line. Note that in this mode each term can only have one threshold. For example:
+When running metaMATE in `dump` mode and not supplying a `-C/--resultcache`, simultaneous terms can be specified on the command line. Note that in this mode each term can only have one threshold. For example:
 `-s '[library; p; .001]' '[total|clade; n; 5]'`
 This line would run 1 iteration, designating any ASVs as NUMTs that appear as less than 0.1% of the reads in all libraries in which they occur or as fewer than 5 reads in the clade in which they occur across the entire dataset. Note the example uses `'` to avoid the shell parsing the `|` and `;` symbols.
 
@@ -258,15 +258,15 @@ B * C
 
 `find`: *always required* | `dump`: *always required*
 
-`path` should be the path to a fasta file of unique sequences with unique header names to filter. There are no header format requirements. For best operation of NUMTdumper, the sequences in this file should have had primers trimmed and low-quality sequences removed. It is recommended that sequences that are more than 100bp longer or shorter than the expected range of your target locus should have been removed, but other length variants remain. This file must contain some unwanted length variants ([see below](#identify-validated-non-target-ASVs) for why.). If this file contains over 10,000 ASVs, it is suggested that denoising should be run before NUMTdumper.
+`path` should be the path to a fasta file of unique sequences with unique header names to filter. There are no header format requirements. For best operation of metaMATE, the sequences in this file should have had primers trimmed and low-quality sequences removed. It is recommended that sequences that are more than 100bp longer or shorter than the expected range of your target locus should have been removed, but other length variants remain. This file must contain some unwanted length variants ([see below](#identify-validated-non-target-ASVs) for why.). If this file contains over 10,000 ASVs, it is suggested that denoising should be run before metaMATE.
 
-The fasta file may be aligned or unaligned. If NUMTdumper requires an alignment (to build a UPGMA tree and delimit clades), an unaligned input will be aligned using [MAFFT FFT-NS-1](https://mafft.cbrc.jp/alignment/software/manual/manual.html). Supply an aligned set of ASVs if alignment is required but FFT-NS-1 is not expected to perform well with your data. 
+The fasta file may be aligned or unaligned. If metaMATE requires an alignment (to build a UPGMA tree and delimit clades), an unaligned input will be aligned using [MAFFT FFT-NS-1](https://mafft.cbrc.jp/alignment/software/manual/manual.html). Supply an aligned set of ASVs if alignment is required but FFT-NS-1 is not expected to perform well with your data. 
 
 #### `-L/--libraries path [path]`
 
 `find`: *always required* | `dump`: *required* if not supplying `-C/--resultcache`
 
-The read library or libraries supplied are used by NUMTdumper to assess the incidence of each ASV sequence per library. Each `path` should be the path to a fasta or fastq file containing ASV reads. Files may contain reads that are not in the `-A/--asvs` file, these will be ignored. If multiple paths are supplied, NUMTdumper assumes that each file is a separate library and uses the file names as library names. In this case, the headers in each file are ignored, only the sequences are relevant. If a single path is supplied, then NUMTdumper assumes that the library names are specified in the read headers, specified in the format `;barcodelabel=NAME;` or `;sample=NAME;` where `NAME` is the unique name of each library.
+The read library or libraries supplied are used by metaMATE to assess the incidence of each ASV sequence per library. Each `path` should be the path to a fasta or fastq file containing ASV reads. Files may contain reads that are not in the `-A/--asvs` file, these will be ignored. If multiple paths are supplied, metaMATE assumes that each file is a separate library and uses the file names as library names. In this case, the headers in each file are ignored, only the sequences are relevant. If a single path is supplied, then metaMATE assumes that the library names are specified in the read headers, specified in the format `;barcodelabel=NAME;` or `;sample=NAME;` where `NAME` is the unique name of each library.
 
 Note that the composition of libraries, i.e. the expected true richness and abundance of individuals within the sample, and whether they are complete samples, subsamples, or replicates, should be carefully considered when designing the specifications.
 
@@ -274,23 +274,23 @@ Note that the composition of libraries, i.e. the expected true richness and abun
 
 `find`: *always required* | `dump` *sometimes required*
 
-If using a mode that outputs multiple files, `path` should be the path to a directory in which to place these files. If the directory already exists, NUMTdumper will exit with an error unless `--overwrite` is set. 
+If using a mode that outputs multiple files, `path` should be the path to a directory in which to place these files. If the directory already exists, metaMATE will exit with an error unless `--overwrite` is set. 
 
 #### `-y/--anyfail` *flag*
 
-If supplied, when comparing the per-bin frequencies of an ASV against a threshold, NUMTdumper will designate the ASV as a NUMT for that threshold set if it fails to meet the threshold in *any* of the bins in which it occurs (instead of the default, *all*). This is substantially more stringent and is not generally recommended, but may be suitable for small datasets.
+If supplied, when comparing the per-bin frequencies of an ASV against a threshold, metaMATE will designate the ASV as a NUMT for that threshold set if it fails to meet the threshold in *any* of the bins in which it occurs (instead of the default, *all*). This is substantially more stringent and is not generally recommended, but may be suitable for small datasets.
 
 #### `--realign` *flag*
 
-If supplied, NUMTdumper will always run alignment on the supplied ASVs, whether already aligned or not. However this flag will be ignored if a tree is supplied, or if a `-C/--resultcache` is supplied in `dump` mode.
+If supplied, metaMATE will always run alignment on the supplied ASVs, whether already aligned or not. However this flag will be ignored if a tree is supplied, or if a `-C/--resultcache` is supplied in `dump` mode.
 
 #### `--overwrite` *flag*
 
-If supplied, NUMTdumper will overwrite any files in the destination output directory (including the current directory, if this is the specified `-o/-outputdirectory`) that have the same name as new outputs. This is provided as insurance against accidentally re-starting a run from scratch.
+If supplied, metaMATE will overwrite any files in the destination output directory (including the current directory, if this is the specified `-o/-outputdirectory`) that have the same name as new outputs. This is provided as insurance against accidentally re-starting a run from scratch.
 
 #### `-t/--threads n`
 
-`n` should be a positive integer specifying the maximum number of parallel threads to use, where relevant. The main frequency threshold comparison section of NUMTdumper is run on multiple threads to improve speed. This argument is also passed to `MAFFT` and `blastn` if these are run. 
+`n` should be a positive integer specifying the maximum number of parallel threads to use, where relevant. The main frequency threshold comparison section of metaMATE is run on multiple threads to improve speed. This argument is also passed to `MAFFT` and `blastn` if these are run. 
 
 ### Clade delimitation and binning arguments
 
@@ -308,7 +308,7 @@ A value between 0 and 1 specifiying the maximum percent divergence (1 = 100%) by
 
 #### `--distancemodel MOD`
 
-`MOD` should be the short name specifying the evolutionary model to be used for calculating pairwise distances between aligned ASV sequences for the purpose of building a UPGMA tree. The value of this argument is passed directly to the `model` argument of the R  function [`dist.dna`](https://www.rdocumentation.org/packages/ape/versions/5.4/topics/dist.dna) from the `ape` package, and should match exactly to one of the allowed functions for that model, namely "raw", "N", "TS", "TV", "JC69", "K80", "F81", "K81", "F84", "BH87", "T92", "TN93", "GG95", "logdet", "paralin", "indel" or "indelblock". By default, NUMTdumper uses "F84". Please read the [documentation](https://www.rdocumentation.org/packages/ape/versions/5.4/topics/dist.dna) for this function to select a model.
+`MOD` should be the short name specifying the evolutionary model to be used for calculating pairwise distances between aligned ASV sequences for the purpose of building a UPGMA tree. The value of this argument is passed directly to the `model` argument of the R  function [`dist.dna`](https://www.rdocumentation.org/packages/ape/versions/5.4/topics/dist.dna) from the `ape` package, and should match exactly to one of the allowed functions for that model, namely "raw", "N", "TS", "TV", "JC69", "K80", "F81", "K81", "F84", "BH87", "T92", "TN93", "GG95", "logdet", "paralin", "indel" or "indelblock". By default, metaMATE uses "F84". Please read the [documentation](https://www.rdocumentation.org/packages/ape/versions/5.4/topics/dist.dna) for this function to select a model.
 
 ### Taxon binning arguments
 
@@ -316,7 +316,7 @@ A value between 0 and 1 specifiying the maximum percent divergence (1 = 100%) by
 
 `find`: *optional* | `dump`: *optional* 
 
-In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to be performed on a per-taxon basis ([see specifications](#specifications)), `path` should be the path to a comma-delimited text file with as many rows as ASVs supplied to `-A/--asvs` and two columns. The first column should give the ASV read names, the second should give a grouping value for each ASV. This group is intended to allow for taxonomic bias in NUMT frequency, so is expected to be a taxonomic group, but NUMTdumper simply bins ASVs by unique group names so the actual content could be any string. The number of groups should be relatively low, less than 1% of the number of ASVs, and the ratio of ASVs to group number should be carefully considered when setting thresholds, remembering that when binning by library and taxonomic group, each library / taxon combination has only a small subset of the total ASV number.
+In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to be performed on a per-taxon basis ([see specifications](#specifications)), `path` should be the path to a comma-delimited text file with as many rows as ASVs supplied to `-A/--asvs` and two columns. The first column should give the ASV read names, the second should give a grouping value for each ASV. This group is intended to allow for taxonomic bias in NUMT frequency, so is expected to be a taxonomic group, but metaMATE simply bins ASVs by unique group names so the actual content could be any string. The number of groups should be relatively low, less than 1% of the number of ASVs, and the ratio of ASVs to group number should be carefully considered when setting thresholds, remembering that when binning by library and taxonomic group, each library / taxon combination has only a small subset of the total ASV number.
 
 ### `find`-specific arguments
 
@@ -326,7 +326,7 @@ In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to
 
 #### `-g/--generateASVresults [n]`
 
-By default, `find` mode does not output filtered ASVs, instead providing detailed statistics for assessment to determine the optimal threshold set for the dataset in question. This option provides for the output of a fasta file for each threshold set, containing the sequences that were not rejected by that threshold set and/or were determined to be verified-authentic ASVs. If supplied without a value, a fasta file will be output for each threshold set that recieved the best score. If a value is supplied, NUMTdumper will output a fasta file for each threshold set that scored within the top `n` proportion of threshold sets. If `n` is 1, a fasta will be output for every threshold set. This can generate a large number of fasta files! For more information about scoring, [see below](#scoring-and-estimation).
+By default, `find` mode does not output filtered ASVs, instead providing detailed statistics for assessment to determine the optimal threshold set for the dataset in question. This option provides for the output of a fasta file for each threshold set, containing the sequences that were not rejected by that threshold set and/or were determined to be verified-authentic ASVs. If supplied without a value, a fasta file will be output for each threshold set that recieved the best score. If a value is supplied, metaMATE will output a fasta file for each threshold set that scored within the top `n` proportion of threshold sets. If `n` is 1, a fasta will be output for every threshold set. This can generate a large number of fasta files! For more information about scoring, [see below](#scoring-and-estimation).
 
 ### Reference-matching arguments
 
@@ -385,7 +385,7 @@ In most cases, these arguments can be left alone, aside from `-s/--table` which 
 
 `find`: *required* | `dump` *not used*
 
-`n` should be a value corresponding to one of [the standard NCBI genetic codes](https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi) for NUMTdumper to use when translating ASVs. This is always required. 
+`n` should be a value corresponding to one of [the standard NCBI genetic codes](https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi) for metaMATE to use when translating ASVs. This is always required. 
 
 #### `-r/--readingframe [1,2,3]`
 
@@ -393,21 +393,21 @@ If supplied, this value will be used as the reading frame for amino acid transla
 
 #### `--detectionconfidence [0-1]`
 
-If `-r/--readingframe` is not specified, NUMTdumper will automatically detect the reading frame. Higher values of this argument increase certainty in this detection. The default is 0.95, i.e. 95% confidence.
+If `-r/--readingframe` is not specified, metaMATE will automatically detect the reading frame. Higher values of this argument increase certainty in this detection. The default is 0.95, i.e. 95% confidence.
 
 #### `--detectionminstops n`
 
-If `-r/--readingframe` is not specified, NUMTdumper will automatically detect the reading frame. Higher values of this argument increase the minimum number of stops that must be encountered in all reading frames before a reading frame can be selected. In cases of very small datasets, this value may need to be reduced from the default of 100.
+If `-r/--readingframe` is not specified, metaMATE will automatically detect the reading frame. Higher values of this argument increase the minimum number of stops that must be encountered in all reading frames before a reading frame can be selected. In cases of very small datasets, this value may need to be reduced from the default of 100.
 
 ### `dump`-specific arguments
 
 #### `-f/--outfasta path`
 
-`path` should be the path to a file to write retained ASVs to.  If the file already exists, NUMTdumper will exit with an error unless `--overwrite` is set. `-f/--outfasta path` is only required if the other arguments specify a single output file; otherwise `-o/--outputdirectory` would be required.
+`path` should be the path to a file to write retained ASVs to.  If the file already exists, metaMATE will exit with an error unless `--overwrite` is set. `-f/--outfasta path` is only required if the other arguments specify a single output file; otherwise `-o/--outputdirectory` would be required.
 
 #### `-C/--resultcache path`
 
-`path` to a '_resultcache' file output from a previous NUMTdumper run in mode `find`. If specified, `-i/--resultindex` is required.
+`path` to a '\_resultcache' file output from a previous metaMATE run in mode `find`. If specified, `-i/--resultindex` is required.
 
 #### `-i/--resultindex n [n]`
 
@@ -419,7 +419,7 @@ Each value of `n` should be 0 or a positive integer referring to an result set i
 
 ## Examples
 
-The following commands detail example runs of NUMTdumper using metabarcoding data provided in the [GitHub tests directory](https://github.com/tjcreedy/numtdumper/tree/master/tests/data). The README in that directory details how this data was generated. Where a specifications file is used, this refers to the [default specifications available on the GitHub](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt)
+The following commands detail example runs of metaMATE using metabarcoding data provided in the [GitHub tests directory](https://github.com/tjcreedy/numtdumper/tree/master/tests/data). The README in that directory details how this data was generated. Where a specifications file is used, this refers to the [default specifications available on the GitHub](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt)
 
 Note that the target amplicon size of this dataset is 418bp, so length specifications will be based on this; your data will vary! 
 
@@ -430,10 +430,10 @@ This is probably the simplest `find` run that cound be run on this data:
 ```
 numtdumper find -A 6_coleoptera.fasta -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
 ```
-The path to a fasta containing input ASVs to be filtered have been supplied to `-A`, and the paths to each of set of libraries to `-L` (note the bash parameter expansion: `0_merge/*.fastq` will expand to all files ending with `.fastq` in `0_merge/`). Each of the library files will be searched for each of the ASVs to find the count of ASVs per library. Note that these sequences have not been quality filtered - NUMTdumper is likely to be more accurate with quality filtered reads.
+The path to a fasta containing input ASVs to be filtered have been supplied to `-A`, and the paths to each of set of libraries to `-L` (note the bash parameter expansion: `0_merge/*.fastq` will expand to all files ending with `.fastq` in `0_merge/`). Each of the library files will be searched for each of the ASVs to find the count of ASVs per library. Note that these sequences have not been quality filtered - metaMATE is likely to be more accurate with quality filtered reads.
 The specifications file path has been supplied to `-S`, this will be parsed to find all specification terms, thresholds and combinations and generate all iterations to run.
-To find verified-authentic-ASVs, NUMTdumper will search the ASVs against the sequences in the `dummy_references.fasta` file path provided to `-R`. To find verified-non-authentic-ASVs, NUMTdumper will check the length of each ASV and translate it using NCBI translation table 5 (`--table`). Any ASV falling outside 418 +- 0% in length and/or containing any stops in translation will be designated as verified-non-authentic.
-NUMTdumper will align and build a UPGMA tree from the input ASVs to group ASVs into clades. ASVs will also be grouped into taxa according to the tablular file path supplied to `-G`.
+To find verified-authentic-ASVs, metaMATE will search the ASVs against the sequences in the `dummy_references.fasta` file path provided to `-R`. To find verified-non-authentic-ASVs, metaMATE will check the length of each ASV and translate it using NCBI translation table 5 (`--table`). Any ASV falling outside 418 +- 0% in length and/or containing any stops in translation will be designated as verified-non-authentic.
+metaMATE will align and build a UPGMA tree from the input ASVs to group ASVs into clades. ASVs will also be grouped into taxa according to the tablular file path supplied to `-G`.
 Once filtering has been performed for all specified threshold sets, the results will be written to `outputdir` (which will be created if not present). As the input ASVs are unaligned and no tree was provided, these results will contain a fasta with aligned ASVs and a newick format text file with a UPGMA tree of the ASVs.
 
 If your reads are in a single file, with library information in the headers, rather than multiple files for each different library, you would supply the path to that file to `-L` instead:
@@ -441,17 +441,17 @@ If your reads are in a single file, with library information in the headers, rat
 ```
 numtdumper find -A 6_coleoptera.fasta -L 6_concat.fasta -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
 ```
-Note that either `6_concat.fastq` or `6_concat.fasta` can be used here. The former has not been quality filtered, so read counts will be higher, which will affect the output of NUMTdumper. It is suggested that quality filtered reads be used as the input.
+Note that either `6_concat.fastq` or `6_concat.fasta` can be used here. The former has not been quality filtered, so read counts will be higher, which will affect the output of metaMATE. It is suggested that quality filtered reads be used as the input.
 
 
 If you already have aligned ASVs and a tree file, but don't have any references, you could instead run:
 ```
 numtdumper find -A 6_coleoptera_fftnsi.fasta  -T 6_coleoptera_UPGMA.nwk -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -D /blastdb/nt -expectedlength 418 --percentvar 0 --table 5 -o outputdir 
 ```
-The path to aligned ASVs is supplied to the same argument as unaligned ASVs, NUMTdumper will detect whether the file is aligned or not. The path to a tree file has been supplied to `-T`. The `-L`ibraries and `-S`pecifications arguments are the same as in the first example. 
+The path to aligned ASVs is supplied to the same argument as unaligned ASVs, metaMATE will detect whether the file is aligned or not. The path to a tree file has been supplied to `-T`. The `-L`ibraries and `-S`pecifications arguments are the same as in the first example. 
 The `-D` argument is used to supply a path to a [blast-formatted database generated by `makeblastdb`](https://www.ncbi.nlm.nih.gov/books/NBK279688/). In this case, it looks like this is a local copy of GenBank nt (note this is not supplied in the test data). The remaining arguments are the same as the previous command.
 
-This command will be faster than the previous command, as NUMTdumper does not need to generate the alignment and tree. It may also be more accurate, because you can build the optimal alignment for your specific data, rather than using the fast alignment algorithm NUMTdumper uses. You can also review the tree and decide on the most appropriate clade delimitation threshold for your data - by default this is 20%.
+This command will be faster than the previous command, as metaMATE does not need to generate the alignment and tree. It may also be more accurate, because you can build the optimal alignment for your specific data, rather than using the fast alignment algorithm metaMATE uses. You can also review the tree and decide on the most appropriate clade delimitation threshold for your data - by default this is 20%.
 
 This final example overwrites many of these sorts of defaults:
 
@@ -466,7 +466,7 @@ The most straightforward, and recommended, way to run `dump` is to do so simply 
 ```
 numtdumper dump -A 6_coleoptera.fasta -C outputdir/6_coleoptera_resultcache -i 35 -o 7_coleoptera_numtfiltered.fasta
 ```
-Alongside the same ASV file as used for a `find` run (`-A`), this command specifies the path to a resultcache file output from that `find` run (`-C`). After analysing the results, the user has determined that the optimal threshold set (`-i`) is set 35 (an index given in the `find` output data). NUMTdumper will parse these inputs and write all ASVs that passed the frequency thresholds for this set *and/or* were determined to be verified-authentic-ASVs to the output file (`-o`). All of the specifications, threshold sets and other input files are not needed as all of this information is contained in the resultcache file.
+Alongside the same ASV file as used for a `find` run (`-A`), this command specifies the path to a resultcache file output from that `find` run (`-C`). After analysing the results, the user has determined that the optimal threshold set (`-i`) is set 35 (an index given in the `find` output data). metaMATE will parse these inputs and write all ASVs that passed the frequency thresholds for this set *and/or* were determined to be verified-authentic-ASVs to the output file (`-o`). All of the specifications, threshold sets and other input files are not needed as all of this information is contained in the resultcache file.
 
 Alternatively, `dump` mode can work very similarly to `find` mode. Rather than taking a resultcache and result index, you can supply any arguments needed for binning and threshold specification. For example:
 ```
@@ -481,16 +481,16 @@ The main differences between this and a `find` run are:
 
 ## Outputs
 
-NUMTdumper returns different outputs depending on mode and arguments. Unless specified by using `-f/--outfasta`, all output files will use the same name as the input ASVs with a suffix appended.
+metaMATE returns different outputs depending on mode and arguments. Unless specified by using `-f/--outfasta`, all output files will use the same name as the input ASVs with a suffix appended.
 
 ### NUMTdumped ASV fasta-format file
 
-As standard, for a given threshold set, NUMTdumper outputs those ASVs that fulfil the following conditions, in order of priority:
+As standard, for a given threshold set, metaMATE outputs those ASVs that fulfil the following conditions, in order of priority:
 1. ASV is a verified-authentic ASV
 2. ASV is not a verified-non-authentic ASV
 3. ASV is present in a frequency equal to or exceeding any thresholds in any bins in which it occurs
 
-The standard way to generate these files is by first running NUMTdumper in mode `find`, then selecting one or more result set indices from the output statistics file, then running NUMTdumper in mode `dump`. If one result set is selected, the resulting filtered ASV file will be output with the name specified by `-f/--outfasta`. Otherwise, the resulting filtered ASV files will be output to the directory specified by `-o/--outputdirectory`, with the suffix '_numtdumpresultsetN', where N is the index. This is also the effect of running `find` with the `--generateASVresults` argument.
+The standard way to generate these files is by first running metaMATE in mode `find`, then selecting one or more result set indices from the output statistics file, then running metaMATE in mode `dump`. If one result set is selected, the resulting filtered ASV file will be output with the name specified by `-f/--outfasta`. Otherwise, the resulting filtered ASV files will be output to the directory specified by `-o/--outputdirectory`, with the suffix '_numtdumpresultsetN', where N is the index. This is also the effect of running `find` with the `--generateASVresults` argument.
 
 This pipeline is designed to take account of the fact that threshold specifications and decisions on the optimal output should be dataset-dependent, and filtering with a single threshold set without validation is arbitrary.
 
@@ -500,7 +500,7 @@ In the second case, users may optionally skip all validation and simply use mode
 
 ### Results (`find` only)
 
-The main output from NUMTdumper `find` mode is the *_results.csv file. This is a comma-delimited table that synthesises all of the results from applying all combinations of the specified terms and thresholds to the input ASVs, given the control groups of authentic- and non-authentic- ASVs. It is designed to be easily parseable and reformatable by downstream processes, in particular for analysis with R (a template for analysis is in development). Its columns comprise:
+The main output from metaMATE `find` mode is the *_results.csv file. This is a comma-delimited table that synthesises all of the results from applying all combinations of the specified terms and thresholds to the input ASVs, given the control groups of authentic- and non-authentic- ASVs. It is designed to be easily parseable and reformatable by downstream processes, in particular for analysis with R (a template for analysis is in development). Its columns comprise:
 
 * *resultindex*: a unique identifier for each term specification and threshold combination, for ease of ASV retrieval using `dump` mode.
 * *term*: each additive term, repeated for a number of rows equal to the number of thresholds supplied to this term. For example, if the first terms in the specifications are `[library; n; 10-100/20] + [library; p; 0.001-0.1/10]`, the first 20 rows will be for term `library_n` and the next 10 rows will be term `library_p`.
@@ -525,7 +525,7 @@ The *_ASVcounts.csv file is a comma-separated table recording the number of read
 
 ### Clade groupings
 
-The *_clades.csv file is a two-column comma-separated table recording the clade grouping for each input ASV, generated by the script `get_clades.R` supplied as part of NUMTdumper.
+The *_clades.csv file is a two-column comma-separated table recording the clade grouping for each input ASV, generated by the script `get_clades.R` supplied as part of metaMATE.
 
 ### Control list (`find` only)
 
@@ -537,17 +537,17 @@ The *_resultcache file is a compressed text file containing information on the A
 
 ### Aligned/Unaligned fasta
 
-If the input ASVs were aligned, NUMTdumper unaligns (degaps) them and outputs the sequences to the *_unaligned.fa file, or vice versa if the input ASVs were unaligned.
+If the input ASVs were aligned, metaMATE unaligns (degaps) them and outputs the sequences to the *_unaligned.fa file, or vice versa if the input ASVs were unaligned.
 
 ### UPGMA tree
 
-Unless a tree is supplied, NUMTdumper uses the aligned ASVs to build a UPGMA tree using the script `make_tree.R` supplied as part of NUMTdumper. This is a newick-format tree that can be opened by any newick parser or tree viewing software.
+Unless a tree is supplied, metaMATE uses the aligned ASVs to build a UPGMA tree using the script `make_tree.R` supplied as part of metaMATE. This is a newick-format tree that can be opened by any newick parser or tree viewing software.
 
 ## Details
 
 ### Validation
 
-As part of a NUMTdumper run, the user must parameterise the determination of two control groups of ASVs. Control ASVs are those that can be determined _a priori_ to be either validly authentic or non-authentic: authentic ASVs are determined by a match against a reference set of sequences, non-authentic ASVs are determined by falling outside acceptable length and translation properties. The user must provide a reference set and specify acceptable sequence lengths, and may fine-tune reference matching and translation assessment. 
+As part of a metaMATE run, the user must parameterise the determination of two control groups of ASVs. Control ASVs are those that can be determined _a priori_ to be either validly authentic or non-authentic: authentic ASVs are determined by a match against a reference set of sequences, non-authentic ASVs are determined by falling outside acceptable length and translation properties. The user must provide a reference set and specify acceptable sequence lengths, and may fine-tune reference matching and translation assessment. 
 
 #### Identifying validated non-target ASVs
 
