@@ -6,19 +6,19 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="NUMTdumper", # Replace with your own username
-    version="0.1b13",
+    name="metaMATE", # Replace with your own username
+    version="0.1b14",
     author="Thomas J. Creedy",
     author_email="thomas.creedy@gmail.com",
-    description="NUMTdumper: validated NUMT removal for mitochondrial "
-                "metabarcoding",
+    description="metaMATE: validated removal of pseudogenes and sequencing "
+                "artefacts for mitochondrial metabarcoding",
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=[
         'biopython>=1.76',
         'scipy>=1.4.1'
         ],
-    url="https://github.com/tjcreedy/numtdumper",
+    url="https://github.com/tjcreedy/metamate",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -34,11 +34,11 @@ setuptools.setup(
     include_package_data=True,
     entry_points={
         "console_scripts":[
-            "numtdumper = numtdumper.numtdumper:main",
-            "NUMTdumper = numtdumper.numtdumper:main",
-            "filtertranslate = numtdumper.filtertranslate:main"
-            #"filterlength = numtdumper.filterlength:main"
-            #"filterreference = numtdumper.filterreference:main"
+            "metamate = metamate.metamate:main",
+            "metaMATE = metamate.metamate:main",
+            "filtertranslate = metamate.filtertranslate:main"
+            #"filterlength = metamate.filterlength:main"
+            #"filterreference = metamate.filterreference:main"
             ]}
 )
 
