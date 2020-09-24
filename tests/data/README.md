@@ -1,8 +1,8 @@
-This directory contains dummy data for testing NUMTdumper
+This directory contains dummy data for testing metaMATE
 
 ### METABARCODING DATA
 
-The commands given here are a guideline for how data could be prepared for NUMTdumper, no metabarcoding pipeline is universal and each dataset should be processed in whatever way is most suitable for the amplicon type, project and research questions
+The commands given here are a guideline for how data could be prepared for metaMATE, no metabarcoding pipeline is universal and each dataset should be processed in whatever way is most suitable for the amplicon type, project and research questions
 
 #### 0_merge/ 
 12 metabarcoding sample read files, with primers trimmed and pairs merged
