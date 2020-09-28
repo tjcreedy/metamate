@@ -121,7 +121,7 @@ def check_stops_multi(seqdict, args, fail = False):
     
     return(out)
 
-def getcliargs():
+def getcliargs(arglist):
     parser = argparse.ArgumentParser(
 description = ("Standalone tool for filtering the sequences in a multifasta " "according to whether their translation contains stop codons. All sequences "
 "must have the same reading frame relative to the start of the sequence. The "
@@ -138,16 +138,23 @@ description = ("Standalone tool for filtering the sequences in a multifasta " "a
     parser.add_argument("-r","--readingframe", metavar = "n",
                         help = "coding frame of sequences, if known", 
                         type = int, choices = [1,2,3])
-    parser.add_argument("-o","--outputdirectory", metavar = "path",
-                        help = "output directory (default is current "
-                               " directory)", 
-                        type = str, default = "./")
-    parser.add_argument("-f","--onefile", metavar = "_suffix",
-                        help = "rather than outputting two separate files "
-                        "for passing and failing sequences (the default), "
-                        "output sequences in one file, with the specified "
-                        "suffix appended to the header of failing sequences", 
-                        type = str, default = False)
+    parser.add_argument("-o","--output", metavar = "path",
+                        help = "if --outtype is 'pass', 'fail' or 'both', "
+                               "the output file name, or if --outtype is "
+                               "'separate', the prefix of the output file "
+                               "name",
+                        type = str, required = True)
+    parser.add_argument("-y", "--outtype", metavar = "type",
+                        help = "one of 'pass', 'fail', 'both' or 'separate', "
+                               "denoting whether to output only those that "
+                               "pass filtering, only those that fail "
+                               "filtering, all sequences in one file adding "
+                               "a';translation=pass' or ';translation=fail' "
+                               "suffix in the headers, or as two separate "
+                               "files with _pass or _fail suffixes to the "
+                               "output file name. Default pass",
+                        choices = ['pass', 'fail', 'both', 'separate'],
+                        type = str, default = 'pass')
     parser.add_argument("-c","--detectionconfidence",
                         help = "confidence level for detection "
                                "of reading frame (default 0.95, usually no "
@@ -160,19 +167,14 @@ description = ("Standalone tool for filtering the sequences in a multifasta " "a
                                "for few sequences)", 
                         type = int, default = 100)
     
-    return(parser.parse_args())
-
-
+    args = parser.parse_args(arglist) if arglist else parser.parse_args()
+    
+    return(args)
 
 def main():
     # Get options
     args = getcliargs()
-    #args = parser.parse_args(['-i', '/home/thomas/seqtesting/NUMTdumper/amm/6_coleoptera.fasta', '-t', '5'])
-    # Find the file name
-    filename = os.path.splitext(os.path.basename(args.input))[0]
-    # Make the output directory
-    if not os.path.exists(args.outputdirectory):
-        os.makedirs(args.outputdirectory)
+    #args = getcliargs(['-i', 'tests/data/3_derep.fasta', '-t', '5', '-o', 'test', '-y', 'separate'])
     # Check for bad options
     if ((args.detectionconfidence != 0.95 or args.detectionminstops != 100) 
         and args.readingframe):
@@ -189,7 +191,8 @@ def main():
     else:
         frame = detect_frame(ntseqs, args.table, args.detectionconfidence,
                              args.detectionminstops)
-        sys.stdout.write(f"Reading frame {frame} detected")
+        sys.stdout.write(f"Reading frame {frame} detected\n")
+        sys.stdout.flush()
     # Translate sequences
     aaseqs = []
     for ntr in ntseqs:
@@ -199,44 +202,40 @@ def main():
             warnings.simplefilter('ignore', BiopythonWarning)
             aar.seq = ntr.seq[frame-1:].translate(table = args.table)
         aaseqs.append(aar)
-    #
-    
-    
     
     # Output depending on options
     passcount = 0
     failcount = 0
     with open(args.input) as infasta:
-        
-        if not args.onefile :        # The default, two files
-            
-            with open(os.path.join(args.outputdirectory, filename + "_transpass.fa"), "w") as passout:
-                with open(os.path.join(args.outputdirectory, filename + "_transfail.fa"), "w") as failout:
-                    
-                    for head, seq in SimpleFastaParser(infasta):
-                        
-                        if stopcount(SeqRecord(Seq(seq)), args.table, frame) == 0 :
-                            passout.write(">%s\n%s\n" % (head, seq))
-                            passcount += 1
-                        else:
-                            failout.write(">%s\n%s\n" % (head, seq))
-                            failcount += 1
-            
-        else:
-            
-            with open(os.path.join(args.outputdirectory, filename + "_transfiltered.fa"), "w") as outfasta:
-                
+        if args.outtype == 'separate':        # Two files
+            with open(f"{args.output}_pass.fa", "w") as passout,  open(
+                    f"{args.output}_fail.fa", "w") as failout:
                 for head, seq in SimpleFastaParser(infasta):
-                    
                     if stopcount(SeqRecord(Seq(seq)), args.table, frame) == 0 :
-                        outfasta.write(">%s\n%s\n" % (head, seq))
+                        passout.write(f">{head}\n{seq}\n")
                         passcount += 1
                     else:
-                        outfasta.write(">%s\n%s\n" % (head + args.onefile, seq))
+                        failout.write(f">{head}\n{seq}\n")
                         failcount += 1
+        else:
+            with open(args.output, "w") as outfasta:
+                for head, seq in SimpleFastaParser(infasta):
+                    if stopcount(SeqRecord(Seq(seq)), args.table, frame) == 0 :
+                        head += '_pass' if args.outtype == 'both' else ''
+                        if args.outtype in ['both', 'pass']:
+                            outfasta.write(f">{head}\n{seq}\n")
+                        passcount += 1
+                    else:
+                        head += '_fail' if args.outtype == 'both' else ''
+                        if args.outtype in ['both', 'fail']:
+                            outfasta.write(f">{head}\n{seq}\n")
+                        failcount += 1
+        sys.stdout.write(f"\rFiltered {passcount + failcount} sequences")
+        sys.stdout.flush()
     
     # Print report
-    print("%i of %i sequences passed translation filtering" % (passcount, passcount + failcount))
+    sys.stdout.write(f"{passcount} of {passcount + failcount} sequences "
+                     "passed translation filtering\n")
 
 if __name__ == "__main__":
     main()
