@@ -121,7 +121,7 @@ def check_stops_multi(seqdict, args, fail = False):
     
     return(out)
 
-def getcliargs(arglist):
+def getcliargs(arglist = None):
     parser = argparse.ArgumentParser(
 description = ("Standalone tool for filtering the sequences in a multifasta " "according to whether their translation contains stop codons. All sequences "
 "must have the same reading frame relative to the start of the sequence. The "
