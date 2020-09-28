@@ -130,7 +130,7 @@ description = ("Standalone tool for filtering the sequences in a multifasta " "a
 "(https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi)"))
     
     parser.add_argument("-i", "--input", metavar = "path",
-                        help = "input file path")
+                        help = "input file path", required = True)
     parser.add_argument("-t", "---table", metavar = "n",
                         help = "the number referring to the translation "
                                "table to use",
@@ -230,8 +230,6 @@ def main():
                         if args.outtype in ['both', 'fail']:
                             outfasta.write(f">{head}\n{seq}\n")
                         failcount += 1
-        sys.stdout.write(f"\rFiltered {passcount + failcount} sequences")
-        sys.stdout.flush()
     
     # Print report
     sys.stdout.write(f"{passcount} of {passcount + failcount} sequences "
