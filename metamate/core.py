@@ -380,10 +380,16 @@ def counts_from_spec(specs, data):
     return(counts)
 
 def calc_scores(truepositive, falsepositive, truenegative, falsenegative):
-    return([(truepositive + truenegative) / 
-            (truepositive + truenegative + falsepositive + falsenegative),
-            truepositive / (truepositive + falsepositive),
-            truepositive / (truepositive + falsenegative)])
+    def _divide(num, den):
+        return num / den if den else 0
+    
+    accuracy = _divide((truepositive + truenegative),
+                       (truepositive + truenegative 
+                        + falsepositive + falsenegative))
+    precision = _divide(truepositive, (truepositive + falsepositive))
+    recall = _divide(truepositive, (truepositive + falsenegative))
+    
+    return [accuracy, precision, recall]
 
 def estimate_true_values(asvs, retained_asvs, retained_target, target,
                          retained_nontarget, nontarget):
