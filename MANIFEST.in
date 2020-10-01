@@ -1,1 +1,1 @@
-recursive-include numtdumper *.R
+recursive-include metamate *.R
