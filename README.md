@@ -141,14 +141,14 @@ Done!
 metaMATE has summary help built in for the overall tool and the two run modes. These can be accessed by running the below commands.
 
 ```
-numtdumper --help
-numtdumper find --help
-numtdumper dump --help
+metamate --help
+metamate find --help
+metamate dump --help
 ```
 
 This documentation provides further explanation for input data and argument selection, and the [details](#details) section goes in depth into the way that the key parts of metaMATE work.
 
-Note that all commandline arguments can be provided in a file, one per line, with the path to the file supplied on the commandline preceeded by `@`. For example, running `numtdumper find -A asvs.fasta -R references.fasta --realign` would be the same as `numtdumper find @args.txt` where the contents of `args.txt` is:
+Note that all commandline arguments can be provided in a file, one per line, with the path to the file supplied on the commandline preceeded by `@`. For example, running `metamate find -A asvs.fasta -R references.fasta --realign` would be the same as `metamate find @args.txt` where the contents of `args.txt` is:
 
 ```
 -A
@@ -160,7 +160,7 @@ references.fasta
 
 ### Specifications
 
-metaMATE enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. This is described in detail here, but for a quick start, you can simply use the [specifications.txt file available in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt). We recommend starting with this, looking at the results, and then modifying it as necessary for your data.
+metaMATE enables considerable flexibility in the way that frequency filters can be applied in amplicon filtering. Unfortunately, this means it has a slightly complex way of specifying these filters. This is described in detail here, but for a quick start, you can simply use the [specifications.txt file available in the GitHub repository](https://github.com/tjcreedy/metamate/blob/master/specifications.txt). We recommend starting with this, looking at the results, and then modifying it as necessary for your data.
 
 A filtering specification consists of one or more 'terms'. Each term comprises three parts, as follows:
 
@@ -322,7 +322,7 @@ In mode `find` or mode `dump` without a `-C/--resultcache`, if ASV binning is to
 
 #### `-S/--specification [path]` *required*
 
-`path` should be the path to a text file containing a specification for the terms apply when applying frequency filtering. These are explained in detail above, and an example specifications.txt file is [supplied in the GitHub repository](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt).
+`path` should be the path to a text file containing a specification for the terms apply when applying frequency filtering. These are explained in detail above, and an example specifications.txt file is [supplied in the GitHub repository](https://github.com/tjcreedy/metamate/blob/master/specifications.txt).
 
 #### `-g/--generateASVresults [n]`
 
@@ -423,7 +423,7 @@ Each value of `n` should be 0 or a positive integer referring to an result set i
 
 ## Examples
 
-The following commands detail example runs of metaMATE using metabarcoding data provided in the [GitHub tests directory](https://github.com/tjcreedy/numtdumper/tree/master/tests/data). The README in that directory details how this data was generated. Where a specifications file is used, this refers to the [default specifications available on the GitHub](https://github.com/tjcreedy/numtdumper/blob/master/specifications.txt)
+The following commands detail example runs of metaMATE using metabarcoding data provided in the [GitHub tests directory](https://github.com/tjcreedy/metamate/tree/master/tests/data). The README in that directory details how this data was generated. Where a specifications file is used, this refers to the [default specifications available on the GitHub](https://github.com/tjcreedy/metamate/blob/master/specifications.txt)
 
 Note that the target amplicon size of this dataset is 418bp, so length specifications will be based on this; your data will vary! 
 
@@ -432,7 +432,7 @@ Note that the target amplicon size of this dataset is 418bp, so length specifica
 This is probably the simplest `find` run that cound be run on this data:
 
 ```
-numtdumper find -A 6_coleoptera.fasta -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
+metamate find -A 6_coleoptera.fasta -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
 ```
 The path to a fasta containing input ASVs to be filtered have been supplied to `-A`, and the paths to each of set of libraries to `-L` (note the bash parameter expansion: `0_merge/*.fastq` will expand to all files ending with `.fastq` in `0_merge/`). Each of the library files will be searched for each of the ASVs to find the count of ASVs per library. Note that these sequences have not been quality filtered - metaMATE is likely to be more accurate with quality filtered reads.
 The specifications file path has been supplied to `-S`, this will be parsed to find all specification terms, thresholds and combinations and generate all iterations to run.
@@ -443,14 +443,14 @@ Once filtering has been performed for all specified threshold sets, the results 
 If your reads are in a single file, with library information in the headers, rather than multiple files for each different library, you would supply the path to that file to `-L` instead:
 
 ```
-numtdumper find -A 6_coleoptera.fasta -L 6_concat.fasta -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
+metamate find -A 6_coleoptera.fasta -L 6_concat.fasta -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir
 ```
 Note that either `6_concat.fastq` or `6_concat.fasta` can be used here. The former has not been quality filtered, so read counts will be higher, which will affect the output of metaMATE. It is suggested that quality filtered reads be used as the input.
 
 
 If you already have aligned ASVs and a tree file, but don't have any references, you could instead run:
 ```
-numtdumper find -A 6_coleoptera_fftnsi.fasta  -T 6_coleoptera_UPGMA.nwk -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -D /blastdb/nt -expectedlength 418 --percentvar 0 --table 5 -o outputdir 
+metamate find -A 6_coleoptera_fftnsi.fasta  -T 6_coleoptera_UPGMA.nwk -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -D /blastdb/nt -expectedlength 418 --percentvar 0 --table 5 -o outputdir 
 ```
 The path to aligned ASVs is supplied to the same argument as unaligned ASVs, metaMATE will detect whether the file is aligned or not. The path to a tree file has been supplied to `-T`. The `-L`ibraries and `-S`pecifications arguments are the same as in the first example. 
 The `-D` argument is used to supply a path to a [blast-formatted database generated by `makeblastdb`](https://www.ncbi.nlm.nih.gov/books/NBK279688/). In this case, it looks like this is a local copy of GenBank nt (note this is not supplied in the test data). The remaining arguments are the same as the previous command.
@@ -460,7 +460,7 @@ This command will be faster than the previous command, as metaMATE does not need
 This final example overwrites many of these sorts of defaults:
 
 ```
-numtdumper find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.15 -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --refmatchpercent 98 --refmatchlength 400 -D /blastdb/nt -expectedlength 418 --basesvariation 6 --onlyvarybycodon -s 5 -o outputdir 
+metamate find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.15 -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --refmatchpercent 98 --refmatchlength 400 -D /blastdb/nt -expectedlength 418 --basesvariation 6 --onlyvarybycodon -s 5 -o outputdir 
 ```
 The input ASV alignment and tree are the same, but clades will be delimited at 15% divergence rather than the default 20%. Verified-authentic ASVs will be determined by matches against two references, the references fasta file (against which passing hits must be 98% similar over at least 400 bp), and the nt dataset (which uses the default similarity and length settings). The expected length is unchanged, but we now specify a more complicated way of determining verified-non-authentic ASVs: any ASVs that are less than 6 bases of variation around 418 **and** do not vary by exactly 3 bases from 418. Thus any reads that are not 412, 415, 418, 421 or 424 bp will be designated as verified-non-authentic. Finally, the translation table has been supplied using the short option `-s` rather than the long option `--table`.
 
@@ -468,13 +468,13 @@ The input ASV alignment and tree are the same, but clades will be delimited at 1
 
 The most straightforward, and recommended, way to run `dump` is to do so simply to extract the results of a specified result set:
 ```
-numtdumper dump -A 6_coleoptera.fasta -C outputdir/6_coleoptera_resultcache -i 35 -o 7_coleoptera_numtfiltered.fasta
+metamate dump -A 6_coleoptera.fasta -C outputdir/6_coleoptera_resultcache -i 35 -o 7_coleoptera_numtfiltered.fasta
 ```
 Alongside the same ASV file as used for a `find` run (`-A`), this command specifies the path to a resultcache file output from that `find` run (`-C`). After analysing the results, the user has determined that the optimal threshold set (`-i`) is set 35 (an index given in the `find` output data). metaMATE will parse these inputs and write all ASVs that passed the frequency thresholds for this set *and/or* were determined to be verified-authentic-ASVs to the output file (`-o`). All of the specifications, threshold sets and other input files are not needed as all of this information is contained in the resultcache file.
 
 Alternatively, `dump` mode can work very similarly to `find` mode. Rather than taking a resultcache and result index, you can supply any arguments needed for binning and threshold specification. For example:
 ```
-numtdumper dump -A 6_coleoptera.fasta -L 2_concat.fasta -S '[library|clade; p; 0.05]' -o outputdir
+metamate dump -A 6_coleoptera.fasta -L 2_concat.fasta -S '[library|clade; p; 0.05]' -o outputdir
 ```
 The main differences between this and a `find` run are:
 * filtering specifications are supplied directly to the commandline
