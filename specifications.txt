@@ -1,6 +1,6 @@
 #####
 #
-#   This is an example NUMTdumper specifications file.
+#   This is an example metaMATE specifications file.
 #   Use this file to detail how per-ASV read frequencies should be assessed.
 #
 #   Note that any lines starting with # or that are completely blank are ignored
