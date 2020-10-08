@@ -197,6 +197,11 @@ def getcliargs(arglist = None):
                                  "a blast database",
                           type = float, default = 100,
                           action = Range, minimum = 0, maximum = 100)
+    refmatch.add_argument("--keeptemporaryfiles",
+                          help = "don't delete the temporary blast database "
+                                 "and/or blast result files generated during "
+                                 "reference matching",
+                          action = "store_true", default = False)
 
         # Length parameters
     lengths = findparser.add_argument_group("length-based non-target "

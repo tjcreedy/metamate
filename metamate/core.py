@@ -323,8 +323,8 @@ def get_validated(raw, args, filename):
         
         sys.stdout.write(f"found {len(candidates)} candidates\n")
         allcandidates.extend(candidates)
-    
-    shutil.rmtree(wd)
+    if not args.keeptemporaryfiles:
+        shutil.rmtree(wd)
     
     refmatch = set(allcandidates)
     target = refmatch - nontarget
