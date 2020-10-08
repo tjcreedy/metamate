@@ -142,13 +142,19 @@ def count_asvs_in_libraries(master, librarypaths):
     # Return final dictionaries
     return countsbylibrary, countstotal
 
-
-
 def detect_aligned(fasta, n):
     with open(fasta) as fh:
-        head = [next(fh,'') for i in range(n)]
+        head, t = '', ''
+        c = 0
+        while c <= n:
+            head += t
+            t = next(fh, None)
+            if t:
+                if t[0] == '>': c += 1
+            else:
+                continue
     try:
-        AlignIO.read(io.StringIO(''.join(head)), "fasta")
+        AlignIO.read(io.StringIO(head), "fasta")
         return(True)
     except ValueError:
         return(False)
@@ -248,7 +254,7 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
     aligned = dict()
     
     # Detect alignment
-    isaligned = detect_aligned(args.asvs, 2000)
+    isaligned = detect_aligned(args.asvs, 1000)
     
     # Parse in ASVs and align if necessary
     if isaligned and not args.realign:
