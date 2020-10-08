@@ -350,7 +350,9 @@ These arguments control matching against a reference fasta or blast database for
 
 The supplied value is the minimum percent identity against to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is 99.9 for `--refmatchpercent` and 100 for `--dbmatchpercent`.
 
+#### `--keeptemporaryfiles`
 
+If this argument is supplied, the temporary blast database and/or blast result xml files generated during reference and/or blast database matching will not be deleted and can be found in a directory named 'blastdb' inside the output directory.
 
 ### Length-based arguments
 
