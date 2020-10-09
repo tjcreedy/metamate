@@ -29,6 +29,7 @@ def parse_taxa(taxafile, names):
     allnames = set()
     
     # Load in taxon file csv to dict
+    #TODO catch if a tsv is passed instead
     with open(taxafile, 'r') as fh:
         reader = csv.reader(fh)
         for row in reader:
