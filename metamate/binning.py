@@ -177,12 +177,13 @@ def read_newick_string(path):
 
 # TODO: deal with properly addressing to the R scripts
 
-def make_tree_R(scriptdir, alignpath, model):
+def make_tree_R(scriptdir, alignpath, model, threads):
     # Generate script location
     scriptpath = os.path.join(scriptdir, 'maketree.R')
     
     # Run R script
-    maketreecommand = subprocess.run([scriptpath, '-a', alignpath, '-m', model],
+    maketreecommand = subprocess.run([scriptpath, '-a', alignpath, '-m', model,
+                                      '-c', threads],
                                      stdout = subprocess.PIPE,
                                      stderr = subprocess.PIPE)
     # Check for errors
@@ -313,8 +314,9 @@ def find_clades(args, filename):
                          "take some time, skip this step in re-runs by "
                          "supplying the tree to -T/--tree\n")
         sys.stdout.flush()
-        tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel)
-
+        tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel,
+                           args.threads)
+        
         # Output the tree
         with open(os.path.join(args.outputdirectory,
                                f"{filename}_UPGMA.nwk"), 'w') as o:
