@@ -1,18 +1,109 @@
 #!/usr/bin/env Rscript
 
+# Load functions
+ncombos <- function(x) (x * (x - 1)) / 2
+getsets <- function(allvalues, maxsize){
+  if(length(allvalues) <= maxsize){
+    return(list(allvalues))
+  } 
+  if(maxsize < 2){
+    stop("Error: maxsize must be greater than 1")
+  }
+  nsets <- function(l, x){
+    if(x < 2) return(Inf)
+    nc <- floor((l - x)/(x - 1))
+    r <- (l - x) %% (x - 1)
+    return(1 + nc + (nc * (nc + 1) * (x - 1)/2) + ifelse(r > 0, ceiling((l - r) / (x - r)), 0))
+  }
+
+  t <- ncombos(length(allvalues))   # Total number of unique combinations needed
+  i <- 1                            # Starting indices of values for first combination
+  j <- 2:maxsize                    #        [i = 'columns', j = 'rows']
+  d <- 1                            # Starting dimensional increment for i
+  values <- allvalues[c(i, j)]      # Current set of values
+  sets <- list(values)              # List of each set of combinations             
+  expn <- nsets(length(allvalues), maxsize) # Number of sets required  
+  
+  while(length(sets) < expn){
+    if( rev(i)[1] + 1 < j[1] ){
+      # STEP RIGHT
+      if( rev(i)[1] + d <= length(allvalues) ){
+        i <- i + d
+      } else {
+        # This should only happen when d > 1, i.e. we're on the last row,
+        # therefore max of j will be the last row index and i does not need to include the last column index
+        i <- (i[1] + d):(length(allvalues) - 1)
+      }
+    } else {
+      # STEP DOWN
+      i <- 1:(1 + d - 1) # Reset i
+      if( rev(j)[1] + maxsize - 1 <= length(allvalues) ){
+        # STAY AT CURRENT DIMENSION
+        j <- j + maxsize - 1  
+      } else {
+        # FLATTEN TO FIT REMAINDER EFFICIENTLY
+        j <- (j[1] + maxsize - 1):length(allvalues)
+        d <- maxsize - length(j)
+        i <- i:(i + d - 1)
+      }
+    }
+    values <- allvalues[c(i, j)]
+    sets <- c(sets, list(values))
+  }
+  return(sets)
+}
+
+runnparsesets <- function(sets, alignment, model, cores){
+  
+  allvalues <- names(alignment)
+  
+  calci <- function(i, j, l) (l - 0.5) * i - l - (i ^ 2)/2 + j
+  getindices <- function(names){
+    l <- length(allvalues)
+    lapply(1:(length(names) - 1), function(n){
+      n1 <- which(allvalues == names[n])
+      n2 <- which(allvalues %in% names[(n + 1):length(names)])
+      sapply(n2, function(j) calci(n1, j, l))
+    }) %>% unlist()
+  } 
+  
+  bf <- base.freq(alignment)
+  
+  distout <- mclapply(sets, function(set){
+    ds <- dist.dna(alignment[set], model = model, pairwise.deletion = T, base.freq = bf)
+    return(cbind(getindices(attr(ds, "Labels")), ds))
+  }, mc.cores = cores) %>% do.call('rbind', .)
+  
+  distout <- distout[!duplicated(distout[,1]), ]
+  distout <- distout[order(distout[,1]),2]
+  
+  attr(distout, "Size") <- length(allvalues)
+  attr(distout, "Labels") <- allvalues
+  attr(distout, "Diag") <- attr(distout, "Upper") <- F
+  attr(distout, "method") <-  opt$model
+  class(distout) <- "dist"
+  return(distout)
+}
+
 suppressMessages(require(getopt))
 suppressMessages(require(ape))
 suppressMessages(require(phangorn))
+suppressMessages(require(parallel))
 
 # Set up options
 spec <- matrix(c(
   'help'     , 'h', 0, "logical",
   'alignment', 'a', 1, "character",
-  'model'    , 'm', 2, "character"
+  'model'    , 'm', 2, "character",
+  'distsize' , 'd', 2, "integer",
+  'cores'    , 'c', 2, "integer"
 ), byrow = T, ncol = 4)
 
 # Read options
 opt <- getopt(spec)
+
+# Testing
+# opt$alignment <-"test1000.fasta"
 
 # Do help
 if ( !is.null(opt$help) ){
@@ -25,17 +116,20 @@ if( is.null(opt$alignment) ){
   stop("Error: path to alignment is required")
 }
 
-if ( is.null(opt$model) ) opt$model = "F84"
-
-# Testing
-# opt$alignment <-"gra/5_coleoptera_fftnsi.fa"
-# opt$alignment <- "amm/6_coleoptera_fftnsi.fasta"
+if ( is.null(opt$model)    ) opt$model <- "F84"
+if ( is.null(opt$distsize) ) opt$distsize <- 50000
+if ( is.null(opt$cores)    ) opt$cores <- 1
 
 # Load in data
 alignment <- read.FASTA(opt$alignment)
 
 # Create distance matrix
-distmat <- dist.dna(alignment, model = opt$model, pairwise.deletion = T)
+if( length(alignment) <= opt$distsize ){
+  distmat <- dist.dna(alignment, model = opt$model, pairwise.deletion = T)
+} else {
+  sets <- getsets(names(alignment), opt$distsize)
+  distmat <- runnparsesets(sets, alignment, opt$model, opt$cores)
+}
 
 # Check for overdistance pairs
 # if(any(is.nan(distmat))){
