@@ -153,7 +153,7 @@ def detect_aligned(fasta, n):
             if t:
                 if t[0] == '>': c += 1
             else:
-                continue
+                break
     try:
         AlignIO.read(io.StringIO(head), "fasta")
         return(True)
