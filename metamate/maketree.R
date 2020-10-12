@@ -95,7 +95,7 @@ spec <- matrix(c(
   'help'     , 'h', 0, "logical",
   'alignment', 'a', 1, "character",
   'model'    , 'm', 2, "character",
-  'distsize' , 'd', 2, "integer",
+  'distmax'  , 'd', 2, "integer",
   'cores'    , 'c', 2, "integer"
 ), byrow = T, ncol = 4)
 
@@ -117,17 +117,30 @@ if( is.null(opt$alignment) ){
 }
 
 if ( is.null(opt$model)    ) opt$model <- "F84"
-if ( is.null(opt$distsize) ) opt$distsize <- 50000
+if ( is.null(opt$distmax)  ) opt$distmax <- 65536
 if ( is.null(opt$cores)    ) opt$cores <- 1
+
+if( opt$distmax < 2 | opt$distmax > 66536){
+  stop("Error: -d/--distmax must be an greater than 1 and less than 65,537")
+}
 
 # Load in data
 alignment <- read.FASTA(opt$alignment)
 
 # Create distance matrix
-if( length(alignment) <= opt$distsize ){
+# dist.dna can perform maximum 2^31-1 combinations. The maximum number of 
+# sequences generating this number of unique combinations is 65,536 
+# ncombos(65536) <= 2^31-1 #TRUE
+# ncombos(65537) <= 2^31-1 #FALSE
+# The limitation comes from the underlying C implementation of dist.dna
+# Instead, we do a hacky workaround whereby we split up the data into a
+# set of sets that contain all combinations, compute distances independently
+# then rebuild the distance matrix.
+
+if( length(alignment) <= opt$distmax ){
   distmat <- dist.dna(alignment, model = opt$model, pairwise.deletion = T)
 } else {
-  sets <- getsets(names(alignment), opt$distsize)
+  sets <- getsets(names(alignment), opt$distmax)
   distmat <- runnparsesets(sets, alignment, opt$model, opt$cores)
 }
 
