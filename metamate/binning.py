@@ -183,7 +183,7 @@ def make_tree_R(scriptdir, alignpath, model, threads):
     
     # Run R script
     maketreecommand = subprocess.run([scriptpath, '-a', alignpath, '-m', model,
-                                      '-c', threads],
+                                      '-c', str(threads)],
                                      stdout = subprocess.PIPE,
                                      stderr = subprocess.PIPE)
     # Check for errors
