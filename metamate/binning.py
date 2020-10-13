@@ -313,6 +313,11 @@ def find_clades(args, filename):
         sys.stdout.write("Making a UPGMA tree from the alignment. This may "
                          "take some time, skip this step in re-runs by "
                          "supplying the tree to -T/--tree\n")
+        if len(aligned['asvs']) > 65536:
+            sys.stdout.write("Warning: the number of ASVs (over 65,536) will "
+                             "require a slower method of distance computation "
+                             "that will probably take a considerable amount "
+                             "of time\n")
         sys.stdout.flush()
         tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel,
                            args.threads)
