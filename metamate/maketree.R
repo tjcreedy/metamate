@@ -80,11 +80,12 @@ runnparsesets <- function(sets, alignment, model, cores){
   calci <- function(i, j, l) (l - 0.5) * i - l - (i ^ 2)/2 + j
   getindices <- function(names){
     l <- length(allvalues)
-    lapply(1:(length(names) - 1), function(n){
+    ilis <- lapply(1:(length(names) - 1), function(n){
       n1 <- which(allvalues == names[n])
       n2 <- which(allvalues %in% names[(n + 1):length(names)])
       sapply(n2, function(j) calci(n1, j, l))
-    }) %>% unlist()
+    }) 
+    return(unlist(ilis))
   } 
   
   bf <- base.freq(alignment)
@@ -92,7 +93,8 @@ runnparsesets <- function(sets, alignment, model, cores){
   distout <- mclapply(sets, function(set){
     ds <- dist.dna(alignment[set], model = model, pairwise.deletion = T, base.freq = bf)
     return(cbind(getindices(attr(ds, "Labels")), ds))
-  }, mc.cores = cores) %>% do.call('rbind', .)
+  }, mc.cores = cores)
+  distout <- do.call('rbind', distout)
   
   distout <- distout[!duplicated(distout[,1]), ]
   distout <- distout[order(distout[,1]),2]
