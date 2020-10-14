@@ -1,7 +1,27 @@
 #!/usr/bin/env Rscript
 
-# Load functions
+
+
+# Load libraries ----------------------------------------------------------
+
+suppressMessages(require(getopt))
+suppressMessages(require(ape))
+suppressMessages(require(fastcluster))
+suppressMessages(require(parallel))
+
+# Load functions ----------------------------------------------------------
+
 ncombos <- function(x) (x * (x - 1)) / 2
+
+makedist <- function(x, labels, method){
+  attr(x, "Size") <- length(labels)
+  attr(x, "Labels") <- labels
+  attr(x, "Diag") <- attr(x, "Upper") <- F
+  attr(x, "method") <- method
+  class(x) <- "dist"
+  return(x)
+}
+
 getsets <- function(allvalues, maxsize){
   if(length(allvalues) <= maxsize){
     return(list(allvalues))
@@ -76,21 +96,11 @@ runnparsesets <- function(sets, alignment, model, cores){
   
   distout <- distout[!duplicated(distout[,1]), ]
   distout <- distout[order(distout[,1]),2]
-  
-  attr(distout, "Size") <- length(allvalues)
-  attr(distout, "Labels") <- allvalues
-  attr(distout, "Diag") <- attr(distout, "Upper") <- F
-  attr(distout, "method") <-  opt$model
-  class(distout) <- "dist"
-  return(distout)
+  return(makedist(distout, allvalues, model))
 }
 
-suppressMessages(require(getopt))
-suppressMessages(require(ape))
-suppressMessages(require(phangorn))
-suppressMessages(require(parallel))
+# Set up options ----------------------------------------------------------
 
-# Set up options
 spec <- matrix(c(
   'help'     , 'h', 0, "logical",
   'alignment', 'a', 1, "character",
@@ -105,13 +115,15 @@ opt <- getopt(spec)
 # Testing
 # opt$alignment <-"test1000.fasta"
 
-# Do help
+# Do help -----------------------------------------------------------------
+
 if ( !is.null(opt$help) ){
   cat(getopt(spec, usage = T))
   q(status = 1)
 }
 
-# Set defaults
+# Set defaults ------------------------------------------------------------
+
 if( is.null(opt$alignment) ){
   stop("Error: path to alignment is required")
 }
@@ -120,11 +132,12 @@ if ( is.null(opt$model)    ) opt$model <- "F84"
 if ( is.null(opt$distmax)  ) opt$distmax <- 65536
 if ( is.null(opt$cores)    ) opt$cores <- 1
 
-if( opt$distmax < 2 | opt$distmax > 66536){
+if( opt$distmax < 2 | opt$distmax > 65536){
   stop("Error: -d/--distmax must be an greater than 1 and less than 65,537")
 }
 
-# Load in data
+# Load in data ------------------------------------------------------------
+
 alignment <- read.FASTA(opt$alignment)
 
 # Create distance matrix
@@ -153,12 +166,19 @@ if( length(alignment) <= opt$distmax ){
 # }
 distmat[is.nan(distmat)] <- ceiling(max(distmat, na.rm = T))
 
-# Create tree
-tree <- upgma(distmat)
+# Create UPGMA tree -------------------------------------------------------
+# Using hclust from fastcluster to get over address size limitations in
+# standard hclust from stats package
 
-# Write out data
+tree <- hclust(distmat, method = "average")
+tree <- as.phylo(tree)
+tree <- reorder(tree, "postorder")
+
+# Write out data ----------------------------------------------------------
+
 write(write.tree(tree), stdout())
 #write.table(as.matrix(distmat), file.path(opt$outdir, paste0(filename, "_distance", ".tsv")))
 
-# Quit
-q(status = 1)
+# Quit --------------------------------------------------------------------
+
+q(status = 0)
