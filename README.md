@@ -102,7 +102,7 @@ metaMATE requires the following executables to be available on the command line:
 * [mafft](https://mafft.cbrc.jp/alignment/software/)
 
 
-The R packages getopt, ape and phangorn are also required.
+The R packages getopt, ape and fastcluster are also required.
 
 
 ### Quick install
