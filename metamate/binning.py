@@ -314,10 +314,12 @@ def find_clades(args, filename):
                          "take some time, skip this step in re-runs by "
                          "supplying the tree to -T/--tree\n")
         if len(aligned['asvs']) > 65536:
-            sys.stdout.write("Warning: the number of ASVs (over 65,536) will "
-                             "require a slower method of distance computation "
-                             "that will probably take a considerable amount "
-                             "of time\n")
+            exit("Error: the number of ASVs (over 65,536) is too high to "
+                 "compute a UPGMA tree. Please run again with fewer ASVs. "
+                 "We suggest removing ASVs that are highly infrequent and "
+                 "fall outside of the target length or have stops in "
+                 "translation. You can use the filtertranslate command to do "
+                 "standalone filtering by translation\n")
         sys.stdout.flush()
         tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel,
                            args.threads)

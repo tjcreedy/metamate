@@ -51,7 +51,7 @@ metaMATE operates using two submodules, `find` and `dump`, with the former being
 
 The ideal dataset for metaMATE is **a set of ASVs** arising from a **multi-sample metabarcoding dataset** accompanied by a solid set of **reference sequences** that are expected to be present in the dataset. Optionally, metaMATE can also utilise data assigning each ASV to a taxonomic group. 
 
-The ASVs (amplicon sequence variants) should comprise all unique sequences found across the dataset, optionally denoised, singletons removed, and filtered to remove outlying length variants.
+The ASVs (amplicon sequence variants) should comprise all unique sequences found across the dataset, optionally denoised, singletons removed, and filtered to remove outlying length variants. Note that metaMATE currently cannot process more than 65,536 input ASVs if perfoming clade binning due to the exponential complexity of the UPGMA algorithm.
 
 The multi-sample aspect is crucial, as the main novelty and power of metaMATE comes from assessing read counts of ASVs across descrete sampling units, as opposed to just using read counts of ASVs across the dataset as a whole. metaMATE refers to sampling units as 'libraries', under the assumption that a sample has likely been sequenced as a descrete pool of amplicons sharing the same identifying index. Depending on your pipeline, your descrete samples of amplicons may be stored in different files or in one file with sequences identified in the sequence header. metaMATE can deal with either of these ([see below](#-l--libraries-path-path)), assuming the format is correct.
 
@@ -84,7 +84,7 @@ The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs
 The best place to get metaMATE is to install from [the PyPI package](https://pypi.org/project/metaMATE/). The metaMATE source is available on [GitHub](https://github.com/tjcreedy/metamate).
 
 
-metaMATE was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most linux systems, and likely Mac OS as well. No idea about Windows.
+metaMATE was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most Linux systems, and likely Mac OS as well. No idea about Windows.
 
 
 Note that just installing from the PyPI package is not sufficient to run metaMATE, it also requires some system dependencies and R packages.
@@ -131,7 +131,7 @@ If the above fails, ensure that the python version that `python3` refers to in y
 Finally, ensure the necessary R libraries are installed:
 
 ```
-Rscript <(echo "install.packages(c('getopt', 'ape', 'phangorn'), repos = 'https://cloud.r-project.org')")
+Rscript <(echo "install.packages(c('getopt', 'ape', 'fastcluster'), repos = 'https://cloud.r-project.org')")
 ```
 
 Done!
@@ -258,7 +258,7 @@ B * C
 
 `find`: *always required* | `dump`: *always required*
 
-`path` should be the path to a fasta file of unique sequences with unique header names to filter. There are no header format requirements. For best operation of metaMATE, the sequences in this file should have had primers trimmed and low-quality sequences removed. It is recommended that sequences that are more than 100bp longer or shorter than the expected range of your target locus should have been removed, but other length variants remain. This file must contain some unwanted length variants ([see below](#identify-validated-non-target-ASVs) for why.). If this file contains over 10,000 ASVs, it is suggested that denoising should be run before metaMATE.
+`path` should be the path to a fasta file of unique sequences with unique header names to filter. There are no header format requirements. For best operation of metaMATE, the sequences in this file should have had primers trimmed and low-quality sequences removed. It is recommended that sequences that are more than 100bp longer or shorter than the expected range of your target locus should have been removed, but other length variants remain. This file must contain some unwanted length variants ([see below](#identify-validated-non-target-ASVs) for why.).
 
 The fasta file may be aligned or unaligned. If metaMATE requires an alignment (to build a UPGMA tree and delimit clades), an unaligned input will be aligned using [MAFFT FFT-NS-1](https://mafft.cbrc.jp/alignment/software/manual/manual.html). Supply an aligned set of ASVs if alignment is required but FFT-NS-1 is not expected to perform well with your data. 
 

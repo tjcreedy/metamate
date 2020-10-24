@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+  #!/usr/bin/env Rscript
 
 
 
@@ -169,8 +169,8 @@ if( length(alignment) <= opt$distmax ){
 distmat[is.nan(distmat)] <- ceiling(max(distmat, na.rm = T))
 
 # Create UPGMA tree -------------------------------------------------------
-# Using hclust from fastcluster to get over address size limitations in
-# standard hclust from stats package
+# Using hclust from fastcluster still doesn't get over address size limitations
+# in standard hclust from stats package - if more than 65,536 ASVs this will fail :(  
 
 tree <- hclust(distmat, method = "average")
 tree <- as.phylo(tree)
