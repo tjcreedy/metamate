@@ -178,6 +178,8 @@ def read_newick_string(path):
 # TODO: deal with properly addressing to the R scripts
 
 def make_tree_R(scriptdir, alignpath, model, threads):
+    #alignpath, model, threads =  aligned['path'], args.distancemodel, args.threads
+    
     # Generate script location
     scriptpath = os.path.join(scriptdir, 'maketree.R')
     
@@ -294,6 +296,7 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
     return(raw, aligned)
 
 def find_clades(args, filename):
+    #filename = infilename
     
     # Locate the script directory
     scriptdir = os.path.dirname(__file__)
