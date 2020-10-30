@@ -363,10 +363,7 @@ def main():
     check_tools()
     
     # Get inputs
-    #args = getcliargs('find -A data/6_coleoptera.fasta -R data/dummy_reference.fasta -L data/1_concat.fastq -S ../specifications.txt --overwrite -o otest01/ -l 418 -p 0 -s 5 -t 2'.split(' '))
-    #args = getcliargs(['dump', '-A', 'data/6_coleoptera.fasta', '-S', '[library; n; 3]', '[library; p; 0.0025]', '[library|clade; p; 0.04]', '-L',  'data/1_concat.fastq', '-f', 'otest13.fa'])
     args = getcliargs()
-    #os.chdir('tests/')
     
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
