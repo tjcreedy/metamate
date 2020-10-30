@@ -9,13 +9,17 @@ import os
 import sys
 import shutil
 import re
-import functools
 import gzip
-import numpy
 import itertools
+import time
+import datetime
+
+import numpy
+
+from collections import defaultdict
+from functools import partial, reduce
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
-from collections import defaultdict
 
 from metamate import filterlength
 from metamate import filtertranslate
@@ -238,7 +242,7 @@ def parse_specs(args, null = float('nan')):
     
     # Build all threshold combinations
     threshlists = []
-    termdetails = []
+#    termdetails = []
     nthresh = 0
     for tval in termvals:
         #tval = termvals[6]
@@ -247,27 +251,34 @@ def parse_specs(args, null = float('nan')):
         for spec in specs['name']:
             threshl.append(tval[spec] if spec in tval else [null])
             if spec in tval: specl.append(spec)
-        n = functools.reduce(lambda x, y: x * y, 
-                                   [len(t) for t in threshl], 1)
+        n = reduce(lambda x, y: x * y, [len(t) for t in threshl], 1)
         nthresh += n
-        termdetails.append([specl, n])
-        threshlists.append(threshl)
+#        termdetails.append([specl, n])
+        threshlists.append([specl, threshl])
     
     if args.mode == 'dump' and nthresh > 1:
         sys.exit("Error: mode 'dump' allows only a single threshold set. To "
                  "run wih multiple threshold sets, use mode 'find'\n")
     
-    # Construct generators
-    termgen = (l for t, c in termdetails for l in [t] * c)
-    thresholds = (t for tl in threshlists for t in itertools.product(*tl))
+    # Construct generator
+    #termgen = (l for t, c in termdetails for l in [t] * c)
+    #thresholds = (t for tl in threshlists for t in itertools.product(*tl))
+    def threshold_gen(thrlis):
+        n = 0
+        for tn, tl in thrlis:
+            for t in itertools.product(*tl):
+                yield(tuple([n, tn]) + t)
+                n += 1
+    thresholds = threshold_gen(threshlists)
     
-    return(specs, termset, nterm, nthresh, termgen, thresholds)
+    return(specs, termset, nterm, nthresh, thresholds)
 
 def get_validated(raw, args, filename):
     #filname = infilename
     
     # Create length-based control list
-    sys.stdout.write("Identifying control non-target ASVs based on length...")
+    sys.stdout.write("Identifying validated non-authentic ASVs based on "
+                     "length...")
     
     nontargetlength = filterlength.check_length_multi(raw['asvs'],
                                                       [args.minimumlength,
@@ -277,7 +288,7 @@ def get_validated(raw, args, filename):
     sys.stdout.write(f"found {len(nontargetlength)} candidates\n")
     
     # Create translation based control list
-    sys.stdout.write("Identifying control non-target ASVs based on "
+    sys.stdout.write("Identifying validated non-authentic ASVs based on "
                      "translation...")
     
     nontargettrans = filtertranslate.check_stops_multi(raw['asvs'], args,
@@ -289,11 +300,11 @@ def get_validated(raw, args, filename):
     nontarget = set(nontargetlength + nontargettrans)
     overlap = set(nontargetlength).intersection(set(nontargettrans))
     if len(nontarget) > 0:
-        sys.stdout.write(f"Designating a total of {len(nontarget)} unique "
-                         f"ASVs as non-target ({len(overlap)} were found in "
+        sys.stdout.write(f"Validated a total of {len(nontarget)} unique "
+                         f"ASVs as non-authentic ({len(overlap)} were found in "
                           "both sets)\n")
     else:
-        sys.exit("Error: no non-target ASVs could be found. Prior data "
+        sys.exit("Error: no non-authentic ASVs could be found. Prior data "
                  "filtering may have been too stringent.")
     
     # Create reference based control list
@@ -307,7 +318,8 @@ def get_validated(raw, args, filename):
         if dat is None:
             continue
         
-        sys.stdout.write(f"Identifying control target ASVs based on {src}...")
+        sys.stdout.write(f"Identifying validated authentic ASVs based on "
+                         f"{src}...")
         sys.stdout.flush()
         db, mp, ml = [None, None, None]
         
@@ -331,18 +343,18 @@ def get_validated(raw, args, filename):
     
     # Finalise targets
     if len(target) > 0:
-        sys.stdout.write(f"Designating a total of {len(target)} unique ASVs "
-                         f"as target ({len(refmatch)} unique matched to "
+        sys.stdout.write(f"Validated a total of {len(target)} unique ASVs "
+                         f"as authentic ({len(refmatch)} unique matched to "
                           "references and/or blast database, "
                          f"{len(refmatch - target)} rejected due to inclusion "
                           "in non-target set)\n")
     else:
-        err = "Error: no target ASVs found"
+        err = "Error: no authentic ASVs found"
         if len(refmatch) > 0:
             err = (f"{err}, although {len(refmatch)} ASVs matched to "
                     "reference set. Length thresholds may be too stringent "
-                    "and find too many non-target ASVs, or reference dataset "
-                    "is not sufficiently curated")
+                    "and find too many non-authentic ASVs, or reference "
+                    "dataset is not sufficiently curated")
         else:
             err = (f"{err}. Check the reference file and/or database is "
                    " correct and consider adjusting the matching "
@@ -416,30 +428,17 @@ def apply_reject(threshnames, thresholds, counts, anyfail):
         rejects.extend(reject(counts[term], thresh, anyfail))
     return(set(rejects))
 
-
-def assess_numts(threshnames, counts, anyfail, asvs, target, nontarget, 
-                 scoretype, threshvals):
-    #threshnames, anyfail, asvs, scoretype, weight, threshvals = specs['name'], args.anyfail, set(raw['asvs'].keys()), "standardised", 0.5, next(thresholds)
-    rejects = apply_reject(threshnames, threshvals, counts, anyfail)
-    stats = calc_stats(rejects, asvs, target, nontarget, scoretype)
-    
-    # TODO: send thresholds + stats to a parallel writer instead, and only
-    # output sufficient information to generate resultsets
-    
-    return(list(threshvals) + stats)
-
-def calc_stats(rejects, asvs, target, nontarget, scoretype):
+def calc_stats(rejects, asvs, target, nontarget):
     """For a given set of category counts and a given set of thresholds, counts
     retention, calculates scores and estimates statistics. Counts and
     thresholds should be in two lists of equal lengths, where the nth item of
     the thresholds should be the threshold count for the nth counts"""
     
-    # TODO: set up multithreading to write to a specs file in parallel to
-    # save memory.
-    
     # Find all rejected_asvs across counts
     actualrejects = rejects.union(nontarget) - target
     
+    
+    # Calculate summary statistics
     stats = [len(asvs),                              #0: asvs_total
              len(target),                            #1: targets_total
              len(nontarget),                         #2: nontargets_total
@@ -478,12 +477,32 @@ def calc_stats(rejects, asvs, target, nontarget, scoretype):
     
     # score, stats, estimates, hash, store
     rejects = tuple(sorted(actualrejects))
-    return(scores + stats + estimates + [hash(rejects),  store])
+    return(scores, stats + estimates, hash(rejects),  store)
 
-def write_stats_and_cache(specs, stats, terms, filename, outdir):
+def assess_numts(threshnames, counts, anyfail, asvs, target, nontarget, 
+                 scoretype, queues, threshvals):
+    # threshnames, anyfail, asvs, scoretype = specs['name'], args.anyfail, set(raw['asvs'].keys()), args.scoremetric
+    # threshvals = next(thresholds)
+    # Parse link data
+    prinq, termq = queues
+    i, terms, threshvals = threshvals[0], threshvals[1], threshvals[2:]
+    
+    # Run rejection and statistics
+    rejects = apply_reject(threshnames, threshvals, counts, anyfail)
+    scores, stats, ohash, store = calc_stats(rejects, asvs, target, nontarget)
+    
+    # Write to terminal and files
+    prinq.put((i, terms, list(threshvals) + scores + stats, ohash, store))
+    termq.put(ohash)
+    
+    return([i] + scores)
+
+
+def write_stats_and_cache(specs, filename, outdir, prinq):
     
     sh = open(os.path.join(outdir,f"{filename}_results.csv"), 'w')
     ch = gzip.open(os.path.join(outdir,f"{filename}_resultcache"), 'wt')
+    hh = open(os.path.join(outdir, f"{filename}_hashcache"), 'w')
     
     # Write header
     head = ("accuracy_score precision_score recall_score "
@@ -505,14 +524,65 @@ def write_stats_and_cache(specs, stats, terms, filename, outdir):
                       + [s + "_threshold" for s in specs['name']]
                       + head) + '\n')
     
-    # Write lines
-    for i, term, statl in zip(itertools.count(), terms, stats):
-        sh.write(",".join(str(v) for v in [i, '*'.join(term)] + statl[:-1])
-                 +'\n')
-        ch.write('\t'.join([str(i), statl[-1][0]] + list(statl[-1][1])) +'\n')
+    while 1:
+        feed = prinq.get()
+        if feed is None: break
+        i, term, statl, ohash, store = feed
+        sh.write(",".join(str(v) for v in [i, '*'.join(term)] + statl) +'\n')
+        sh.flush()
+        ch.write('\t'.join([str(i), store[0]] + list(store[1])) +'\n')
+        ch.flush()
+        hh.write(f"{i}\t{ohash}\n")
+        hh.flush()
     
     sh.close()
     ch.close()
+    hh.close()
+
+def write_terminal(tot, termq):
+    # Set up to print
+    start = time.perf_counter()
+    done = 0
+    remain = "unknown time"
+    uniqouts = set()
+    # Print
+    while 1:
+        sys.stdout.write("\r%s\r" % (' ' * 70))
+        sys.stdout.write(f"\rAssessed {done} of {tot} total threshold "
+                         f"combinations, {remain} remaining")
+        sys.stdout.flush()
+        queueitem = termq.get()
+        if queueitem is None: break
+        uniqouts.add(queueitem)
+        done += 1
+        now = time.perf_counter()
+        elapsed = now-start
+        remain = round((elapsed/done) * (tot - done))
+        remain = "approx " + str(datetime.timedelta(seconds=remain))
+    
+    now = time.perf_counter()
+    elapsed = now-start
+    elapsedper = datetime.timedelta(seconds=elapsed/done)
+    elapsed = datetime.timedelta(seconds=round(elapsed))
+    sys.stdout.write(f"\nFinished assessing {tot} threshold combinations in "
+                     f"{elapsed}, {elapsedper} per threshold combination.\n"
+                     f"Generated a total of {len(uniqouts)} unique ASV output "
+                     f"compositions\n")
+    sys.stdout.flush()
+
+def start_writers(pool, manager, specs, filename, outdir, nthresh):
+    
+    prinq = manager.Queue()
+    printwatch = pool.apply_async(partial(write_stats_and_cache, 
+                                          specs, filename, outdir),
+                                  (prinq,))
+    
+    termq = manager.Queue()
+    termwatch = pool.apply_async(partial(write_terminal,
+                                         nthresh),
+                                 (termq,))
+    
+    return((prinq, termq), (printwatch, termwatch))
 
 def get_reject_from_store(asvs, n, store):
     #store = rsstore
@@ -529,19 +599,54 @@ def find_best_score(scores, scoretype, nspec):
     scoreloc = {'accuracy': 0,
                 'precision': 1,
                 'recall': 2}
-    scorelist = [ s[nspec + scoreloc[scoretype]] for s in scores ]
-    sys.stdout.write(f"Maxmimum {scoretype} score of {max(scorelist)} achieved"
-                     f" by {scorelist.count(max(scorelist))} threshold sets\n")
     
-    return(sorted(scorelist)[::-1])
+    scorelist = [ [s[0], s[1 + scoreloc[scoretype]]] for s in scores ]
+    scorelist = sorted(scorelist, key = lambda x: int(x[1]))[::-1]
+    maxscore = scorelist[0][1]
+    nmax = len([s for s in scorelist if s[1] == maxscore])
+    sys.stdout.write(f"Maxmimum {scoretype} score of {maxscore} achieved"
+                     f" by {nmax} threshold sets\n")
+    
+    return(scorelist)
 
-def generate_resultsets(genval, stats, scoresort, nspec):
-    #genval = args.generateASVresults
+
+def parse_hashcache(path):
+    hashdict = defaultdict(set)
+    fh = open(path, 'r')
+    for line in fh:
+        rs, h = line.strip().split('\t')
+        hashdict[h].add(int(rs))
+    fh.close()
+    return(hashdict)
+
+def generate_resultsets(genval, scoresort, path):
+    #genval, path = args.generateASVresults, hashcachepath
+    uniqscores = sorted(list(set([s[1] for s in scoresort])))[::-1]
     i = 0
+    p = genval
     if type(genval) is float:
-        i = round(genval * len(scoresort)) - 1
-    maxscore = scoresort[i]
-    return([i for i, s in enumerate(stats) if s[nspec] >= maxscore])
+        i = round(genval * len(uniqscores)) - 1
+        p = f"{round(genval * 10)}% of"
+    scores = uniqscores[:i+1]
+    minscore, maxscore = min(scores), max(scores)
+    
+    resultsets = [s[0] for s in scoresort if s[1] >= minscore]
+    
+    hashcache = parse_hashcache(path)
+    users = []
+    for h, rs in hashcache.items():
+        #h, rs = list(hashcache.items())[0]
+        inrs = [r for r in rs if r in resultsets]
+        if len(inrs) > 0:
+            users.append(inrs[0])
+    
+    sys.stdout.write(f"Found {len(uniqscores)} unique scores, outputting the "
+                     f"results for the top {p} score(s) (score(s) {minscore} to "
+                     f"{maxscore}), corresponding to {len(resultsets)} "
+                     f"threshold combinations and {len(users)} unique ASV "
+                      "output compositions\n")
+    
+    return(users)
 
 def write_retained_asvs(infile, outfile, rejects):
     with open(infile, 'r') as infa, open(f"{outfile}", 'w') as outfa:
@@ -549,28 +654,31 @@ def write_retained_asvs(infile, outfile, rejects):
             if head not in rejects:
                 outfa.write(f">{head}\n{seq}\n")
 
-def write_resultset_asvs(asvs, filename, infile, outdir, resultsets, store,
-                         mode):
-    #asvs, filename, infile, outdir, resultsets, store,                         mode, name = set(raw['asvs'].keys()), outfilename,                                  raw['path'], os.getcwd(), args.resultindex,                                   stores, args.mode
+def write_resultset_asvs(asvs, resultsets, cachepath, infile, outdir, 
+                         outname, mode):
+    #asvs, filename, infile, outdir, resultsets, store, mode, name = set(raw['asvs'].keys()), outfilename,                                  raw['path'], os.getcwd(), args.resultindex, stores, args.mode
     
-    storei = 1 if mode == 'dump' else -1
+    # Read in the relevant store lines
+    store = parse_resultcache(cachepath, asvs, resultsets)
+    if mode == 'dump':
+        sys.stdout.write(f"Read {len(store)} cached results.\n")
     
     sys.stdout.write(f"Writing fastas for {len(resultsets)} results...")
     
-    if len(resultsets) > 0:
-        outnames = {rs: f"{filename}_resultset{rs}.fasta" for rs in resultsets}
+    if len(resultsets) > 1:
+        outnames = {rs: f"{outname}_resultset{rs}.fasta" for rs in resultsets}
     else:
-        outnames = {resultsets[0]: filename}
+        outnames = {resultsets[0]: outname}
     
-    for rs in resultsets:
-        #rs = resultsets[0]
+    for rs, rsstore in store:
+        #rs, rsstore = store[0]
         outfile = os.path.join(outdir, outnames[rs])
-        rsstore = store[rs][storei]
         rejects = get_reject_from_store(asvs, rs, rsstore)
         write_retained_asvs(infile, outfile, rejects)
     sys.stdout.write("done.\n")
 
-def parse_resultcache(path, asvs):
+
+def parse_resultcache(path, asvs, resultsets = None):
     #path, asvs = [args.resultcache, set(raw['asvs'].keys())]
     fh = gzip.open(path, 'rt')
     store = []
@@ -585,8 +693,8 @@ def parse_resultcache(path, asvs):
             setn = int(setn)
         except:
             sys.exit(f"{err} starting value \'{setn}\' is not an integer")
-        if setn != i:
-                sys.exit(f"{err} starts with \'{setn}\', not \'{i}\'")
+        if resultsets and setn not in resultsets:
+            continue
         action = vals.pop(0)
         if action not in {'reject', 'retain'}:
             sys.exit(f"{err} second value \'{action}\' is not 'reject' or "
@@ -597,8 +705,6 @@ def parse_resultcache(path, asvs):
                       "identifiable in the supplied ASV file")
         store.append([setn, (action, set(vals))])
     fh.close()
-    
-    sys.stdout.write(f"Read {len(store)} cached results.\n")
     
     return(store)
 

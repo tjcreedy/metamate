@@ -10,8 +10,8 @@ import os
 import sys
 import math
 import textwrap as _textwrap
+import multiprocessing
 
-from multiprocessing import Pool
 from functools import partial
 from shutil import which
 
@@ -363,12 +363,10 @@ def main():
     check_tools()
     
     # Get inputs
+    #args = getcliargs('find -A data/6_coleoptera.fasta -R data/dummy_reference.fasta -L data/1_concat.fastq -S ../specifications.txt --overwrite -o otest01/ -l 418 -p 0 -s 5 -t 2'.split(' '))
+    #args = getcliargs(['dump', '-A', 'data/6_coleoptera.fasta', '-S', '[library; n; 3]', '[library; p; 0.0025]', '[library|clade; p; 0.04]', '-L',  'data/1_concat.fastq', '-f', 'otest13.fa'])
     args = getcliargs()
-    #args = getcliargs('dump -A data/6_coleoptera.fasta -S'.split(' ') +  ['[library; n; 3]','[library; p; 0.0025]','[library|clade; p; 0.04]'] + '-L data/1_concat.fastq -f otest13.fa'.split(' '))
-    #args = getcliargs('dump -A data/6_coleoptera.fasta -C otest01/6_coleoptera_resultcache -i 43 56 29 -o otest12'.split(' '))
-    
     #os.chdir('tests/')
-    
     
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
@@ -392,15 +390,12 @@ def main():
         raw, aligned = binning.parse_asvs(args, True, '',
                                           os.path.join('.', 'asvtemp'))
         
-        stores = core.parse_resultcache(args.resultcache,
-                                        set(raw['asvs'].keys()))
-        
         outdir = args.outputdirectory if args.outputdirectory else os.getcwd()
         
-        core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename,
-                                  raw['path'], outdir, args.resultindex, 
-                                  stores, args.mode)
-        
+        core.write_resultset_asvs(set(raw['asvs'].keys()), args.resultindex,
+                                  args.resultcache, raw['path'],
+                                  outdir, outfilename, args.mode)
+        os.remove('asvtemp_unaligned.fa')
         sys.stdout.write("\nCompleted dump\n\n")
         exit()
         
@@ -408,8 +403,7 @@ def main():
     # READ AND PARSE FILTERING SPECIFICATIONS #
     ###########################################
     
-    specparse = core.parse_specs(args, 0)
-    specs, terms, nterm, nthresh, termgen, thresholds = specparse
+    specs, terms, nterm, nthresh, thresholds = core.parse_specs(args, 0)
     
     sys.stdout.write(f"Parsed {nterm} additive specification term"
                      f"{'s' if nterm > 1 else ''}, comprising "
@@ -489,23 +483,43 @@ def main():
     
     if args.mode == 'find':
         
+        # Initialise the queue manager and pool
+        manager = multiprocessing.Manager()
+        pool =  multiprocessing.Pool(args.threads + 2)
+        
+        # Start writer
+        queues, watchers = core.start_writers(pool, manager, specs,
+                                              infilename, args.outputdirectory,
+                                              nthresh)
+        
         # Calculate score for threshold combination
         sys.stdout.write("Assessing counts and scoring for each threshold "
-                         "combination.\n")
+                         "combination.\n\n")
         
         chunksize = math.ceil(nthresh/args.threads)
-        with Pool(processes = args.threads) as pool:
-            stats = pool.map(partial(core.assess_numts,
-                                     specs['name'], counts, args.anyfail,
-                                     set(raw['asvs'].keys()), target,
-                                     nontarget, args.scoremetric),
-                             thresholds, chunksize)
+        scores = pool.map(partial(core.assess_numts,
+                                  specs['name'], counts, args.anyfail,
+                                  set(raw['asvs'].keys()), target,
+                                  nontarget, args.scoremetric, queues),
+                          thresholds, chunksize)
         
-        scoresort = core.find_best_score(stats, args.scoremetric,
+        # Close queues and pool
+        for q in queues:
+            q.put(None)
+        pool.close()
+        pool.join()
+        
+        # Get any errors in writers
+        for w in watchers:
+            w.get()
+        
+        # Parse scores
+        scoresort = core.find_best_score(scores, args.scoremetric,
                                          len(specs['name']))
         
     elif args.mode == 'dump':
-        rejects = core.apply_reject(specs['name'], next(thresholds),
+        sys.stdout.write("Assessing counts against thresholds\n")
+        rejects = core.apply_reject(specs['name'], next(thresholds)[2:],
                                               counts, args.anyfail)
     
     ##################
@@ -515,20 +529,24 @@ def main():
     if args.mode == 'find':
         # Output ASVs if requested
         if args.generateASVresults > 0:
+            args.generateASVresults = 1
+            hashcachepath = os.path.join(args.outputdirectory,
+                                         f"{infilename}_hashcache")
+            resultcachepath = os.path.join(args.outputdirectory,
+                                           f"{infilename}_resultcache")
+            
             resultsets = core.generate_resultsets(args.generateASVresults, 
-                                                  stats, scoresort,
-                                                  len(specs['name']))
-            sys.stdout.write(f"Writing {len(resultsets)} filtered ASV files\n")
-            core.write_resultset_asvs(set(raw['asvs'].keys()), outfilename, 
+                                                  scoresort,
+                                                  hashcachepath)
+            core.write_resultset_asvs(set(raw['asvs'].keys()), resultsets,
+                                      resultcachepath,
                                       raw['path'], args.outputdirectory,
-                                      resultsets, stats, args.mode)
+                                      outfilename, args.mode)
         
         # Output thresholds and scores
-        sys.stdout.write("Writing statistics and result cache\n")
-        core.write_stats_and_cache(specs, stats, termgen, infilename,
-                                   args.outputdirectory)
+        os.remove(hashcachepath)
         sys.stdout.write("\nCompleted find\n\n")
-    
+        
     elif args.mode == 'dump':
         outdir = args.outputdirectory if args.outputdirectory else os.getcwd()
         outfile = os.path.join(outdir, outfilename)
