@@ -4,7 +4,7 @@ options(stringsAsFactors = F, scipen = 19)
 
 # Introduction ------------------------------------------------------------
 
-# This is a draft script for generating plots from a NUMTdumper find 
+# This is a draft script for generating plots from a metaMATE find 
 # run. It currently works only for non-multiplicative terms, but if you 
 # have any multiplicative terms don't worry, they'll just be ignored.
 # As long as you have the below packages installed, it should just run.
@@ -65,7 +65,7 @@ oneterms <- filter(results, !grepl('\\*', term)) %>%
 
   # Plots 1
 unite(oneterms, 'part', data, part) %>%
-  filter(part %in% c('targets_rejected', 'nontargets_retained'), stat == 'p') %>%
+  filter(part %in% c('verifiedauthentic_rejected', 'verifiednonauthentic_retained'), stat == 'p') %>%
   ggplot(aes(x = threshold, y = value, col = part)) +
   geom_line() +
   geom_point() +
