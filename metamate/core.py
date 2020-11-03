@@ -528,7 +528,8 @@ def write_stats_and_cache(specs, filename, outdir, prinq):
         feed = prinq.get()
         if feed is None: break
         i, term, statl, ohash, store = feed
-        sh.write(",".join(str(v) for v in [i, '*'.join(term)] + statl) +'\n')
+        statl = [i, '*'.join(term)] + statl + [ohash]
+        sh.write(",".join(str(v) for v in statl) +'\n')
         sh.flush()
         ch.write('\t'.join([str(i), store[0]] + list(store[1])) +'\n')
         ch.flush()
