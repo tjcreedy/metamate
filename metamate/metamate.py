@@ -524,11 +524,11 @@ def main():
     ##################
     
     if args.mode == 'find':
+        hashcachepath = os.path.join(args.outputdirectory,
+                                         f"{infilename}_hashcache")
         # Output ASVs if requested
         if args.generateASVresults > 0:
             args.generateASVresults = 1
-            hashcachepath = os.path.join(args.outputdirectory,
-                                         f"{infilename}_hashcache")
             resultcachepath = os.path.join(args.outputdirectory,
                                            f"{infilename}_resultcache")
             
