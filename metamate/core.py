@@ -391,17 +391,6 @@ def counts_from_spec(specs, data):
     
     return(counts)
 
-def calc_scores(truepositive, falsepositive, truenegative, falsenegative):
-    def _divide(num, den):
-        return num / den if den else 0
-    
-    accuracy = _divide((truepositive + truenegative),
-                       (truepositive + truenegative 
-                        + falsepositive + falsenegative))
-    precision = _divide(truepositive, (truepositive + falsepositive))
-    recall = _divide(truepositive, (truepositive + falsenegative))
-    
-    return [accuracy, precision, recall]
 
 def estimate_true_values(asvs, retained_asvs, retained_target, target,
                          retained_nontarget, nontarget):
@@ -419,6 +408,19 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target,
     except:
         out = ['NA', 'NA', 'NA', 'NA']
     return(out)
+
+
+def calc_scores(truepositive, falsepositive, truenegative, falsenegative):
+    def _divide(num, den):
+        return num / den if den else 0
+    
+    accuracy = _divide((truepositive + truenegative),
+                       (truepositive + truenegative 
+                        + falsepositive + falsenegative))
+    precision = _divide(truepositive, (truepositive + falsepositive))
+    recall = _divide(truepositive, (truepositive + falsenegative))
+    
+    return([accuracy, precision, recall])
 
 
 def apply_reject(threshnames, thresholds, counts, anyfail):
@@ -459,9 +461,14 @@ def calc_stats(rejects, asvs, target, nontarget):
               len(actualrejects),                    #17: asvsactual_rejected_n
               len(actualrejects) / stats[0]]         #18: asvsactual_rejected_p
     
+    # True positives = targets_retained_n = 7
+    # False positives = nontargets_retained_n = 11
+    # True negatives = nontargets_rejected_n = 13
+    # False negatives = targets_rejected_n = 9
+    
     # Calculate score from truepositives, falsepositives, truenegatives and
     # falsenegatives
-    scores = calc_scores(stats[7], stats[9], stats[13], stats[11])
+    scores = calc_scores(stats[7], stats[11], stats[13], stats[9])
     
     # Calculate estimates of 0: total input true targets, 1: total input true
     # nontargets, 2: total output true targets, 3: total output true nontargets
@@ -595,8 +602,8 @@ def get_reject_from_store(asvs, n, store):
         sys.exit(f"store type \'{store[0]}\' for resultset {n} is not "
                   "\'retain\' or \'reject\'")
 
-def find_best_score(scores, scoretype, nspec):
-    #scores, nspec = stats, len(specs['name'])
+def find_best_score(scores, scoretype):
+    # scoretype = args.scoremetric
     scoreloc = {'accuracy': 0,
                 'precision': 1,
                 'recall': 2}

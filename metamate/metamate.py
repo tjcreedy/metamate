@@ -511,8 +511,7 @@ def main():
             w.get()
         
         # Parse scores
-        scoresort = core.find_best_score(scores, args.scoremetric,
-                                         len(specs['name']))
+        scoresort = core.find_best_score(scores, args.scoremetric)
         
     elif args.mode == 'dump':
         sys.stdout.write("Assessing counts against thresholds\n")
