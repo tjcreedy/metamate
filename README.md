@@ -470,7 +470,7 @@ The input ASV alignment and tree are the same, but clades will be delimited at 1
 
 The most straightforward, and recommended, way to run `dump` is to do so simply to extract the results of a specified result set:
 ```
-metamate dump -A 6_coleoptera.fasta -C outputdir/6_coleoptera_resultcache -i 35 -o 7_coleoptera_numtfiltered.fasta
+metamate dump -A 6_coleoptera.fasta -C outputdir/6_coleoptera_resultcache -i 35 -o 7_coleoptera_filtered.fasta
 ```
 Alongside the same ASV file as used for a `find` run (`-A`), this command specifies the path to a resultcache file output from that `find` run (`-C`). After analysing the results, the user has determined that the optimal threshold set (`-i`) is set 35 (an index given in the `find` output data). metaMATE will parse these inputs and write all ASVs that passed the frequency thresholds for this set *and/or* were determined to be verified-authentic-ASVs to the output file (`-o`). All of the specifications, threshold sets and other input files are not needed as all of this information is contained in the resultcache file.
 
