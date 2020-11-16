@@ -143,6 +143,103 @@ def count_asvs_in_libraries(master, librarypaths):
     # Return final dictionaries
     return countsbylibrary, countstotal
 
+def parse_readmap(master, mappath):
+    # master, mappath = raw['asvs'], args.readmap
+    
+    # Generate reference set of ASV names with and without size tags
+    asvnames = list(master.keys())
+    asvstrip = [re.sub(';size=.*$', '', k) for k in master.keys()]
+    if len(set(asvstrip)) != len(asvstrip):
+        sys.stderr.write("Warning: ASV names are not unique after stripping "
+                         ";size= tags, ensure your read map file uses exactly "
+                         "the same ASV names as your input ASV file\n")
+    
+    # Set up empty dictionary for librarywise results
+    countsbylibrary = dict()
+    
+    # Set up empty list for all zotu incidences
+    asvcounts = {a: 0 for a in asvnames}
+    libnames = []
+    
+    # Open map and determine separator and orientation
+    maph = open(mappath, 'r')
+    firstline = maph.readline().strip()
+    sep = [s for s in [',', '\t'] if len(firstline.split(s)) > 1]
+    if len(sep) == 0 or len(sep) > 1:
+        sys.exit( "Error: cannot determine single unambiguous column separator"
+                 f" for {mappath}, it should be either comma or tab\n")
+    else:
+        sep = sep[0]
+    firstline = firstline.split(sep)[1:]
+    if len(set(firstline)) != len(firstline):
+        sys.exit(f"Error: column headings in {mappath} are not unique\n")
+    asvcolumns = (any(n in firstline for n in asvnames) 
+                  or any(s in firstline for s in asvstrip))
+    
+    # Parse if ASVs are the columns
+    if asvcolumns:
+        # Check that the number of ASVs matches
+        if len(firstline) != len(asvnames):
+            sys.exit(f"Error: columns of {mappath} determined to be ASVs, but "
+                      "number of data columns does not mach number of input "
+                      "ASVs\n")
+        namessorted = []
+        # Check that all ASVs are present, and if so ensure names are sorted
+        if all(s in firstline for s in asvstrip):
+            sindex = [asvstrip.index(f) for f in firstline]
+            namessorted = [asvnames[i] for i in sindex]
+        elif all(n in firstline for n in asvnames):
+            namessorted = firstline
+        else:
+            sys.exit(f"Error: columns of {mappath} determined to be ASVs, but "
+                      "cannot match all column names with all names of input "
+                      "ASVs\n")
+        # Parse the lines
+        for line in maph:
+            line = line.strip().split(sep)
+            if len(line) == 1:
+                continue
+            lib, counts = line[0], [int(c) for c in line[1:]]
+            countsbylibrary[lib] = dict()
+            libnames.append(lib)
+            for name, count in zip(namessorted, counts):
+                if count > 0:
+                    countsbylibrary[lib][name] = count
+                    asvcounts[name] += count
+    # Parse if ASVs are the rows
+    else:
+        libnames = firstline
+        countsbylibrary = {l: dict() for l in libnames}
+        readasvs = []
+        for line in maph:
+            line = line.strip().split(sep)
+            if len(line) == 1:
+                continue
+            name, counts = line[0], [int(c) for c in line[1:]]
+            if name in asvstrip:
+                name = asvnames[asvstrip.index(name)]
+            elif name not in asvnames:
+                sys.exit(f"Error: ASV name {name} in {mappath} does not match "
+                          "any input ASV names\n")
+            readasvs.append(name)
+            for lib, count in zip(libnames, counts):
+                if count > 0:
+                    countsbylibrary[lib][name] = count
+                    asvcounts[name] += count
+        if not all(r in asvnames for r in readasvs):
+            sys.exit(f"Error: did not find count data in {mappath} for all "
+                      "input ASVs")
+    
+    # Check for empty libraries
+    libabsent = [l for l, v in countsbylibrary.items() if len(v) == 0]
+    if len(libabsent) > 0:
+        sys.stderr.write(f"Warning: libraries {', '.join(libabsent)} had no "
+                          "sequences matching any ASVs\n")
+        countsbylibrary = {l: v for l, v in countsbylibrary.items() 
+                                    if len(v) > 0}
+    
+    return(countsbylibrary, {'total': asvcounts})
+
 def detect_aligned(fasta, n):
     with open(fasta) as fh:
         head, t = '', ''

@@ -93,6 +93,10 @@ def getcliargs(arglist = None):
                              "or \';barcodelabel=NAME;\' annotations in "
                              "headers.",
                       metavar = "path", type = str, nargs = '*')
+    core.add_argument("-M", "--readmap",
+                      help = "path to a comma- or tab- separated tabular text "
+                             "file containing read counts for ASVs by library",
+                      metavar = "path", type = str)
     core.add_argument("-y", "--anyfail",
                       help = "reject ASVs when any incidences fail to meet "
                              "a threshold (default is all incidences)",
@@ -133,7 +137,6 @@ def getcliargs(arglist = None):
                         metavar = "path", type = str)
 
         #Set up finding subparser
-
     findparser = subparsers.add_parser("find", parents = [coreparser],
                                        help = "find NUMTs by supplying "
                                               "threshold ranges and control "
@@ -161,7 +164,6 @@ def getcliargs(arglist = None):
                             default = 0, const = True, nargs = '?',
                             action = Range, minimum = 0, maximum = 1,
                             type = float)
-    
     
         # Reference matching parameters
     refmatch = findparser.add_argument_group("reference-matching-based target "
@@ -296,8 +298,10 @@ def getcliargs(arglist = None):
         # Ensure a value is supplied to libraries
         if not args.outputdirectory:
             parser.error('-o/--outputdirectory is required for NUMT finding')
-        if not args.libraries:
-            parser.error('-L/--libraries is required for NUMT finding')
+        if( (not args.libraries and not args.readmap)
+                or (args.libraries and args.readmap) ):
+            parser.error('one and only one of -L/--libraries or -M/--readmap '
+                         'is required for NUMT finding')
         # Ensure the metric supplied is valid
         if args.scoremetric not in ['accuracy', 'precision', 'recall']:
             parser.error("-q/--scoremetric must be one of 'accuracy', "
@@ -325,8 +329,10 @@ def getcliargs(arglist = None):
             if ressum > 0:
                 parser.error('-S/--specification is not compatible with any of'
                              '-C/--resultcache, -i/--resultindex')
-            if not args.libraries:
-                parser.error('-L/--libraries is required if providing '
+            if( (not args.libraries and not args.readmap)
+                or (args.libraries and args.readmap) ):
+                parser.error('one and only one of -L/--libraries or '
+                             '-M/--readmap is required if providing '
                              '-S/--specification')
         elif ressum == 0:
             parser.error('either -S/--specification, or both of '
@@ -441,11 +447,16 @@ def main():
     # COMPUTE LIBRARY AND TOTAL READCOUNTS #
     ########################################
     
-    sys.stdout.write("Matching library reads to ASVs to generate library ASV "
-                     "counts.\n")
+    if args.libraries:
+        sys.stdout.write("Matching library reads to ASVs to generate library "
+                         "ASV counts.\n")
+        counts = binning.count_asvs_in_libraries(raw['asvs'], args.libraries)
+    elif args.readmap:
+        sys.stdout.write("Parsing read mapping table to generate library ASV "
+                         "counts.\n")
+        counts = binning.parse_readmap(raw['asvs'], args.readmap)
     
-    librarycounts, totalcounts = binning.count_asvs_in_libraries(raw['asvs'],
-                                                               args.libraries)
+    librarycounts, totalcounts  = counts
     
     # Output csv of library counts
     if args.outputdirectory:
