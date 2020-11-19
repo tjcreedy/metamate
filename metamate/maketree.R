@@ -13,13 +13,24 @@ suppressMessages(require(parallel))
 
 ncombos <- function(x) (x * (x - 1)) / 2
 
-makedist <- function(x, labels, method){
-  attr(x, "Size") <- length(labels)
-  attr(x, "Labels") <- labels
-  attr(x, "Diag") <- attr(x, "Upper") <- F
-  attr(x, "method") <- method
-  class(x) <- "dist"
-  return(x)
+upgma <- function (D, method = "average", ...){
+  # Using hclust from fastcluster 
+  suppressMessages(require(fastcluster))
+  
+  DD <- as.dist(D)
+  hc <- hclust(DD, method = method, ...)
+  result <- as.phylo(hc)
+  result <- reorder(result, "postorder")
+  result
+}
+
+dist_2d_to_1d <- function (x, y, n) {
+  i <- max(c(x, y))
+  j <- min(c(x, y))
+  valid <- (i >= 1) & (j >= 1) & (i <= n) & (j <= n)
+  k <- (2 * n - j) * (j - 1) / 2 + (i - j)
+  k[!valid] <- NA_real_
+  k
 }
 
 getsets <- function(allvalues, maxsize){
@@ -35,7 +46,7 @@ getsets <- function(allvalues, maxsize){
     r <- (l - x) %% (x - 1)
     return(1 + nc + (nc * (nc + 1) * (x - 1)/2) + ifelse(r > 0, ceiling((l - r) / (x - r)), 0))
   }
-
+  
   t <- ncombos(length(allvalues))   # Total number of unique combinations needed
   i <- 1                            # Starting indices of values for first combination
   j <- 2:maxsize                    #        [i = 'columns', j = 'rows']
@@ -99,6 +110,108 @@ runnparsesets <- function(sets, alignment, model, cores){
   distout <- distout[!duplicated(distout[,1]), ]
   distout <- distout[order(distout[,1]),2]
   return(makedist(distout, allvalues, model))
+}
+
+dist_1d_to_2d <- function (k, dist_obj) {
+  if (!inherits(dist_obj, "dist")) stop("please provide a 'dist' object")
+  n <- attr(dist_obj, "Size")
+  valid <- (k >= 1) & (k <= n * (n - 1) / 2)
+  k_valid <- k[valid]
+  j <- rep.int(NA_real_, length(k))
+  j[valid] <- floor(((2 * n + 1) - sqrt((2 * n - 1) ^ 2 - 8 * (k_valid - 1))) / 2)
+  i <- j + k - (2 * n - j) * (j - 1) / 2
+  cbind(i, j)
+}
+
+makedist <- function(x, size = NULL, labels = NULL, method = NULL){
+  if( is.null(size) & is.null(labels) ){
+    stop("requires at least one of size or labels")
+  } else if ( ! is.null(labels) ){
+    attr(x, "Size") <- length(labels)
+    attr(x, "Labels") <- labels
+  } else if ( ! is.null(size) ){
+    attr(x, "Size") <- size
+  }
+  attr(x, "Diag") <- attr(x, "Upper") <- F
+  if( ! is.null(method) ){
+    attr(x, "method") <- method
+  }
+  class(x) <- "dist"
+  return(x)
+}
+
+subsetdist <- function(dist, subset){
+  if( is.character(subset) ){
+    mat.idx <- match(subset, attr(ddna, "Labels"))
+    labels <- subset
+    size <- NULL
+  } else if ( is.logical(subset) ){
+    mat.idx <- which(subset)
+    labels <- NULL
+    size <- sum(subset)
+  } else if ( is.numeric(subset) && all(subset == floor(subset)) ){
+    mat.idx <- subset
+    labels <- NULL
+    size <- length(subset)
+  } else {
+    stop("subset should be character, logical or interger numeric vector")
+  }
+  size <- attr(ddna, "Size")
+  dist.idx <- unlist(sapply(1:(length(mat.idx)-1), function(x){
+    sapply( (x+1):length(mat.idx), function(y){
+      dist_2d_to_1d(mat.idx[x], mat.idx[y], size)
+    })
+  }))
+  return(makedist(ddna[dist.idx], size = size, labels = labels, 
+                  method = attr(ddna, "method")))
+}
+
+upgma_partial <- function(distmat, distmax, cores){
+  # Cluster the sequences
+  library(cluster)
+  ngroups <- floor(nrow(distmat) / 20000)
+  cl <- pam(distmat, ngroups, diss = T)
+  
+  # Make sure the largest cluster is not larger than distmax
+  while( max(table(cl$clustering)) > distmax ){
+    ngroups <- floor(ngroups + 0.25 * ngroups)
+    cl <- pam(distmat, ngroups, diss = T)
+  }
+  
+  # Build trees for each cluster
+  grouptrees <- mclapply(1:ngroups, function(g){
+    contents <- names(cl$clustering)[cl$clustering == g]
+    distmat.sub <- subsetdist(distmat, contents)
+    upgma(distmat.sub)
+  }, mc.cores = cores)
+  names(grouptrees) <- cl$medoids
+  
+  # Build a tree of the centroids
+  distmat.centroids <- subsetdist(ddna, cl$medoids)
+  tree <- upgma(distmat.centroids)
+  
+  # Correct the branches of the centroid tree so that bound subtrees will 
+  # remain ultrametric with respect to one another
+  tip.edges.idx <- match(1:Ntip(tree), tree$edge[,2])
+  grouptree.heights <- sapply(tree$tip.label, function(cn){
+    node.depth.edgelength(grouptrees[[cn]])[1] })
+  corrected.edges <- tree$edge.length[tip.edges.idx] - grouptree.heights
+  if( any(corrected.edges < 0) ){
+    corrected.edges <- corrected.edges + abs(min(corrected.edges))
+  } 
+  tree$edge.length[tip.edges.idx] <- corrected.edges
+  
+  # Bind the subtrees to the centroid tree
+  for(cn in tree$tip.label){
+    tree <- bind.tree(tree, grouptrees[[cn]], where = which(tree$tip.label == cn))
+  }
+  
+  # This is the maximum height value for which cutting the tree will return 
+  # realistic values
+  message("Heights on the constructed UPGMA tree are only realistic below ",
+          min(grouptree.heights))
+  
+  return(tree)
 }
 
 # Set up options ----------------------------------------------------------
@@ -169,12 +282,11 @@ if( length(alignment) <= opt$distmax ){
 distmat[is.nan(distmat)] <- ceiling(max(distmat, na.rm = T))
 
 # Create UPGMA tree -------------------------------------------------------
-# Using hclust from fastcluster still doesn't get over address size limitations
-# in standard hclust from stats package - if more than 65,536 ASVs this will fail :(  
-
-tree <- hclust(distmat, method = "average")
-tree <- as.phylo(tree)
-tree <- reorder(tree, "postorder")
+if( length(alignment) <= opt$distmax ){
+  tree <- upgma(distmat)
+} else {
+  tree <- upgma_partial(distmat, opt$distmax, opt$cores)
+}
 
 # Write out data ----------------------------------------------------------
 
