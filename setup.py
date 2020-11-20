@@ -39,11 +39,11 @@ setuptools.setup(
             "filtertranslate = metamate.filtertranslate:main"
             #"filterlength = metamate.filterlength:main"
             #"filterreference = metamate.filterreference:main"
-            ],
-        "scripts":[
-            "UPGMA = metamate/maketree.R"
             ]
-        }
+        },
+    scripts=[
+            "metamate/maketree.R"
+            ]
 )
 
 #TODO add url to published paper
