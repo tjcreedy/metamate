@@ -45,6 +45,13 @@ Denoised unique sequences that are putatively Coleoptera. These are the ASVs to 
 #### 6_coleoptera_fftnsi.fasta
 An alignment of 6_coleoptera.fasta, generated using the FFTNSI algorithm of MAFFT
 
+#### 6_coleoptera_map_*.tsv
+Various formats of read map tabular files recording the number of reads of each asv in each library. Run with:
+```
+vsearch --search_exact 1_concat.fasta --db 6_coleoptera.fasta --otutabout 6_coleoptera_map_usearchfmt.tsv
+```
+Then transposed and/or had first column heading removed to form the other three.
+
 ### OTHER DATA
 
 #### 6_coleoptera_UPGMA.nwk
