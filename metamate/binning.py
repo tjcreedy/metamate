@@ -170,7 +170,7 @@ def parse_readmap(master, mappath):
                  f" for {mappath}, it should be either comma or tab\n")
     else:
         sep = sep[0]
-    firstline = firstline.split(sep)[1:]
+    firstline = firstline.split(sep)
     if len(set(firstline)) != len(firstline):
         sys.exit(f"Error: column headings in {mappath} are not unique\n")
     asvcolumns = (any(n in firstline for n in asvnames) 
@@ -180,9 +180,12 @@ def parse_readmap(master, mappath):
     if asvcolumns:
         # Check that the number of ASVs matches
         if len(firstline) != len(asvnames):
-            sys.exit(f"Error: columns of {mappath} determined to be ASVs, but "
-                      "number of data columns does not mach number of input "
-                      "ASVs\n")
+            if len(firstline) == len(asvnames) + 1:
+                firstline = firstline[1:]
+            else:
+                sys.exit(f"Error: columns of {mappath} determined to be ASVs, "
+                          "but number of data columns does not mach number of "
+                          "input ASVs\n")
         namessorted = []
         # Check that all ASVs are present, and if so ensure names are sorted
         if all(s in firstline for s in asvstrip):
@@ -195,11 +198,18 @@ def parse_readmap(master, mappath):
                       "cannot match all column names with all names of input "
                       "ASVs\n")
         # Parse the lines
-        for line in maph:
+        for n, line in enumerate(maph):
+            # n, line = list(enumerate(maph))[0]
             line = line.strip().split(sep)
             if len(line) == 1:
                 continue
             lib, counts = line[0], [int(c) for c in line[1:]]
+            if len(counts) != len(firstline):
+                sys.exit(f"Error: number of items in line {n+2} of {mappath} "
+                          "does not match number of columns\n")
+            if not all(type(c) is int for c in counts):
+                sys.exit(f"Error: not all values of line {n+2} of {mappath} "
+                          "are integers")
             countsbylibrary[lib] = dict()
             libnames.append(lib)
             for name, count in zip(namessorted, counts):
@@ -211,11 +221,22 @@ def parse_readmap(master, mappath):
         libnames = firstline
         countsbylibrary = {l: dict() for l in libnames}
         readasvs = []
-        for line in maph:
+        for n, line in enumerate(maph):
+            # n, line = list(enumerate(maph))[0]
             line = line.strip().split(sep)
             if len(line) == 1:
                 continue
             name, counts = line[0], [int(c) for c in line[1:]]
+            if len(counts) != len(libnames):
+                if n == 0 and len(counts) + 1 == len(firstline):
+                    drop, libnames = firstline[0], firstline[1:]
+                    del countsbylibrary[drop]
+                else:
+                    sys.exit(f"Error: number of items in line {n+2} of "
+                              "{mappath} does not match number of columns\n")
+            if not all(type(c) is int for c in counts):
+                sys.exit(f"Error: not all values of line {n+2} of {mappath} "
+                          "are integers")
             if name in asvstrip:
                 name = asvnames[asvstrip.index(name)]
             elif name not in asvnames:
@@ -229,7 +250,7 @@ def parse_readmap(master, mappath):
         if not all(r in asvnames for r in readasvs):
             sys.exit(f"Error: did not find count data in {mappath} for all "
                       "input ASVs")
-    
+    maph.close()
     # Check for empty libraries
     libabsent = [l for l, v in countsbylibrary.items() if len(v) == 0]
     if len(libabsent) > 0:
