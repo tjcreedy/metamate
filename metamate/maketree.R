@@ -8,6 +8,7 @@ suppressMessages(require(getopt))
 suppressMessages(require(ape))
 suppressMessages(require(fastcluster))
 suppressMessages(require(parallel))
+suppressMessages(require(cluster))
 
 # Load functions ----------------------------------------------------------
 
@@ -109,7 +110,7 @@ runnparsesets <- function(sets, alignment, model, cores){
   
   distout <- distout[!duplicated(distout[,1]), ]
   distout <- distout[order(distout[,1]),2]
-  return(makedist(distout, allvalues, model))
+  return(makedist(distout, labels = allvalues, method = model))
 }
 
 dist_1d_to_2d <- function (k, dist_obj) {
@@ -142,7 +143,7 @@ makedist <- function(x, size = NULL, labels = NULL, method = NULL){
 
 subsetdist <- function(dist, subset){
   if( is.character(subset) ){
-    mat.idx <- match(subset, attr(ddna, "Labels"))
+    mat.idx <- match(subset, attr(dist, "Labels"))
     labels <- subset
     size <- NULL
   } else if ( is.logical(subset) ){
@@ -156,20 +157,20 @@ subsetdist <- function(dist, subset){
   } else {
     stop("subset should be character, logical or interger numeric vector")
   }
-  size <- attr(ddna, "Size")
+  size <- attr(dist, "Size")
   dist.idx <- unlist(sapply(1:(length(mat.idx)-1), function(x){
     sapply( (x+1):length(mat.idx), function(y){
       dist_2d_to_1d(mat.idx[x], mat.idx[y], size)
     })
   }))
-  return(makedist(ddna[dist.idx], size = size, labels = labels, 
-                  method = attr(ddna, "method")))
+  return(makedist(dist[dist.idx], size = size, labels = labels, 
+                  method = attr(dist, "method")))
 }
 
-upgma_partial <- function(distmat, distmax, cores){
+upgma_partial <- function(distmat, distmax, cores, startsize){
   # Cluster the sequences
-  library(cluster)
-  ngroups <- floor(nrow(distmat) / 20000)
+  suppressMessages(require(cluster))
+  ngroups <- floor(attr(distmat, "Size") / startsize)
   cl <- pam(distmat, ngroups, diss = T)
   
   # Make sure the largest cluster is not larger than distmax
@@ -187,7 +188,7 @@ upgma_partial <- function(distmat, distmax, cores){
   names(grouptrees) <- cl$medoids
   
   # Build a tree of the centroids
-  distmat.centroids <- subsetdist(ddna, cl$medoids)
+  distmat.centroids <- subsetdist(distmat, cl$medoids)
   tree <- upgma(distmat.centroids)
   
   # Correct the branches of the centroid tree so that bound subtrees will 
@@ -285,7 +286,7 @@ distmat[is.nan(distmat)] <- ceiling(max(distmat, na.rm = T))
 if( length(alignment) <= opt$distmax ){
   tree <- upgma(distmat)
 } else {
-  tree <- upgma_partial(distmat, opt$distmax, opt$cores)
+  tree <- upgma_partial(distmat, opt$distmax, opt$cores, 20000)
 }
 
 # Write out data ----------------------------------------------------------
