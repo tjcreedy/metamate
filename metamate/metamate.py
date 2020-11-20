@@ -414,7 +414,7 @@ def main():
                      f"{'ies' if len(specs['name']) > 1 else 'y'}")
     if args.mode == 'find':
         sys.stdout.write(f" and totalling {nthresh} unique threshold "
-                         f"set{'s' if nthresh > 1 else ''}\n")
+                         f"set{'s' if nthresh > 1 else ''}.\n")
     else:
         sys.stdout.write('.\n')
     
