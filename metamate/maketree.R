@@ -1,7 +1,5 @@
 #!/usr/bin/env Rscript
 
-
-
 # Load libraries ----------------------------------------------------------
 
 suppressMessages(require(getopt))
