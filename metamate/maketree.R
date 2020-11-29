@@ -32,7 +32,7 @@ dist_2d_to_1d <- function (x, y, n) {
   k
 }
 
-getsets <- function(allvalues, maxsize){
+getsets <- function(allvalues, maxsize, optimize = TRUE){
   if(length(allvalues) <= maxsize){
     return(list(allvalues))
   } 
@@ -46,6 +46,18 @@ getsets <- function(allvalues, maxsize){
     return(1 + nc + (nc * (nc + 1) * (x - 1)/2) + ifelse(r > 0, ceiling((l - r) / (x - r)), 0))
   }
   
+  # Find the optimal maxsize
+  if( optimize ){
+    if(maxsize > 100000){
+      maxvalues <- seq.int(2, maxsize, length.out = 100000)
+    } else {
+      maxvalues <- 2:maxsize
+    }
+    nestcomparisons <- maxvalues ^ 2 * sapply(maxvalues, function(x) nsets(length(allvalues), x))
+    maxsize <- rev(maxvalues[nestcomparisons == min(nestcomparisons)])[1]
+  }
+  
+  # Set up the search starting points
   t <- ncombos(length(allvalues))   # Total number of unique combinations needed
   i <- 1                            # Starting indices of values for first combination
   j <- 2:maxsize                    #        [i = 'columns', j = 'rows']
@@ -54,7 +66,7 @@ getsets <- function(allvalues, maxsize){
   sets <- list(values)              # List of each set of combinations             
   expn <- nsets(length(allvalues), maxsize) # Number of sets required  
   
-  while(length(sets) < expn){
+  while( length(sets) < expn ){
     if( rev(i)[1] + 1 < j[1] ){
       # STEP RIGHT
       if( rev(i)[1] + d <= length(allvalues) ){
@@ -77,35 +89,33 @@ getsets <- function(allvalues, maxsize){
         i <- i:(i + d - 1)
       }
     }
-    values <- allvalues[c(i, j)]
+    values <- allvalues[unique(c(i, j))]
     sets <- c(sets, list(values))
   }
   return(sets)
 }
 
 runnparsesets <- function(sets, alignment, model, cores){
-  
-  allvalues <- names(alignment)
-  
   calci <- function(i, j, l) (l - 0.5) * i - l - (i ^ 2)/2 + j
-  getindices <- function(names){
-    l <- length(allvalues)
-    ilis <- lapply(1:(length(names) - 1), function(n){
-      n1 <- which(allvalues == names[n])
-      n2 <- which(allvalues %in% names[(n + 1):length(names)])
+  getindices <- function(labels, alllabels){
+    l <- length(alllabels)
+    ilis <- lapply(1:(length(labels) - 1), function(li){
+      n1 <- which(alllabels == labels[li])
+      n2 <- which(alllabels %in% labels[(li + 1):length(labels)])
       sapply(n2, function(j) calci(n1, j, l))
     }) 
     return(unlist(ilis))
   } 
-  
+
+  allvalues <- names(alignment)
   bf <- base.freq(alignment)
-  
+
   distout <- mclapply(sets, function(set){
     ds <- dist.dna(alignment[set], model = model, pairwise.deletion = T, base.freq = bf)
-    return(cbind(getindices(attr(ds, "Labels")), ds))
+    return(cbind(getindices(attr(ds, "Labels"), allvalues), ds))
   }, mc.cores = cores)
-  distout <- do.call('rbind', distout)
   
+  distout <- do.call('rbind', distout)
   distout <- distout[!duplicated(distout[,1]), ]
   distout <- distout[order(distout[,1]),2]
   return(makedist(distout, labels = allvalues, method = model))
@@ -227,7 +237,7 @@ spec <- matrix(c(
 opt <- getopt(spec)
 
 # Testing
-# opt$alignment <-"test1000.fasta"
+opt$alignment <-"~/programming/bioinformatics/metamate/tests/data/6_coleoptera_fftnsi.fasta"
 
 # Do help -----------------------------------------------------------------
 
@@ -267,6 +277,12 @@ alignment <- read.FASTA(opt$alignment)
 if( length(alignment) <= opt$distmax ){
   distmat <- dist.dna(alignment, model = opt$model, pairwise.deletion = T)
 } else {
+  if( length(alignment) > 1.8 * opt$distmax ){
+    message("Warning: the number of sequences in the alignment is very high
+            relative to the maximum size of individual distance matrix 
+            computations. Partial distance matrix computation will be 
+            attempted but this may fail or take a very long time")
+  }
   sets <- getsets(names(alignment), opt$distmax)
   distmat <- runnparsesets(sets, alignment, opt$model, opt$cores)
 }
