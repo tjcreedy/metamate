@@ -237,7 +237,7 @@ spec <- matrix(c(
 opt <- getopt(spec)
 
 # Testing
-opt$alignment <-"~/programming/bioinformatics/metamate/tests/data/6_coleoptera_fftnsi.fasta"
+#opt$alignment <-"~/programming/bioinformatics/metamate/tests/data/6_coleoptera_fftnsi.fasta"
 
 # Do help -----------------------------------------------------------------
 
