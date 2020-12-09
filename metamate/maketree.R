@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
 
+options(stringsAsFactors = F)
+
 # Load libraries ----------------------------------------------------------
 
 suppressMessages(require(getopt))
@@ -129,7 +131,7 @@ dist_1d_to_2d <- function (k, dist_obj) {
   j <- rep.int(NA_real_, length(k))
   j[valid] <- floor(((2 * n + 1) - sqrt((2 * n - 1) ^ 2 - 8 * (k_valid - 1))) / 2)
   i <- j + k - (2 * n - j) * (j - 1) / 2
-  cbind(i, j)
+  c(i, j)
 }
 
 makedist <- function(x, size = NULL, labels = NULL, method = NULL){
@@ -175,7 +177,7 @@ subsetdist <- function(dist, subset){
                   method = attr(dist, "method")))
 }
 
-upgma_partial <- function(distmat, distmax, cores, startsize){
+upgma_partial_withdistmat <- function(distmat, distmax, cores, startsize){
   # Cluster the sequences
   suppressMessages(require(cluster))
   ngroups <- floor(attr(distmat, "Size") / startsize)
@@ -223,6 +225,102 @@ upgma_partial <- function(distmat, distmax, cores, startsize){
   return(tree)
 }
 
+
+partial.dist.dna <- function(x, i, j, cores, model){
+  j <- j[! j %in% i]
+  pdist <- mclapply(data.frame(t(expand.grid(i, j))), function(ij){
+    dist.dna(x[ij], model = model, pairwise.deletion = T)
+  }, mc.cores = cores)
+  return(matrix(unlist(pdist), nrow = length(i), ncol = length(j), dimnames = list(i, j)))
+}
+
+greedy_cluster <- function(alignment, clustrad, model, cores, verbose = F){
+  start <- Sys.time()
+  clusters <- setNames(list(names(alignment)[1]), names(alignment[1]))
+  c <- 1
+  for(i in 2:length(alignment)){
+    n <- names(alignment)[i]
+    ndist <- partial.dist.dna(alignment, n, names(clusters), cores, model)
+    if( min(ndist) <= clustrad ){
+      cent <- colnames(ndist)[which.min(ndist)]
+      clusters[[cent]] <- append(clusters[[cent]], n)
+    } else {
+      clusters[[n]] <- n
+      c <- c + 1
+    }
+    if( verbose ){
+      time <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+      remain <- round(((length(alignment) - i) * (time / i)) / (60 * 60), 3)
+      message(round(time / (60*60), 3), " hours passed, clustered ", i, " sequences into ", c, " clusters, ", remain, " hours left\r", appendLF = F)
+    }
+  }
+  return(clusters)
+}
+
+lump_small_clusters <- function(clusters, alignment, minsize, model, cores, verbose){
+  sizes <- sapply(clusters, length)
+  while( any(sizes < minsize) ){
+    toosmall <- names(which.min(sizes))
+    close <- partial.dist.dna(alignment, toosmall, names(clusters), cores, model)
+    addto <- colnames(close)[which.min(close)]
+    clusters[[addto]] <- append(clusters[[addto]], clusters[[toosmall]])
+    clusters[[toosmall]] <- NULL
+    sizes <- sapply(clusters, length)
+  }
+  return(clusters)
+}
+
+upgma_partial <- function(alignment, distmax, model, cores){
+  # Determine the cluster radius
+  seq1dist <- partial.dist.dna(alignment, names(alignment)[1], names(alignment)[-1], cores, model)
+  seq1dist <- sort(seq1dist[1,])
+  clustrad <- unname(round(seq1dist[distmax], 4))
+  
+  # Do clustering, ensuring largest cluster is not larger than distmax
+  clusters <- setNames(list(names(alignment)), names(alignment)[1])
+  # Make sure the largest cluster is not larger than distmax
+  while( max(sapply(clusters, length)) > distmax ){
+    clusters <- greedy_cluster(alignment, clustrad, model, cores, verbose = T)
+    clusters <- lump_small_clusters(clusters, alignment, 
+                                    minsize =  ceiling(0.1 * max(sapply(clusters, length))),
+                                    model, cores)
+  }
+  
+  # Build trees for each cluster
+  grouptrees <- mclapply(clusters, function(clus){
+    distmat <- dist.dna(alignment[clus],  model = model, pairwise.deletion = T)
+    upgma(distmat)
+  }, mc.cores = cores)
+  
+  # Build a tree of the centroids
+  distmat.centroids <- dist.dna(alignment[names(clusters)],  model = model, pairwise.deletion = T)
+  tree <- upgma(distmat.centroids)
+  
+  # Correct the branches of the centroid tree so that bound subtrees will 
+  # remain ultrametric with respect to one another
+  tip.edges.idx <- match(1:Ntip(tree), tree$edge[,2])
+  grouptree.heights <- sapply(tree$tip.label, function(cn){
+    node.depth.edgelength(grouptrees[[cn]])[1] })
+  corrected.edges <- tree$edge.length[tip.edges.idx] - grouptree.heights
+  if( any(corrected.edges < 0) ){
+    corrected.edges <- corrected.edges + abs(min(corrected.edges))
+  } 
+  tree$edge.length[tip.edges.idx] <- corrected.edges
+  
+  # Bind the subtrees to the centroid tree
+  for(cn in tree$tip.label){
+    tree <- bind.tree(tree, grouptrees[[cn]], where = which(tree$tip.label == cn))
+  }
+  
+  # This is the maximum height value for which cutting the tree will return 
+  # realistic values
+  message("Heights on the constructed UPGMA tree are only realistic below ",
+          min(grouptree.heights))
+  
+  return(tree)
+}
+
+
 # Set up options ----------------------------------------------------------
 
 spec <- matrix(c(
@@ -238,6 +336,7 @@ opt <- getopt(spec)
 
 # Testing
 #opt$alignment <-"~/programming/bioinformatics/metamate/tests/data/6_coleoptera_fftnsi.fasta"
+#opt$distmax <- 70
 
 # Do help -----------------------------------------------------------------
 
@@ -264,7 +363,8 @@ if( opt$distmax < 2 | opt$distmax > 65536){
 
 alignment <- read.FASTA(opt$alignment)
 
-# Create distance matrix
+# Create distance matrix and tree -----------------------------------------
+
 # dist.dna can perform maximum 2^31-1 combinations. The maximum number of 
 # sequences generating this number of unique combinations is 65,536 
 # ncombos(65536) <= 2^31-1 #TRUE
@@ -275,35 +375,27 @@ alignment <- read.FASTA(opt$alignment)
 # then rebuild the distance matrix.
 
 if( length(alignment) <= opt$distmax ){
+  
   distmat <- dist.dna(alignment, model = opt$model, pairwise.deletion = T)
-} else {
-  if( length(alignment) > 1.8 * opt$distmax ){
-    message("Warning: the number of sequences in the alignment is very high
-            relative to the maximum size of individual distance matrix 
-            computations. Partial distance matrix computation will be 
-            attempted but this may fail or take a very long time")
-  }
-  sets <- getsets(names(alignment), opt$distmax)
-  distmat <- runnparsesets(sets, alignment, opt$model, opt$cores)
-}
-
-# Check for overdistance pairs
-# if(any(is.nan(distmat))){
-#   nancounts <- rowSums(is.nan(as.matrix(distmat)))
-#   pc_overdistance <- round((sum(nancounts > 0.8 * length(alignment)) / length(alignment)) * 100, 0)
-#   warning(paste(paste0(pc_overdistance, "%"), "of haplotypes are too dissimilar to 80% of other sequences to compute distances. Consider re-aligning. Uncomputed distances will be set to 1."))
-#   distmat[is.nan(distmat)] <- 1
-# }
-distmat[is.nan(distmat)] <- ceiling(max(distmat, na.rm = T))
-
-# Create UPGMA tree -------------------------------------------------------
-if( length(alignment) <= opt$distmax ){
+  distmat[is.nan(distmat)] <- ceiling(max(distmat, na.rm = T))
   tree <- upgma(distmat)
+  
 } else {
-  tree <- upgma_partial(distmat, opt$distmax, opt$cores, 20000)
+  # if( length(alignment) > 1.8 * opt$distmax ){
+  #   message("Warning: the number of sequences in the alignment is very high
+  #           relative to the maximum size of individual distance matrix 
+  #           computations. Partial distance matrix computation will be 
+  #           attempted but this may fail or take a very long time")
+  # }
+  # sets <- getsets(names(alignment), opt$distmax)
+  # distmat <- runnparsesets(sets, alignment, opt$model, opt$cores)
+  # tree <- upgma_partial_withdistmat(distmat, opt$distmax, opt$cores, floor(opt$distmax/3))
+  
+  tree <- upgma_partial(alignment, opt$distmax, opt$model, opt$cores)
+  
 }
 
-# Write out data ----------------------------------------------------------
+# Write out tree ----------------------------------------------------------
 
 write(write.tree(tree), stdout())
 #write.table(as.matrix(distmat), file.path(opt$outdir, paste0(filename, "_distance", ".tsv")))
