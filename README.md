@@ -131,8 +131,10 @@ If the above fails, ensure that the python version that `python3` refers to in y
 Finally, ensure the necessary R libraries are installed:
 
 ```
-Rscript <(echo "install.packages(c('getopt', 'ape', 'fastcluster'), repos = 'https://cloud.r-project.org')")
+Rscript -e "install.packages(c('getopt', 'ape', 'fastcluster'), repos = 'https://cloud.r-project.org')"
 ```
+You should run this with `sudo` if you want metaMATE to be available to all users without each user having to run this command. If you are installing metaMATE without `sudo` and the above command fails, it is because you don't have a personal R package library to install into. The easiest way to fix this is to open up an interactive R session by running `R`, then running the `install.packages` command within that session - you will be prompted to create a personal library.
+
 
 Done!
 
