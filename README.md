@@ -220,10 +220,6 @@ Multiple terms can also be compared simultaneously, or 'multiplicitively'. When 
 These lines would run 9 total iterations, comprising all possible combinations of thresholds from each set. 
 In the first iteration, ASVs would be designated as NUMTs if they had less than 1% of the reads in all* libraries in which they were present AND/OR if they had fewer than 2 reads within their clade across the entire dataset, and so on.
 
-When running metaMATE in `dump` mode and not supplying a `-C/--resultcache`, simultaneous terms can be specified on the command line. Note that in this mode each term can only have one threshold. For example:
-`-s '[library; p; .001]' '[total|clade; n; 5]'`
-This line would run 1 iteration, designating any ASVs as NUMTs that appear as less than 0.1% of the reads in all libraries in which they occur or as fewer than 5 reads in the clade in which they occur across the entire dataset. Note the example uses `'` to avoid the shell parsing the `|` and `;` symbols.
-
 Sequential and simultaneous terms can all be run together on the same run, for example:
 
 ```
@@ -250,7 +246,11 @@ A +
 # a comment
 B * C
 ```
-  
+
+When running metaMATE in `dump` mode and not supplying a `-C/--resultcache`, simultaneous terms can be specified on the command line. Note that in this mode each term can only have one threshold. For example:
+`-s '[library; p; .001]' '[total|clade; n; 5]'`
+This line would run 1 iteration, designating any ASVs as NUMTs that appear as less than 0.1% of the reads in all libraries in which they occur or as fewer than 5 reads in the clade in which they occur across the entire dataset. Note the example uses `'` to avoid the shell parsing the `|` and `;` symbols.
+
 * Note that more strict filtering for library-based specifications can be applied by setting `--anyfail`, whereby ASVs will be designated as NUMTs if they fail to meet the threshold in *any* library in which they occur, as opposed to the default of *all* libraries in which they occur. This is currently a global setting, i.e. it applies to all terms involving library filtering. It could be applied on a per-term basis if there is demand.
 
 
