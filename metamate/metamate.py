@@ -370,7 +370,7 @@ def main():
     
     # Get inputs
     args = getcliargs()
-    
+
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
     outfilename = infilename
@@ -456,8 +456,15 @@ def main():
                          "counts.\n")
         counts = binning.parse_readmap(raw['asvs'], args.readmap)
     
-    librarycounts, totalcounts  = counts
-    
+    librarycounts, totalcounts = counts
+
+    librarysizes = [len(a) for l, a in librarycounts.items()]
+    librarysizes = {str(n): sum([1 for s in librarysizes if s == n]) for n in set(librarysizes)}
+    pc1 = librarysizes['1'] / sum(librarysizes.values())
+    if pc1 >= 0.5:
+        sys.stderr.write(f"Warning: {round(pc1 * 100, 0)}% of libraries only have one ASV!\n")
+
+
     # Output csv of library counts
     if args.outputdirectory:
         core.write_count_dict(librarycounts, raw['asvs'].keys(),
