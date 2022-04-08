@@ -275,17 +275,6 @@ Alternatively, if reads from libraries have already been mapped to samples, for 
 The composition of libraries, i.e. the expected true richness and abundance of individuals within the sample, and whether they are complete samples, subsamples, or replicates, should be carefully considered when designing the specifications.
 
 
-#### `-L/--libraries path [path]` or `-M/--readmap path`
-
-`find`: *either required* | `dump`: *required* if not supplying `-C/--resultcache`
-
-metaMATE provides two options for assessing the incidence of each ASV sequence per input library. If no mapping of reads to libraries has already been performed, supply one or more file paths to the `-L/--libraries` argument. Each `path` should be the path to a fasta or fastq file containing reads of the ASVs. Files may contain reads that are not in the `-A/--asvs` file, these will be ignored. If multiple paths are supplied, metaMATE assumes that each file is a separate library and uses the file names as library names. In this case, the headers in each file are ignored, only the sequences are relevant. If a single path is supplied, then metaMATE assumes that the library names are specified in the read headers, specified in the format `;barcodelabel=NAME;` or `;sample=NAME;` where `NAME` is the unique name of each library.
-
-Alternatively, if reads from libraries have already been mapped to samples, for example if reads have been pre-processed by dada2 or mapped using USEARCH/VSEARCH `--search_exact --otutabout`, supply the path to the table recording these read counts to `-M/--readmap`. The columns of the table should be delimited using tabs or commas. The orientation of the table will be detected by metaMATE, i.e. the orientation can either be ASVs on rows and libraries on columns, or vice-versa. The ASV names in the table must usually match the sequence names in the file passed to `-A/--asvs`, although it is fine if the table names are missing `;size=` annotations (such as in the output of `--search_exact --otutabout`). Note that the first item of the first row will be ignored, column names are expected to start at the second position.
-
-The composition of libraries, i.e. the expected true richness and abundance of individuals within the sample, and whether they are complete samples, subsamples, or replicates, should be carefully considered when designing the specifications.
-
-
 #### `-o/--outputdirectory path`
 
 `find`: *always required* | `dump` *sometimes required*
