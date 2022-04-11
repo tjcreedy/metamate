@@ -372,12 +372,12 @@ def read_clade_dict(path):
     with open(path, "r") as i:
         cladedict = dict()
         for line in i:
-            asv, clade = line.rstrip.split(',')
-            if(clade in cladedict):
+            asv, clade = line.rstrip().split(',')
+            if clade in cladedict:
                 cladedict[clade].append(asv)
             else:
                 cladedict[clade] = [asv]
-    return(cladedict)
+    return cladedict
 
 
 def parse_asvs(args, skipalign, skipmessage, outfile):
@@ -430,7 +430,7 @@ def find_clades(args, filename):
     
     # Locate the script directory
     scriptdir = os.path.dirname(__file__)
-
+    scriptdir = "/home/thomas/programming/bioinformatics/metamate/metamate/"
     # Set up file paths
     treefile = os.path.join(args.outputdirectory, f"{filename}_UPGMA.nwk")
     cladefile = os.path.join(args.outputdirectory, f"{filename}_clades.csv")
