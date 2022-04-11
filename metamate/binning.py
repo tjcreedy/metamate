@@ -433,7 +433,7 @@ def find_clades(args, filename):
 
     # Set up file paths
     treefile = os.path.join(args.outputdirectory, f"{filename}_UPGMA.nwk")
-    cladefile = os.path.join(args.outputdirectory, f"{filename}_clades.csv")
+    cladefile = os.path.join(args.outputdirectory, f"{filename}_d{args.divergence}_clades.csv")
 
     # Get the asv dicts
     raw, aligned = parse_asvs(args,
@@ -445,9 +445,7 @@ def find_clades(args, filename):
 
     # Resume clades if present
     if os.path.exists(cladefile) and not args.overwrite:
-        sys.stdout.write(f"Resuming with prior clade data found at {cladefile}. Warning: no "
-                         f"checking is performed to ensure these clades were delimited at the "
-                         f"specified divergence.\n")
+        sys.stdout.write(f"Resuming with prior clade data found at {cladefile}.\n")
         clades = read_clade_dict(cladefile)
         sys.stdout.write(f"Read {len(clades)} clades from {cladefile}.\n")
         return clades, raw
