@@ -374,16 +374,16 @@ def main():
     
     # Get inputs
     args = getcliargs()
-    args = getcliargs('find '
-                       '-A /home/thomas/QMRmeta/2_aln.fasta '
-                       '-R /home/thomas/QMRmeta/907_Qinling_barcode_by_NAPselect.fasta '
-                       '-T /home/thomas/QMRmeta/2_aln_UPGMA.nwk '
-                       '-M /home/thomas/QMRmeta/2_asvtable.tsv '
-                       '-S /home/thomas/QMRmeta/specifications.txt '
-                       '-o /home/thomas/QMRmeta/3_metamate/ '
-                       '-s 5 -l 418 -p 0 -t 20 '
-                       '-D ~/db/NCBI/NT/nt '
-                       '-G /home/thomas/QMRmeta/1_taxonomy.csv'.split(' '))
+    # args = getcliargs('find '
+    #                    '-A /home/thomas/QMRmeta/2_aln.fasta '
+    #                    '-R /home/thomas/QMRmeta/907_Qinling_barcode_by_NAPselect.fasta '
+    #                    '-T /home/thomas/QMRmeta/2_aln_UPGMA.nwk '
+    #                    '-M /home/thomas/QMRmeta/2_asvtable.tsv '
+    #                    '-S /home/thomas/QMRmeta/specifications.txt '
+    #                    '-o /home/thomas/QMRmeta/3_metamate/ '
+    #                    '-s 5 -l 418 -p 0 -t 20 '
+    #                    '-D ~/db/NCBI/NT/nt '
+    #                    '-G /home/thomas/QMRmeta/1_taxonomy.csv'.split(' '))
 
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
