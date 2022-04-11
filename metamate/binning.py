@@ -362,11 +362,23 @@ def degap_alignment(alignment):
 
     return(SeqIO.to_dict(degapped))
 
-def write_clade_dict(clade_dict, path):
+def write_clade_dict(cladedict, path):
     with open(path, "w") as o:
-        for clade, asvs in clade_dict.items():
+        for clade, asvs in cladedict.items():
             for asv in asvs:
                 o.write(asv + "," + clade + '\n')
+
+def read_clade_dict(path):
+    with open(path, "r") as i:
+        cladedict = dict()
+        for line in i:
+            asv, clade = line.rstrip.split(',')
+            if(clade in cladedict):
+                cladedict[clade].append(asv)
+            else:
+                cladedict[clade] = [asv]
+    return(cladedict)
+
 
 def parse_asvs(args, skipalign, skipmessage, outfile):
     #args, skipalign, skipmessage, outfile = [args, args.tree,", but tree supplied so need to align",                               os.path.join(args.outputdirectory, filename)]
@@ -418,18 +430,38 @@ def find_clades(args, filename):
     
     # Locate the script directory
     scriptdir = os.path.dirname(__file__)
-    
+
+    # Set up file paths
+    treefile = os.path.join(args.outputdirectory, f"{filename}_UPGMA.nwk")
+    cladefile = os.path.join(args.outputdirectory, f"{filename}_clades.csv")
+
     # Get the asv dicts
-    raw, aligned = parse_asvs(args, args.tree,
+    raw, aligned = parse_asvs(args,
+                              args.tree or
+                              (os.path.exists(cladefile) and not args.overwrite) or
+                              (os.path.exists(treefile) and not args.overwrite),
                               ", but tree supplied so no need to align",
                               os.path.join(args.outputdirectory, filename))
     
     tree = 0
-    
+
+    # Resume clades if present
+    if os.path.exists(cladefile) and not args.overwrite:
+        sys.stdout.write(f"Resuming with prior clade data found at {cladefile}. "
+                         f"Warning: no checking is performed to ensure these "
+                         f"clades were delimited at the specified divergence.\n")
+        clades = read_clade_dict(cladefile)
+        sys.stdout.write(f"Found {len(clades)} clades in {cladefile}.\n")
+        return (clades, raw)
+
+
     # Read in tree or build tree as required
     if(args.tree):
-        sys.stdout.write("Reading supplied UPGMA tree from previous run.\n")
+        sys.stdout.write("Reading supplied UPGMA tree.\n")
         tree = read_newick_string(args.tree)
+    elif(os.path.exists(treefile) and not args.overwrite):
+        sys.stdout.write(f"Resuming with prior UPGMA tree found at {treefile}.\n")
+        tree = read_newick_string(treefile)
     else:
         sys.stdout.write("Making a UPGMA tree from the alignment. This may "
                          "take some time, skip this step in re-runs by "
@@ -446,23 +478,20 @@ def find_clades(args, filename):
                            args.threads)
         
         # Output the tree
-        with open(os.path.join(args.outputdirectory,
-                               f"{filename}_UPGMA.nwk"), 'w') as o:
+        with open(treefile, 'w') as o:
             o.write(tree)
 
     # Find the clades
-
     sys.stdout.write(f"Finding clades from the tree at {args.divergence} "
-                     "divergence.\n")
+                     f"divergence.\n")
 
-    clades =  get_clades_R(scriptdir, tree, args.divergence)
+    clades = get_clades_R(scriptdir, tree, args.divergence)
 
     sys.stdout.write(f"Found {len(clades)} clades from the tree at "
                      f"{args.divergence} divergence.\n")
 
     # Output csv of clade assignments
 
-    write_clade_dict(clades, os.path.join(args.outputdirectory,
-                                          f"{filename}_clades.csv"))
+    write_clade_dict(clades, )
 
     return(clades, raw)

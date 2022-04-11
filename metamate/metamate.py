@@ -349,12 +349,16 @@ def getcliargs(arglist = None):
         elif not args.outfasta and not args.outputdirectory:
             parser.error('one or both of -f/--outfasta or -o/-outputdirectory'
                          'is required')
-    
+
     if not args.overwrite:
         for a, t in zip([args.outputdirectory, args.outfasta],
                         ['-o/--outputdirectory', '-f/--outfasta']):
             if a and os.path.exists(a):
-                if args.mode == 'find' or not args.outfasta:
+                if args.mode == 'find':
+                    sys.stderr.write('Specified output directory exists, '
+                                     'will attempt to resume prior run - to '
+                                     'overwrite, set --overwrite\n')
+                elif args.outfasta
                     sys.exit(f"{t} {a} exists but --overwrite is not set.")
     
     sys.stderr.flush()
@@ -370,6 +374,16 @@ def main():
     
     # Get inputs
     args = getcliargs()
+    args = getcliargs('find '
+                       '-A /home/thomas/QMRmeta/2_aln.fasta '
+                       '-R /home/thomas/QMRmeta/907_Qinling_barcode_by_NAPselect.fasta '
+                       '-T /home/thomas/QMRmeta/2_aln_UPGMA.nwk '
+                       '-M /home/thomas/QMRmeta/2_asvtable.tsv '
+                       '-S /home/thomas/QMRmeta/specifications.txt '
+                       '-o /home/thomas/QMRmeta/3_metamate/ '
+                       '-s 5 -l 418 -p 0 -t 20 '
+                       '-D ~/db/NCBI/NT/nt '
+                       '-G /home/thomas/QMRmeta/1_taxonomy.csv'.split(' '))
 
     # Find the file name
     infilename = os.path.splitext(os.path.basename(args.asvs))[0]
@@ -446,16 +460,25 @@ def main():
     ########################################
     # COMPUTE LIBRARY AND TOTAL READCOUNTS #
     ########################################
-    
-    if args.libraries:
-        sys.stdout.write("Matching library reads to ASVs to generate library "
-                         "ASV counts.\n")
-        counts = binning.count_asvs_in_libraries(raw['asvs'], args.libraries)
-    elif args.readmap:
+
+    libcountpath = ''
+    if args.outputdirectory:
+        libcountpath = os.path.join(args.outputdirectory,
+                                    f"{infilename}_ASVcounts.csv")
+
+    if args.readmap:
         sys.stdout.write("Parsing read mapping table to generate library ASV "
                          "counts.\n")
         counts = binning.parse_readmap(raw['asvs'], args.readmap)
-    
+    elif os.path.exists(libcountpath) and not args.overwrite:
+        sys.stdout.write(f"Resuming with read mapping table of library ASV "
+                         f"counts found at {libcountpath}.\n")
+        counts = binning.parse_readmap(raw['asvs'], libcountpath)
+    elif args.libraries:
+        sys.stdout.write("Matching library reads to ASVs to generate library "
+                         "ASV counts.\n")
+        counts = binning.count_asvs_in_libraries(raw['asvs'], args.libraries)
+
     librarycounts, totalcounts = counts
 
     librarysizes = [len(a) for l, a in librarycounts.items()]
@@ -466,10 +489,8 @@ def main():
 
 
     # Output csv of library counts
-    if args.outputdirectory:
-        core.write_count_dict(librarycounts, raw['asvs'].keys(),
-                              os.path.join(args.outputdirectory,
-                                           f"{infilename}_ASVcounts.csv"))
+    if args.outputdirectory and (not os.path.exists(libcountpath) or args.overwrite):
+        core.write_count_dict(librarycounts, raw['asvs'].keys(), libcountpath)
     
     ##########################
     # DESIGNATE CONTROL SETS #

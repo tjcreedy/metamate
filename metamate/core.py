@@ -275,7 +275,27 @@ def parse_specs(args, null = float('nan')):
 
 def get_validated(raw, args, filename):
     #filname = infilename
-    
+    # Set up path
+    controlpath = os.path.join(args.outputdirectory, f"{filename}_control.txt")
+
+    # Check if can resume
+    if os.path.exists(controlpath) and not args.overwrite:
+        sys.stdout.write(f"Resuming with validated ASV lists found in "
+                         f"{controlpath}.\n")
+        target, nontarget = [], []
+        with open(controlpath, 'r') as i:
+            for line in i:
+                cat, asv = line.rstrip().split('\t')
+                if cat == 'refpass':
+                    target.append(asv)
+                else:
+                    nontarget.append(asv)
+        sys.stdout.write(f"Read {len(target)} validated authentic ASVs and "
+                         f"{len(nontarget)} validated non-authentic ASVs from "
+                         f"{controlpath}.\n")
+        return (target, nontarget)
+
+
     # Create length-based control list
     sys.stdout.write("Identifying validated non-authentic ASVs based on "
                      "length...")
@@ -362,8 +382,7 @@ def get_validated(raw, args, filename):
         sys.exit(err)
         
     # Output file with details of targets/non-targets
-    path = os.path.join(args.outputdirectory, f"{filename}_control.txt")
-    with open(path, 'w') as o:
+    with open(countrolpath, 'w') as o:
         for cat, asv in zip(["lengthfail", "stopfail", "refpass"],
                             [nontargetlength, nontargettrans, refmatch]):
             for a in asv: o.write(f"{cat}\t{a}\n")
