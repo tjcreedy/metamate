@@ -358,7 +358,7 @@ def getcliargs(arglist = None):
                     sys.stderr.write('Specified output directory exists, '
                                      'will attempt to resume prior run - to '
                                      'overwrite, set --overwrite\n')
-                elif args.outfasta
+                elif args.outfasta:
                     sys.exit(f"{t} {a} exists but --overwrite is not set.")
     
     sys.stderr.flush()
