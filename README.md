@@ -275,11 +275,11 @@ Alternatively, if reads from libraries have already been mapped to samples, for 
 The composition of libraries, i.e. the expected true richness and abundance of individuals within the sample, and whether they are complete samples, subsamples, or replicates, should be carefully considered when designing the specifications.
 
 
-#### `-o/--outputdirectory path`
+#### `-o/--output name`
 
-`find`: *always required* | `dump` *sometimes required*
+`find`: *always required* | `dump` *always required*
 
-If using a mode that outputs multiple files, `path` should be the path to a directory in which to place these files. If the directory already exists, metaMATE will exit with an error unless `--overwrite` is set. 
+`name` should be the name, including path if necessary, to/from which intermediate and final output data should be written (and/or read, if resuming a run). If performing the main metaMATE functions, i.e. in `find` mode or in `dump` mode with a specification, intermediate files will be written/read to/from a directory with this name. If in `dump` mode with a result index or in `find` mode outputting ASV sets, this name will form the base of the output fasta file(s). File extensions will be added as necessary. Specifying the current working directory is not supported.
 
 #### `-y/--anyfail` *flag*
 
@@ -291,7 +291,7 @@ If supplied, metaMATE will always run alignment on the supplied ASVs, whether al
 
 #### `--overwrite` *flag*
 
-If supplied, metaMATE will overwrite any files in the destination output directory (including the current directory, if this is the specified `-o/-outputdirectory`) that have the same name as new outputs. This is provided as insurance against accidentally re-starting a run from scratch.
+If supplied, metaMATE will overwrite any files that have the same name those specified to `-o/output`. Otherwise, metaMATE will attempt to resume from any existing files, where appropriate. This is intended to insure against accidentally overwriting previous results.
 
 #### `-t/--threads n`
 
@@ -412,10 +412,6 @@ If `-r/--readingframe` is not specified, metaMATE will automatically detect the 
 
 ### `dump`-specific arguments
 
-#### `-f/--outfasta path`
-
-`path` should be the path to a file to write retained ASVs to.  If the file already exists, metaMATE will exit with an error unless `--overwrite` is set. `-f/--outfasta path` is only required if the other arguments specify a single output file; otherwise `-o/--outputdirectory` would be required.
-
 #### `-C/--resultcache path`
 
 `path` to a '\_resultcache' file output from a previous metaMATE run in mode `find`. If specified, `-i/--resultindex` is required.
@@ -475,33 +471,33 @@ The input ASV alignment and tree are the same, but clades will be delimited at 1
 
 The most straightforward, and recommended, way to run `dump` is to do so simply to extract the results of a specified result set:
 ```
-metamate dump -A 6_coleoptera.fasta -C outputdir/6_coleoptera_resultcache -i 35 -o 7_coleoptera_filtered.fasta
+metamate dump -A 6_coleoptera.fasta -C outputdir/6_coleoptera_resultcache -i 35 -o 7_coleoptera_filtered
 ```
 Alongside the same ASV file as used for a `find` run (`-A`), this command specifies the path to a resultcache file output from that `find` run (`-C`). After analysing the results, the user has determined that the optimal threshold set (`-i`) is set 35 (an index given in the `find` output data). metaMATE will parse these inputs and write all ASVs that passed the frequency thresholds for this set *and/or* were determined to be verified-authentic-ASVs to the output file (`-o`). All of the specifications, threshold sets and other input files are not needed as all of this information is contained in the resultcache file.
 
 Alternatively, `dump` mode can work very similarly to `find` mode. Rather than taking a resultcache and result index, you can supply any arguments needed for binning and threshold specification. For example:
 ```
-metamate dump -A 6_coleoptera.fasta -L 2_concat.fasta -S '[library|clade; p; 0.05]' -o outputdir
+metamate dump -A 6_coleoptera.fasta -L 2_concat.fasta -S '[library|clade; p; 0.05]' -o 7_coleoptera_filtered
 ```
 The main differences between this and a `find` run are:
 * filtering specifications are supplied directly to the commandline
 * no arguments specifying how to delimit control groups are used
 `dump` mode resolves any binning strategies, building a tree if needed for clade-based strategies, and then applies the specified thresholds, writing all ASVs that pass the thresholds to a file in the output directory. This method is provided for rapid filtering on a known dataset.
 
-*Important note:* using `dump` by specifying thresholds is unlikely to return the same set ASVs for the same input data and threshold specification than using `find`, outputting a resultcache and running this in `dump`. [See below](#numtdumped-asv-fasta-format-file) for more details.
+*Important note:* using `dump` by specifying thresholds is unlikely to return the same set of ASVs for the same input data and threshold specification than using `find`, outputting a resultcache and running this in `dump`, because of the lack of validated ASVs. [See below](#output-asv-fasta-format-file) for more details.
 
 ## Outputs
 
-metaMATE returns different outputs depending on mode and arguments. Unless specified by using `-f/--outfasta`, all output files will use the same name as the input ASVs with a suffix appended.
+metaMATE returns different outputs depending on mode and arguments.
 
-### NUMTdumped ASV fasta-format file
+### Output ASV fasta-format file
 
 As standard, for a given threshold set, metaMATE outputs those ASVs that fulfil the following conditions, in order of priority:
 1. ASV is a verified-authentic ASV
 2. ASV is not a verified-non-authentic ASV
 3. ASV is present in a frequency equal to or exceeding any thresholds in any bins in which it occurs
 
-The standard way to generate these files is by first running metaMATE in mode `find`, then selecting one or more result set indices from the output statistics file, then running metaMATE in mode `dump`. If one result set is selected, the resulting filtered ASV file will be output with the name specified by `-f/--outfasta`. Otherwise, the resulting filtered ASV files will be output to the directory specified by `-o/--outputdirectory`, with the suffix '_numtdumpresultsetN', where N is the index. This is also the effect of running `find` with the `--generateASVresults` argument.
+The standard way to generate these files is by first running metaMATE in mode `find`, then selecting one or more result set indices from the output statistics file, then running metaMATE in mode `dump`. The resulting filtered ASV file(s) will be output with the name specified by `-o/--output`, with either a `.fasta` suffix in only one index is given, or a `_resultsetN.fasta` suffix if more than one index is given, with N being the index. This is also the effect of running `find` with the `--generateASVresults` argument.
 
 This pipeline is designed to take account of the fact that threshold specifications and decisions on the optimal output should be dataset-dependent, and filtering with a single threshold set without validation is arbitrary.
 

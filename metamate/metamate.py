@@ -105,15 +105,16 @@ def getcliargs(arglist=None):
                          help="reject ASVs when any incidences fail to meet a threshold (default "
                               "is all incidences)",
                          action="store_true", default=False)
-    corearg.add_argument("-o", "--outputdirectory",
-                         help="output directory (default is current directory)",
-                         default=os.getcwd(), metavar="path/")
+    corearg.add_argument("-o", "--outputname",
+                         help="the base directory/file name path to which intermediate and final "
+                              "output data should be written, file extensions will be added as "
+                              "necessary",
+                         required=True, metavar="name")
     corearg.add_argument("--realign",
                          help="force (re)alignment of the input ASVs",
                          action="store_true", default=False)
     corearg.add_argument("--overwrite",
-                         help="force overwriting of output directory and/or file(s) if it already "
-                              "exists",
+                         help="force overwriting of intermediate and/or final output(s)",
                          action="store_true", default=False)
     corearg.add_argument("-t", "--threads",
                          help="number of threads to use (default 1)",
@@ -248,10 +249,6 @@ def getcliargs(arglist=None):
                                        help="dump NUMTs found in a previous run or with fixed "
                                             "thresholds")
     dumpparser._optionals.title = "arguments"
-    dumpparser.add_argument("-f", "--outfasta",
-                            help="output file name, if only retreiving result ASVs of a single "
-                                 "index ",
-                            required=False, metavar="path")
     # TODO: make sure _resultcache is correct name
     dumpparser.add_argument("-C", "--resultcache",
                             help="path to the _resultcache file from a previous run",
@@ -268,12 +265,11 @@ def getcliargs(arglist=None):
 
     args = parser.parse_args(arglist) if arglist else parser.parse_args()
 
-    # Check for all required variables
 
+    # Check for all required variables
     if args.mode == 'find':
+
         # Ensure a value is supplied to libraries
-        if not args.outputdirectory:
-            parser.error("-o/--outputdirectory is required for NUMT finding")
         if ((not args.libraries and not args.readmap)
                 or (args.libraries and args.readmap)):
             parser.error("one and only one of -L/--libraries or -M/--readmap is required for "
@@ -294,7 +290,6 @@ def getcliargs(arglist=None):
             args.dbmatchlength = int(0.8 * args.minimumlength)
         if not args.refmatchlength and args.references:
             args.refmatchlength = int(0.8 * args.minimumlength)
-        args.outfasta = None
 
     elif args.mode == 'dump':
         ressum = sum([args.resultcache is not None,
@@ -312,22 +307,27 @@ def getcliargs(arglist=None):
         elif ressum == 1:
             parser.error("both -C/--resultcache and -i/--resultindex are required if either is "
                          "specified")
-        elif args.outfasta and len(args.resultindex) > 1:
-            parser.error("-f/--outfasta is redundant when passing >1 indices to -i/--resultindex. "
-                         "Supply -o/--outputdirectory instead")
-            args.outfasta = None
-        elif not args.outfasta and not args.outputdirectory:
-            parser.error("one or both of -f/--outfasta or -o/-outputdirectory is required")
 
-    if not args.overwrite:
-        for a, t in zip([args.outputdirectory, args.outfasta],
-                        ['-o/--outputdirectory', '-f/--outfasta']):
-            if a and os.path.exists(a):
-                if args.mode == 'find':
-                    sys.stderr.write("Specified output directory exists, will attempt to resume "
-                                     "prior run; to overwrite, set --overwrite\n")
-                elif args.outfasta:
-                    sys.exit(f"{t} {a} exists but --overwrite is not set.")
+        # Check outputs
+        if args.mode == 'find' or args.specification:
+            if os.path.exists(args.output):
+                if not args.overwrite:
+                    sys.stderr.write(f"The directory {args.output} for intermediate files exists, "
+                                     f"will attempt to resume from any files within, to overwrite "
+                                     f"instead set --overwrite\n")
+            else:
+                os.makedirs(args.output)
+        else:  # Must be args.mode == 'dump' and --resultindex of 1 or more values
+            paths = core.make_resultset_paths(args.output, args.resultindex).values()
+            exists = [os.path.exists(p) for p in paths]
+            if any(exists) and not args.overwrite:
+                if len(args.resultindex) > 1:
+                    parser.error(f"{sum(exists)}/{len(args.resultindex)} of the expected output "
+                                 f"fastas for these result indices already exists, set --overwrite "
+                                 f"to overwrite")
+                else:
+                    parser.error(f"the output fasta {paths[0]} already exists, set --overwrite to "
+                                 f"overwrite")
 
     sys.stderr.flush()
     return args
@@ -353,33 +353,27 @@ def main():
     #                   '-s 5 -l 418 -p 0 -t 20 '
     #                   '-D ~/db/NCBI/NT/nt '
     #                   '-G /home/thomas/QMRmeta/1_taxonomy.csv'.split(' '))
-
-    # Find the file name
-    infilename = os.path.splitext(os.path.basename(args.asvs))[0]
-    outfilename = infilename
-    if args.mode == 'dump' and args.outfasta:
-        outfilename = args.outfasta
-
-    # Make the output directory
-    if args.outputdirectory and not os.path.exists(args.outputdirectory):
-        os.makedirs(args.outputdirectory)
+    # args = getcliargs('dump '
+    #                   '-o /home/thomc/QMRmeta/3_metamate.fasta '
+    #                   '-C /home/thomc/QMRmeta/3_metamate/2_aln_resultcache '
+    #                   '-i 1011 '
+    #                   '-A /home/thomc/QMRmeta/1_taxfilter.fasta'.split(' '))
 
     sys.stdout.write(f"\nWelcome to metaMATE, let's {args.mode}!\n\n")
+
+    baseinpath = os.path.join(args.output, os.path.splitext(os.path.basename(args.asvs))[0])
 
     #################################################
     # DO EXTRACTION IF EXTRACTING FROM PREVIOUS RUN #
     #################################################
 
     if args.mode == 'dump' and args.specification is None:
-        raw, aligned = binning.parse_asvs(args, True, '',
-                                          os.path.join('.', 'asvtemp'))
-
-        outdir = args.outputdirectory if args.outputdirectory else os.getcwd()
-
-        core.write_resultset_asvs(set(raw['asvs'].keys()), args.resultindex,
-                                  args.resultcache, raw['path'],
-                                  outdir, outfilename, args.mode)
-        os.remove('asvtemp_unaligned.fa')
+        tempbasepath = os.path.join('.', 'asvtemp')
+        raw, aligned = binning.parse_asvs(args, True, '', tempbasepath)
+        core.write_resultset_asvs(set(raw['asvs'].keys()), args.resultindex, args.resultcache,
+                                  raw['path'], args.output, args.mode)
+        if os.path.exists(tempbasepath + "unaligned.fasta"):
+            os.remove(tempbasepath + "unaligned.fasta")
         sys.stdout.write("\nCompleted dump\n\n")
         exit()
 
@@ -405,10 +399,9 @@ def main():
     # TODO: error catch for duplicate headers?
 
     if 'clade' in terms:
-        clades, raw = binning.find_clades(args, infilename)
+        clades, raw = binning.find_clades(args, baseinpath)
     else:
-        raw, aligned = binning.parse_asvs(args, True, '',
-                                          os.path.join(os.getcwd(), 'asvtemp'))
+        raw, aligned = binning.parse_asvs(args, True, '', baseinpath)
         clades = binning.dummy_grouping(raw['asvs'].keys())
 
     #############
@@ -425,10 +418,7 @@ def main():
     # COMPUTE LIBRARY AND TOTAL READCOUNTS #
     ########################################
 
-    libcountpath = ''
-    if args.outputdirectory:
-        libcountpath = os.path.join(args.outputdirectory,
-                                    f"{infilename}_ASVcounts.csv")
+    libcountpath = baseinpath + "_ASVcounts.csv"
 
     if os.path.exists(libcountpath) and not args.overwrite:
         sys.stdout.write(f"Resuming with read mapping table of library ASV counts found at "
@@ -452,8 +442,7 @@ def main():
         sys.stderr.write(f"Warning: {round(pc1 * 100, 0)}% of libraries only have one ASV!\n")
 
     # Output csv of library counts
-    if args.outputdirectory and (
-            args.readmap or not os.path.exists(libcountpath) or args.overwrite):
+    if args.libraries or args.readmap:
         core.write_count_dict(librarycounts, raw['asvs'].keys(), libcountpath)
 
     ##########################
@@ -462,7 +451,7 @@ def main():
 
     target, nontarget = [{}, {}]
     if args.mode == 'find':
-        target, nontarget = core.get_validated(raw, args, infilename)
+        target, nontarget = core.get_validated(raw, args, baseinpath)
 
     ####################
     # CONSOLIDATE DATA #
@@ -495,9 +484,7 @@ def main():
         pool = multiprocessing.Pool(args.threads + 2)
 
         # Start writer
-        queues, watchers = core.start_writers(pool, manager, specs,
-                                              infilename, args.outputdirectory,
-                                              nthresh)
+        queues, watchers = core.start_writers(pool, manager, specs, args.output, nthresh)
 
         # Calculate score for threshold combination
         sys.stdout.write("Assessing counts and scoring for each threshold combination.\n\n")
@@ -528,17 +515,16 @@ def main():
 
         # OUTPUT
 
-        hashcachepath = os.path.join(args.outputdirectory, f"{infilename}_hashcache")
+        hashcachepath = os.path.join(args.output, "hashcache")
 
         # Output ASVs if requested
         if args.generateASVresults > 0:
             args.generateASVresults = 1
-            resultcachepath = os.path.join(args.outputdirectory, f"{infilename}_resultcache")
+            resultcachepath = os.path.join(args.output, "resultcache")
 
-            resultsets = core.generate_resultsets(args.generateASVresults, scoresort,
-                                                  hashcachepath)
+            resultsets = core.generate_resultsets(args.generateASVresults, scoresort, hashcachepath)
             core.write_resultset_asvs(set(raw['asvs'].keys()), resultsets, resultcachepath,
-                                      raw['path'], args.outputdirectory, outfilename, args.mode)
+                                      raw['path'], args.output, args.mode)
 
         # Output thresholds and scores
         os.remove(hashcachepath)
@@ -553,9 +539,7 @@ def main():
 
         # OUTPUT
 
-        outdir = args.outputdirectory if args.outputdirectory else os.getcwd()
-        outfile = os.path.join(outdir, outfilename)
-        core.write_retained_asvs(raw['path'], outfile, rejects)
+        core.write_retained_asvs(raw['path'], args.output + ".fasta", rejects)
         sys.stdout.write("\nCompleted dump\n\n")
 
 

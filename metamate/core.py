@@ -129,7 +129,6 @@ def write_count_dict(countdict, asvs, path):
     asvs_sort = sorted(asvs)
 
     # Write to file
-
     with open(path, 'w') as o:
 
         # Write header
@@ -272,10 +271,10 @@ def parse_specs(args, null=float('nan')):
     return specs, termset, nterm, nthresh, thresholds
 
 
-def get_validated(raw, args, filename):
+def get_validated(raw, args, basepath):
     # filname = infilename
     # Set up path
-    controlpath = os.path.join(args.outputdirectory, f"{filename}_control.txt")
+    controlpath = basepath + "_control.txt"
 
     # Check if can resume
     if os.path.exists(controlpath) and not args.overwrite:
@@ -505,10 +504,10 @@ def assess_numts(threshnames, counts, anyfail, asvs, target, nontarget, queues, 
     return [i] + scores
 
 
-def write_stats_and_cache(specs, filename, outdir, prinq):
-    sh = open(os.path.join(outdir, f"{filename}_results.csv"), 'w')
-    ch = gzip.open(os.path.join(outdir, f"{filename}_resultcache"), 'wt')
-    hh = open(os.path.join(outdir, f"{filename}_hashcache"), 'w')
+def write_stats_and_cache(specs, outdir, prinq):
+    sh = open(os.path.join(outdir, "results.csv"), 'w')
+    ch = gzip.open(os.path.join(outdir, "resultcache"), 'wt')
+    hh = open(os.path.join(outdir, "hashcache"), 'w')
 
     # Write header
     head = ("accuracy_score precision_score recall_score "
@@ -580,14 +579,12 @@ def write_terminal(tot, termq):
     sys.stdout.flush()
 
 
-def start_writers(pool, manager, specs, filename, outdir, nthresh):
+def start_writers(pool, manager, specs, outdir, nthresh):
     prinq = manager.Queue()
-    printwatch = pool.apply_async(partial(write_stats_and_cache, specs, filename, outdir),
-                                  (prinq,))
+    printwatch = pool.apply_async(partial(write_stats_and_cache, specs, outdir), (prinq,))
 
     termq = manager.Queue()
-    termwatch = pool.apply_async(partial(write_terminal, nthresh),
-                                 (termq,))
+    termwatch = pool.apply_async(partial(write_terminal, nthresh), (termq,))
 
     return (prinq, termq), (printwatch, termwatch)
 
@@ -664,8 +661,15 @@ def write_retained_asvs(infile, outfile, rejects):
                 outfa.write(f">{head}\n{seq}\n")
 
 
-def write_resultset_asvs(asvs, resultsets, cachepath, infile, outdir, outname, mode):
-    # asvs, filename, infile, outdir, resultsets, store, mode, name = set(raw['asvs'].keys()), outfilename,                                  raw['path'], os.getcwd(), args.resultindex, stores, args.mode
+def make_resultset_paths(name, resultsets):
+    if len(resultsets) > 1:
+        paths = {rs: f"{name}_resultset{rs}.fasta" for rs in resultsets}
+    else:
+        paths = {resultsets[0]: f"{name}.fasta"}
+    return paths
+
+
+def write_resultset_asvs(asvs, resultsets, cachepath, infile, name, mode):
 
     # Read in the relevant store lines
     store = parse_resultcache(cachepath, asvs, resultsets)
@@ -674,16 +678,12 @@ def write_resultset_asvs(asvs, resultsets, cachepath, infile, outdir, outname, m
 
     sys.stdout.write(f"Writing fastas for {len(resultsets)} results...")
 
-    if len(resultsets) > 1:
-        outnames = {rs: f"{outname}_resultset{rs}.fasta" for rs in resultsets}
-    else:
-        outnames = {resultsets[0]: outname}
+    paths = make_resultset_paths(name, resultsets)
 
     for rs, rsstore in store:
         # rs, rsstore = store[0]
-        outfile = os.path.join(outdir, outnames[rs])
         rejects = get_reject_from_store(asvs, rs, rsstore)
-        write_retained_asvs(infile, outfile, rejects)
+        write_retained_asvs(infile, paths[rs], rejects)
     sys.stdout.write("done.\n")
 
 

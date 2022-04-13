@@ -380,8 +380,7 @@ def read_clade_dict(path):
     return cladedict
 
 
-def parse_asvs(args, skipalign, skipmessage, outfile):
-    # args, skipalign, skipmessage, outfile = [args, args.tree,", but tree supplied so need to align",                               os.path.join(args.outputdirectory, filename)]
+def parse_asvs(args, skipalign, skipmessage, basepath):
 
     # Set up variables
     raw = dict()
@@ -398,7 +397,7 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
         aligned['asvs'] = AlignIO.read(args.asvs, "fasta")
         aligned['path'] = args.asvs
         raw['asvs'] = degap_alignment(aligned['asvs'])
-        raw['path'] = outfile + "_unaligned.fa"
+        raw['path'] = basepath + "_unaligned.fasta"
         SeqIO.write(raw['asvs'].values(), raw['path'], "fasta")
     else:
         if skipalign:
@@ -415,7 +414,7 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
                              "alignment to -A/--asvs\n")
             sys.stdout.flush()
             aligned['asvs'] = do_alignment(args.asvs, args.threads)
-            aligned['path'] = outfile + "_aligned.fa"
+            aligned['path'] = basepath + "_aligned.fasta"
             AlignIO.write(aligned['asvs'], aligned['path'], "fasta")
             raw['asvs'] = degap_alignment(aligned['asvs'])
             raw['path'] = args.asvs
@@ -425,15 +424,15 @@ def parse_asvs(args, skipalign, skipmessage, outfile):
     return raw, aligned
 
 
-def find_clades(args, filename):
+def find_clades(args, basepath):
     # filename = infilename
 
     # Locate the script directory
     scriptdir = os.path.dirname(__file__)
 
     # Set up file paths
-    treefile = os.path.join(args.outputdirectory, f"{filename}_UPGMA.nwk")
-    cladefile = os.path.join(args.outputdirectory, f"{filename}_d{args.divergence}_clades.csv")
+    treefile = basepath + "_UPGMA.tre"
+    cladefile = basepath + "_d{args.divergence}_clades.csv"
 
     # Get the asv dicts
     raw, aligned = parse_asvs(args,
@@ -441,7 +440,7 @@ def find_clades(args, filename):
                               (os.path.exists(cladefile) and not args.overwrite) or
                               (os.path.exists(treefile) and not args.overwrite),
                               ", but tree supplied so no need to align",
-                              os.path.join(args.outputdirectory, filename))
+                              basepath)
 
     # Resume clades if present
     if os.path.exists(cladefile) and not args.overwrite:
@@ -466,8 +465,7 @@ def find_clades(args, filename):
                  "You can use the filtertranslate command to do standalone filtering by "
                  "translation\n")
         sys.stdout.flush()
-        tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel,
-                           args.threads)
+        tree = make_tree_R(scriptdir, aligned['path'], args.distancemodel, args.threads)
 
         # Output the tree
         with open(treefile, 'w') as o:
@@ -478,8 +476,7 @@ def find_clades(args, filename):
 
     clades = get_clades_R(scriptdir, tree, args.divergence)
 
-    sys.stdout.write(f"Found {len(clades)} clades from the tree at {args.divergence} "
-                     f"divergence.\n")
+    sys.stdout.write(f"Found {len(clades)} clades from the tree at {args.divergence} divergence.\n")
 
     # Output csv of clade assignments
     write_clade_dict(clades, cladefile)
