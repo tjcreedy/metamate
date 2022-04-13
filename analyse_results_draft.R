@@ -38,18 +38,41 @@ termdescriptions = list(
 
 ### REPLACE WITH THE PATH TO YOUR RESULTS FILE HERE ###
 results <- read.csv("_results.csv",
-                    check.names = F)
+                    check.names = F) %>%
+  mutate(rejects_hash = as.character(rejects_hash))
 
-# Organise data -----------------------------------------------------------
+# Review the best runs and communities --------------------------------------------------------
 
-# Reshape the data matrix and separate out the variable details
+  # rejects_hash is a code given to each unique set of rejected ASVs, thus each different value
+  # corresponds to a different set of retained = output ASVs (after ensuring the validation set 
+  # is always rejected/retained despite the abundance evaluation)
+
+  # Get the runs with the highest of each score type
+highestscores <- map_dfr(str_subset(names(results), "_score"), function(sc){
+  filter(results, pull(results, sc) == max(pull(results, sc)))
+})
+
+  # Filter this to the unique ASV output sets
+highestscores %>% filter(!duplicated(rejects_hash))
+
+# Filter manually to select ideal set according to your thresholds ----------------------------
+
+# Set your ideal maximum false positive and false negative rates
+falsepositive <- 0.1 # The proportion of non-authentic ASVs that are erroneously not filtered out
+falsenegative <- 0.1 # The proportion of authentic ASVs that are erroneously filtered out
+
+results %>% filter(verifiedauthentic_rejected_p <= falsenegative & 
+                     verifiednonauthentic_retained_p <= falsepositive)
+
+# Extract non-multiplicative terms and generate the two plot sets -----------------------------
+  
+  # Reshape the data matrix and separate out the variable details
 idvars <- colnames(results)[c(1:which(colnames(results) == 'asvs_total'), ncol(results))]
 results <- pivot_longer(results, -all_of(idvars), 
                         names_to = c('data', 'part', 'stat'), 
                         names_sep = '_', 
                         values_to = 'value')
 
-# Extract non-multiplicative terms and generate the two plot sets ---------
   # Extract
 oneterms <- filter(results, !grepl('\\*', term)) %>%
   pivot_longer(contains('_threshold'), 
