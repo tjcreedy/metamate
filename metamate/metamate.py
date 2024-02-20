@@ -15,9 +15,9 @@ import multiprocessing
 from functools import partial
 from shutil import which
 
-from metamate import core
-from metamate import binning
-from metamate import filterlength
+import core
+import binning
+import filterlength
 
 
 # Class definitions
@@ -105,7 +105,7 @@ def getcliargs(arglist=None):
                          help="reject ASVs when any incidences fail to meet a threshold (default "
                               "is all incidences)",
                          action="store_true", default=False)
-    corearg.add_argument("-o", "--outputname",
+    corearg.add_argument("-o", "--output",
                          help="the base directory/file name path to which intermediate and final "
                               "output data should be written, file extensions will be added as "
                               "necessary",
@@ -290,6 +290,9 @@ def getcliargs(arglist=None):
             args.dbmatchlength = int(0.8 * args.minimumlength)
         if not args.refmatchlength and args.references:
             args.refmatchlength = int(0.8 * args.minimumlength)
+        # create output folder if it does not exist yet
+        if not os.path.exists(args.output):
+            os.makedirs(args.output)
 
     elif args.mode == 'dump':
         ressum = sum([args.resultcache is not None,
@@ -434,10 +437,12 @@ def main():
         sys.exit("Error: no library read count information supplied")
 
     librarycounts, totalcounts = counts
-
     librarysizes = [len(asvs) for lib, asvs in librarycounts.items()]
     librarysizes = {str(n): sum([1 for s in librarysizes if s == n]) for n in set(librarysizes)}
-    pc1 = librarysizes['1'] / sum(librarysizes.values())
+    try:
+        pc1 = librarysizes['1'] / sum(librarysizes.values())
+    except KeyError:
+        pc1 = 0
     if pc1 >= 0.5:
         sys.stderr.write(f"Warning: {round(pc1 * 100, 0)}% of libraries only have one ASV!\n")
 

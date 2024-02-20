@@ -11,7 +11,7 @@ from Bio import AlignIO, SeqIO
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 
-from metamate import binning
+import binning
 
 # Global variables
 

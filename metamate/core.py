@@ -21,9 +21,9 @@ from functools import partial, reduce
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
-from metamate import filterlength
-from metamate import filtertranslate
-from metamate import filterreference
+import filterlength
+import filtertranslate
+import filterreference
 
 
 def count_categories(catdict, metric):
@@ -320,7 +320,7 @@ def get_validated(raw, args, basepath):
 
     # Create reference based control list
 
-    wd = filterreference.make_temp_blastwd(args.outputdirectory, "blastdb")
+    wd = filterreference.make_temp_blastwd(args.output, "blastdb")
     allcandidates = []
     loopvars = zip(['references', 'blast database'], [args.references, args.blastdb])
     for src, dat in loopvars:
