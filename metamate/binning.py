@@ -432,7 +432,7 @@ def find_clades(args, basepath):
 
     # Set up file paths
     treefile = basepath + "_UPGMA.tre"
-    cladefile = basepath + "_d{args.divergence}_clades.csv"
+    cladefile = basepath + "_d" + str(args.divergence) + "_clades.csv"
 
     # Get the asv dicts
     raw, aligned = parse_asvs(args,

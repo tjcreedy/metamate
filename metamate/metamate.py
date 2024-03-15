@@ -62,7 +62,7 @@ def is_tool(name):
 
 def check_tools():
     """Check to see whether the required external tools are available."""
-    tools = ['mafft', 'blastn', 'Rscript']
+    tools = ['mafft', 'Rscript', 'bbmap.sh']
     for tool in tools:
         # tool = tools[1]
         if not is_tool(tool):
@@ -168,31 +168,23 @@ def getcliargs(arglist=None):
     refmatch.add_argument("-R", "--references",
                           help="path to a fasta of known correct reference sequences",
                           metavar="path", type=str)
-    refmatch.add_argument("-D", "--blastdb",
-                          help="path to a blast database, such as nt",
-                          metavar="path", type=str)
     refmatch.add_argument("--refmatchlength",
-                          help="the minimum alignment length to consider a BLAST match when "
+                          help="the minimum alignment length to consider a match when "
                                "comparing ASVs against reference sequences (default is 80%% of "
                                "[calculated value of] -n/--minimumlength)",
                           type=int, metavar="n")
-    refmatch.add_argument("--refmatchpercent",
-                          help="the minimum percent identity to consider a BLAST match when "
-                               "comparing ASVs against reference sequences",
-                          type=float, default=99.9,
-                          action=Range, minimum=0, maximum=100)
-    refmatch.add_argument("--dbmatchlength",
-                          help="the minimum alignment length to consider a BLAST match when "
-                               "comparing ASVs against a blast database (default is 80%% of "
-                               "[calculated value of] -n/--minimumlength)",
-                          type=int, metavar="n")
-    refmatch.add_argument("--dbmatchpercent",
-                          help="the minimum percent identity to consider a BLAST match when "
-                               "comparing ASVs against a blast database",
-                          type=float, default=100,
-                          action=Range, minimum=0, maximum=100)
+    # refmatch.add_argument("--refmatchpercent",
+    #                       help="the minimum percent identity to consider a match when "
+    #                            "comparing ASVs against reference sequences"
+    #                            "[ CURRENTLY ONLY EXACT MATCHES ARE SUPPORTED ]",
+    #                       type=float, default=99.9,
+    #                       action=Range, minimum=0, maximum=100)
+    refmatch.add_argument("--ignoreambigASVs",
+                          help="ASVs that match the same reference will not be considered vaASV "
+                          "(default is to count the most abundant one as verified authentic).",
+                          action="store_true", default=False)
     refmatch.add_argument("--keeptemporaryfiles",
-                          help="don't delete the temporary blast database and/or blast result "
+                          help="don't delete the temporary bbmap result "
                                "files generated during reference matching",
                           action="store_true", default=False)
 
@@ -278,16 +270,14 @@ def getcliargs(arglist=None):
         if args.scoremetric not in ['accuracy', 'precision', 'recall']:
             parser.error("-q/--scoremetric must be one of 'accuracy', 'precision' or 'recall'")
         # Ensure at least one reference is supplied
-        if not args.references and not args.blastdb:
-            parser.error("at least one of -R/--references and/or -D/--blastdb is required for "
+        if not args.references:
+            parser.error("-R/--references is required for "
                          "error finding")
         # Check the length specification
         args, lset = filterlength.resolve_length_spec(args, parser)
         if not lset:
             parser.error("supply some length-based non-target identification specifications")
         # Set the matchlength defaults
-        if not args.dbmatchlength and args.blastdb:
-            args.dbmatchlength = int(0.8 * args.minimumlength)
         if not args.refmatchlength and args.references:
             args.refmatchlength = int(0.8 * args.minimumlength)
         # create output folder if it does not exist yet
@@ -456,7 +446,7 @@ def main():
 
     target, nontarget = [{}, {}]
     if args.mode == 'find':
-        target, nontarget = core.get_validated(raw, args, baseinpath)
+        target, nontarget = core.get_validated(raw, args, baseinpath, totalcounts)
 
     ####################
     # CONSOLIDATE DATA #

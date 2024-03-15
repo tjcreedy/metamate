@@ -271,7 +271,7 @@ def parse_specs(args, null=float('nan')):
     return specs, termset, nterm, nthresh, thresholds
 
 
-def get_validated(raw, args, basepath):
+def get_validated(raw, args, basepath, totalcounts):
     # filname = infilename
     # Set up path
     controlpath = basepath + "_control.txt"
@@ -320,28 +320,18 @@ def get_validated(raw, args, basepath):
 
     # Create reference based control list
 
-    wd = filterreference.make_temp_blastwd(args.output, "blastdb")
+    wd = filterreference.make_temp_bbmapwd(args.output, "bbmap")
     allcandidates = []
-    loopvars = zip(['references', 'blast database'], [args.references, args.blastdb])
-    for src, dat in loopvars:
-        # src, dat = list(loopvars)[0]
-        if dat is None:
-            continue
 
-        sys.stdout.write(f"Identifying validated authentic ASVs based on {src}...")
-        sys.stdout.flush()
+    sys.stdout.write(f"Identifying validated authentic ASVs based on {args.references}...")
+    sys.stdout.flush()
 
-        if src == 'references':
-            db = filterreference.make_blastdb(dat, wd)
-            mp, ml = [args.refmatchpercent, args.refmatchlength]
-        else:
-            db = dat
-            mp, ml = [args.dbmatchpercent, args.dbmatchlength]
+    # mp, ml = [args.refmatchpercent, args.refmatchlength]
+   
+    candidates = filterreference.refmatch_BBMap(raw['path'], wd, args.refmatchlength, args.threads, args.references, totalcounts, args)
 
-        candidates = filterreference.refmatch_blast(raw['path'], db, wd, mp, ml, args.threads)
-
-        sys.stdout.write(f"found {len(candidates)} candidates\n")
-        allcandidates.extend(candidates)
+    allcandidates.extend(candidates)
+    
     if not args.keeptemporaryfiles:
         shutil.rmtree(wd)
 
@@ -351,7 +341,7 @@ def get_validated(raw, args, basepath):
     # Finalise targets
     if len(target) > 0:
         sys.stdout.write(f"Validated a total of {len(target)} unique ASVs as authentic "
-                         f"({len(refmatch)} unique matched to references and/or blast database, "
+                         f"({len(refmatch)} unique matched to references, "
                          f"{len(refmatch - target)} rejected due to inclusion in non-authentic "
                          f"set)\n")
     else:
@@ -403,9 +393,11 @@ def estimate_true_values(asvs, retained_asvs, retained_target, target, retained_
         true_nontarget = asvs - true_target
         true_retained_target = true_target * (retained_target / target)
         true_retained_nontarget = ((retained_nontarget / nontarget) * (asvs - true_target))
-        out = [true_target, true_nontarget, true_retained_target, true_retained_nontarget]
+        proportion_retained_target = ( true_retained_target / retained_asvs )
+        proportion_retained_nontarget = ( true_retained_nontarget / retained_asvs ) 
+        out = [true_target, true_nontarget, true_retained_target, true_retained_nontarget, proportion_retained_target, proportion_retained_nontarget]
     except:
-        out = ['NA', 'NA', 'NA', 'NA']
+        out = ['NA', 'NA', 'NA', 'NA', 'NA', 'NA']
     return out
 
 
@@ -522,7 +514,8 @@ def write_stats_and_cache(specs, outdir, prinq):
             "asvsactual_retained_n asvsactual_retained_p "
             "asvsactual_rejected_n asvsactual_rejected_p "
             "authentic_total_estimate nonauthentic_total_estimate "
-            "authentic_retained_estimate nonauthentic_retained_estimate "
+            "authentic_retained_estimate_n nonauthentic_retained_estimate_n "
+            "authentic_retained_estimate_p nonauthentic_retained_estimate_p "
             "rejects_hash").split(" ")
 
     sh.write(",".join(["resultindex", "term"]

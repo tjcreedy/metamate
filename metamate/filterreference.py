@@ -6,20 +6,15 @@
 # Imports
 import os
 import subprocess
-
-from Bio import AlignIO, SeqIO
-from Bio.Blast.Applications import NcbiblastnCommandline
-from Bio.Blast import NCBIXML
-
+import re
+import sys
+import pysam
 import binning
-
-# Global variables
-
-
-# Function definitons
+from Bio import AlignIO, SeqIO
 
 
-def make_temp_blastwd(path, name):
+# Functions
+def make_temp_bbmapwd(path, name):
     # Create temporary directory
     #TODO: create a proper temporary directory with appropriate libraries?
     outputdirectory = os.path.join(path, name)
@@ -27,58 +22,67 @@ def make_temp_blastwd(path, name):
         os.makedirs(outputdirectory)
     return(outputdirectory)
 
+def get_seq_lengths(fasta_path):
+    handle = open(fasta_path, 'rU')
+    sequence_lengths = {}
+    SeqRecords = SeqIO.parse(handle, 'fasta')
+    for record in SeqRecords:   #loop through each fasta entry
+        length = len(record.seq.ungap("-"))    #get sequence length
+        sequence_lengths[record.id] = length
+    return sequence_lengths
 
-def make_blastdb(subjectfile, workingdir):
-    
-    # Check if subjectfile is aligned
-    subaln = binning.detect_aligned(subjectfile, 2000)
-    if(subaln):
-        alnsub  = AlignIO.read(subjectfile, "fasta")
-        rawsub = binning.degap_alignment(alnsub)
-        name =  os.path.splitext(os.path.basename(subjectfile))[0]
-        rawsubpath = os.path.join(workingdir, f"{name}_unaligned.fa")
-        SeqIO.write(rawsub.values(), rawsubpath, "fasta")
-        subjectfile = rawsubpath
-    
-    # Create blast database
-    blastdb = os.path.join(workingdir, "blastdb")
-    blastdbcline = f"makeblastdb -in {subjectfile} -dbtype nucl -out {blastdb}"
-    blastdbprocess = subprocess.Popen(blastdbcline, shell = True, 
-                                      stdout = subprocess.PIPE, 
-                                      stderr = subprocess.PIPE)
-    blastdbprocess.wait()
-    
-    return(blastdb)
-
-
-def refmatch_blast(querypath, subjectdb, workingdir, percid, minlen, threads,
+def refmatch_BBMap(querypath, workingdir, minlen, threads, ref_fasta, totalcounts, args,
                    fail = False):
-    #querypath, subjectdb, workingdir, percid, minlen, threads = [raw['path'], db, wd, mp, ml, args.threads]
-    # Set up blast object
-    blastout = os.path.join(workingdir, "tempblastout.xml")
-    blastncline = NcbiblastnCommandline(query = querypath, db = subjectdb,
-                                        evalue = 0.001, perc_identity = percid,
-                                        num_threads = threads, outfmt = 5,
-                                        out = blastout,
-                                        max_target_seqs = 1000)
-    #print(blastncline)
-    # Run blast
-    stdout, stderr = blastncline()
+
+    # lengths_query = get_seq_lengths(querypath)
+    # lengths_ref = get_seq_lengths(ref_fasta)
+
+    # Set up object to store
+    BBMap_out = os.path.join(workingdir, "tempBBMap.sam")
     
+    # Run BBMap
+    bbmap_command = f"bbmap.sh ambig=random vslow semiperfectmode maxsites=100 ref={ref_fasta} in={querypath} out={BBMap_out} threads={threads} nodisk"
+    bbmap_process = subprocess.Popen(bbmap_command, shell = True, 
+                                    stdout = subprocess.PIPE, 
+                                    stderr = subprocess.PIPE)
+    bbmap_process.wait()
+
     # Get result
-    blastresultfh = open(blastout)
-    blastrecords = NCBIXML.parse(blastresultfh)
-    
-    # Work through results finding reference hits that are suitable
-    
-    out = []
-    for blastrecord in blastrecords:
-        lengthpass = []
-        for alignment in blastrecord.alignments:
-            for hsp in alignment.hsps:
-                lengthpass.append(hsp.query_end - hsp.query_start + 1 > minlen)
-        qpass = len(lengthpass) > 0 and any(lengthpass)
-        if (qpass and not fail) or (not qpass and fail):
-            out.append(blastrecord.query)
-    
+    bamfile = pysam.AlignmentFile(BBMap_out)
+
+    # Iterate through each alignment
+    dict_length_pass = {}
+    for read in bamfile:
+        # pick only the query sequences that were aligned
+        if read.reference_name != None:
+            if read.query_alignment_length >= minlen:  
+                #  generate a dict to sort out query sequences that matched with the same reference sequence
+                dict_length_pass[read.query_name] = read.reference_name          
+    bamfile.close()
+
+    if args.ignoreambigASVs:
+        out = [v[0] for v in [[k for k in dict_length_pass if dict_length_pass[k] == v] for v in set(dict_length_pass.values())] if len(v) == 1]
+    else:
+        flipped = {}
+        for key, value in dict_length_pass.items():
+            if value not in flipped:
+                flipped[value] = [key]
+            else:
+                flipped[value].append(key)
+        
+        out = []
+        for key, value in flipped.items():
+            if len(value) > 1:
+                tmp_max = 0
+                for val in value:
+                    if totalcounts['total'][val] > tmp_max:
+                        tmp_max = totalcounts['total'][val]
+                        kept_ASV = val
+                out.append(kept_ASV)
+            else:
+                out.append(value[0])
+                 
+    sys.stdout.write(f"found {len(dict_length_pass.values())} candidates\n")
+    num_excluded_ASVs_nonuniq_ref = len(dict_length_pass.values()) - len(out)
+    sys.stdout.write(f"Number of rejected candidates ASVs for matching the same reference sequence: {num_excluded_ASVs_nonuniq_ref}\n")
     return(set(out))
