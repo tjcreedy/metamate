@@ -111,14 +111,11 @@ The R packages getopt, ape and fastcluster are also required.
 Make sure you have all of the system dependencies: Python3 (3.6+), pip, [MAFFT](https://mafft.cbrc.jp/alignment/software/linux.html), [BBmap](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/), [R](https://cran.r-project.org/). It is highly recommended to use metamate in a dedicated conda environment to avoid dependency issues. If you're on ubuntu linux, you can run:
 
 ```
-conda create -n metamate_env python=3.6 pip r-base
+conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython
 
-conda install bioconda::pysam
-conda install bioconda::bbmap
-conda install bioconda::mafft
 ```
 
-Alternatively, for a global installation (careful, as the pip version of metamate is not the most recent one):
+Alternatively, you can use pip to install the dependencies and metamate (careful, as the pip version of metamate is not the most recent one):
 
 ```
 sudo apt install python3 python3-pip mafft r-base
