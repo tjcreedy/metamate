@@ -66,7 +66,7 @@ Running in `find` mode requires the most input data, as metaMATE will be underta
 A default `find` run carries out five main tasks:
 1. Parse the input frequency filtering specification into a set of binning strategies and thresholds.
 2. Assess all ASVs for potential membership of the authentic or non-authentic control groups, by
-   1. Finding ASVs that match to the supplied reference set(s) or blast database(s) using BLAST
+   1. Finding ASVs that match to the supplied reference set(s) using BBmap
    2. Finding ASVs that fall outside acceptable length or translation parameters
 3. Bin ASVs according to the specified binning strategies and generate counts of ASV reads within these bins
 4. For each specified set of thresholds, assess all ASVs for retention or rejection according to their binned read frequencies
@@ -81,7 +81,7 @@ The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs
 ## Installation
 
 
-The best place to get metaMATE is to install from [the PyPI package](https://pypi.org/project/metaMATE/). The metaMATE source is available on [GitHub](https://github.com/tjcreedy/metamate).
+The best place to get metaMATE is to install from [the PyPI package](https://pypi.org/project/metaMATE/). For the newest version of metamate use the source [GitHub](https://github.com/tjcreedy/metamate).
 
 
 metaMATE was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most Linux systems, and likely Mac OS as well. No idea about Windows.
@@ -98,7 +98,7 @@ metaMATE requires python3 and the python3 libraries biopython and scipy. These s
 
 metaMATE requires the following executables to be available on the command line:
 * Rscript (part of [R](https://cran.r-project.org/))
-* blastn and makeblastdb (part of [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download))
+* BBmap
 * [mafft](https://mafft.cbrc.jp/alignment/software/)
 
 
@@ -108,15 +108,20 @@ The R packages getopt, ape and fastcluster are also required.
 ### Quick install
 
 
-Make sure you have all of the system dependencies: Python3 (3.6+), pip, [MAFFT](https://mafft.cbrc.jp/alignment/software/linux.html), [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [R](https://cran.r-project.org/). If you're on ubuntu linux, you can run:
+Make sure you have all of the system dependencies: Python3 (3.6+), pip, [MAFFT](https://mafft.cbrc.jp/alignment/software/linux.html), [BBmap](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/), [R](https://cran.r-project.org/). It is highly recommended to use metamate in a dedicated conda environment to avoid dependency issues. If you're on ubuntu linux, you can run:
 
 ```
-sudo apt install python3 python3-pip mafft ncbi-blast+ r-base
+conda create -n metamate_env python=3.6 pip r-base
+
+conda install bioconda::pysam
+conda install bioconda::bbmap
+conda install bioconda::mafft
 ```
 
-Install metaMATE from the PyPI package:
+Alternatively, for a global installation (careful, as the pip version of metamate is not the most recent one):
 
 ```
+sudo apt install python3 python3-pip mafft r-base
 python3 -m pip install metaMATE
 ```
 
@@ -295,7 +300,7 @@ If supplied, metaMATE will overwrite any files that have the same name those spe
 
 #### `-t/--threads n`
 
-`n` should be a positive integer specifying the maximum number of parallel threads to use, where relevant. The main frequency threshold comparison section of metaMATE is run on multiple threads to improve speed. This argument is also passed to `MAFFT` and `blastn` if these are run. 
+`n` should be a positive integer specifying the maximum number of parallel threads to use, where relevant. The main frequency threshold comparison section of metaMATE is run on multiple threads to improve speed. This argument is also passed to `MAFFT` and `bbmap` if these are run. 
 
 ### Clade delimitation and binning arguments
 
@@ -341,23 +346,22 @@ When using `-g/--generateASVresults`, you can select which scoring metric (accur
 
 `find`: *required* | `dump` *not used*
 
-These arguments control matching against a reference fasta or blast database for the purposes of determining verified-authentic ASVs. Put simply, an ASV is designated a verified-target-ASV if it matches against a reference sequence with a match length greater than specified and a percent identity greater than specified. Note that if multiple ASVs match to the same reference when percent identity is set to 100, only the ASV with the longest match length will be designated as a verified-target-ASV. 
+These arguments control matching against a reference fasta for the purposes of determining verified-authentic ASVs. Put simply, an ASV is designated a verified-target-ASV if it matches against a reference sequence with a match length greater than specified and a percent identity greater than specified. Note that if multiple ASVs match to the same reference when percent identity is set to 100, only the ASV with the longest match length will be designated as a verified-target-ASV. 
 
-#### `-R/--references path` and/or `-D/--blastdb path`
+#### `-R/--references path`
 
-`path` should be the path to a fasta file (`-R/--references`) or blast database (`-D/--blastdb`) of sequences that represent known species that are likely to occur in the dataset. Both arguments are available for cases where multiple reference sources are desired, with different parameterisation of hits, but only one is required. For example, you may have a set of sanger-sequenced barcodes from your project's morphospecies, and which have been carefully curated to ensure accuracy and no NUMTs, against which you want to allow matches of 99% to allow for some minor sanger sequencing error and true haplotypes. You may also want to find 100% matches to a local copy of GenBank nt. You would supply the former to `-R` and the latter to `-D`. A BLAST search against these sequences will be used to designate a set of ASVs as verified-authentic. 
+`path` should be the path to a fasta file (`-R/--references`) of sequences that represent known species that are likely to occur in the dataset. Both arguments are available for cases where multiple reference sources are desired, with different parameterisation of hits, but only one is required. For example, you may have a set of sanger-sequenced barcodes from your project's morphospecies, and which have been carefully curated to ensure accuracy and no NUMTs, against which you want to allow matches of 99% to allow for some minor sanger sequencing error and true haplotypes. You may also want to find 100% matches to a local copy of GenBank nt. You would supply the former to `-R` and the latter to `-D`. A BBMap search against these sequences will be used to designate a set of ASVs as verified-authentic. 
 
-#### `--refmatchlength n` and/or `--dbmatchlength n`
+#### `--refmatchlength n`
 
-`n` should be a positive integer specifying the minimum alignment length to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is calculated as 80% of the length below which ASVs will be designated as verified-non-authentic. 
+`n` should be a positive integer specifying the minimum alignment length to consider a BBmap match when comparing ASVs against sequences in the file supplied to `-R/--references`. The default value is calculated as 80% of the length below which ASVs will be designated as verified-non-authentic. 
 
-#### `--refmatchpercent [0-100]` and/or `--dbmatchpercent [0-100]`
-
-The supplied value is the minimum percent identity against to consider a BLAST match when comparing ASVs against sequences in the file supplied to `-R/--references` or the database supplied to `-D/--blastdb`. The default value is 99.9 for `--refmatchpercent` and 100 for `--dbmatchpercent`.
+#### `--ignoreambigASVs`
+ASVs that match the same reference will not be considered vaASV (default is to count the most abundant one as verified authentic).
 
 #### `--keeptemporaryfiles`
 
-If this argument is supplied, the temporary blast database and/or blast result xml files generated during reference and/or blast database matching will not be deleted and can be found in a directory named 'blastdb' inside the output directory.
+If this argument is supplied, the temporary BBmap result files generated during reference matching will not be deleted and can be found in a directory named 'bbmap' inside the output directory.
 
 ### Length-based arguments
 
@@ -453,17 +457,16 @@ Note that either `6_concat.fastq` or `6_concat.fasta` can be used here. The form
 
 If you already have aligned ASVs and a tree file, but don't have any references, you could instead run:
 ```
-metamate find -A 6_coleoptera_fftnsi.fasta  -T 6_coleoptera_UPGMA.nwk -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -D /blastdb/nt -expectedlength 418 --percentvar 0 --table 5 -o outputdir 
+metamate find -A 6_coleoptera_fftnsi.fasta  -T 6_coleoptera_UPGMA.nwk -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -expectedlength 418 --percentvar 0 --table 5 -o outputdir 
 ```
 The path to aligned ASVs is supplied to the same argument as unaligned ASVs, metaMATE will detect whether the file is aligned or not. The path to a tree file has been supplied to `-T`. The `-L`ibraries and `-S`pecifications arguments are the same as in the first example. 
-The `-D` argument is used to supply a path to a [blast-formatted database generated by `makeblastdb`](https://www.ncbi.nlm.nih.gov/books/NBK279688/). In this case, it looks like this is a local copy of GenBank nt (note this is not supplied in the test data). The remaining arguments are the same as the previous command.
 
 This command will be faster than the previous command, as metaMATE does not need to generate the alignment and tree. It may also be more accurate, because you can build the optimal alignment for your specific data, rather than using the fast alignment algorithm metaMATE uses. You can also review the tree and decide on the most appropriate clade delimitation threshold for your data - by default this is 20%.
 
 This final example overwrites many of these sorts of defaults:
 
 ```
-metamate find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.15 -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --refmatchpercent 98 --refmatchlength 400 -D /blastdb/nt -expectedlength 418 --basesvariation 6 --onlyvarybycodon -s 5 -o outputdir 
+metamate find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.15 -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --refmatchlength 400 -expectedlength 418 --basesvariation 6 --onlyvarybycodon -s 5 -o outputdir 
 ```
 The input ASV alignment and tree are the same, but clades will be delimited at 15% divergence rather than the default 20%. Verified-authentic ASVs will be determined by matches against two references, the references fasta file (against which passing hits must be 98% similar over at least 400 bp), and the nt dataset (which uses the default similarity and length settings). The expected length is unchanged, but we now specify a more complicated way of determining verified-non-authentic ASVs: any ASVs that are less than 6 bases of variation around 418 **and** do not vary by exactly 3 bases from 418. Thus any reads that are not 412, 415, 418, 421 or 424 bp will be designated as verified-non-authentic. Finally, the translation table has been supplied using the short option `-s` rather than the long option `--table`.
 
@@ -536,7 +539,7 @@ The *_clades.csv file is a two-column comma-separated table recording the clade 
 
 ### Control list (`find` only)
 
-The *_control.txt file is a two-column tab-separated table recording all ASVs determined to be validated-authentic or validated-non-authentic. The first column lists the reason for each determination: "lengthfail" means the ASV was too short, too long or otherwise did not fall into the range of acceptable lengths; "stopfail" means the ASV had stop codons in its amino acid translation; "refpass" means the ASV had a passing BLAST match to one of the supplied references, and did not fail either of the non-authentic tests.
+The *_control.txt file is a two-column tab-separated table recording all ASVs determined to be validated-authentic or validated-non-authentic. The first column lists the reason for each determination: "lengthfail" means the ASV was too short, too long or otherwise did not fall into the range of acceptable lengths; "stopfail" means the ASV had stop codons in its amino acid translation; "refpass" means the ASV had a passing BBmap match to one of the supplied references, and did not fail either of the non-authentic tests.
 
 ### Result cache (`find` only)
 
