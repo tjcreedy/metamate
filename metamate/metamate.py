@@ -62,7 +62,7 @@ def is_tool(name):
 
 def check_tools():
     """Check to see whether the required external tools are available."""
-    tools = ['mafft', 'Rscript', 'bbmap.sh']
+    tools = ['mafft', 'Rscript', 'bbmap']
     for tool in tools:
         # tool = tools[1]
         if not is_tool(tool):
