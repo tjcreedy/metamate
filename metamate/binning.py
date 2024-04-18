@@ -4,8 +4,6 @@
 """Functions for assigning clades to a set of sequences"""
 
 # Imports
-
-
 import os
 import sys
 import subprocess
@@ -22,8 +20,6 @@ from Bio.Align.Applications import MafftCommandline
 
 
 # Function definitions
-
-
 def parse_taxa(taxafile, names):
     taxa = defaultdict(set)
     allnames = set()

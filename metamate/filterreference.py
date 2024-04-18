@@ -9,9 +9,9 @@ import subprocess
 import re
 import sys
 import pysam
-import binning
 from Bio import AlignIO, SeqIO
 
+from metamate import binning
 
 # Functions
 def make_temp_bbmapwd(path, name):

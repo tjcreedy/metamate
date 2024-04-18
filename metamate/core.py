@@ -21,9 +21,9 @@ from functools import partial, reduce
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
-import filterlength
-import filtertranslate
-import filterreference
+from metamate import filterlength
+from metamate import filtertranslate
+from metamate import filterreference
 
 
 def count_categories(catdict, metric):

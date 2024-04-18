@@ -15,9 +15,9 @@ import multiprocessing
 from functools import partial
 from shutil import which
 
-import core
-import binning
-import filterlength
+from metamate import core
+from metamate import binning
+from metamate import filterlength
 
 
 # Class definitions
