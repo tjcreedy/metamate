@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="metaMATE", # Replace with your own username
-    version="0.4.1",
+    version="v0.4.3",
     author="Thomas J. Creedy",
     author_email="thomas.creedy@gmail.com",
     description="metaMATE: validated removal of pseudogenes and sequencing "
