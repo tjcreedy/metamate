@@ -81,7 +81,7 @@ The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs
 ## Installation
 
 
-The best place to get metaMATE is to install from bioconda. Alternatively, use the source [GitHub]([https://github.com/tjcreedy/metamate](https://github.com/tjcreedy/metamate/releases/tag/v0.4.0)).
+The best place to get metaMATE is to install from bioconda. Alternatively, use the GitHub source ([https://github.com/tjcreedy/metamate](https://github.com/tjcreedy/metamate/releases/tag/v0.4.0)).
 
 
 metaMATE was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most Linux systems, and likely Mac OS as well. No idea about Windows.
