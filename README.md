@@ -95,9 +95,9 @@ metaMATE requires python3 and the python3 libraries biopython and scipy. These s
 
 metaMATE requires the following executables to be available on the command line:
 * Rscript (part of [R](https://cran.r-project.org/))
-* BBmap
+* [BBmap](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbmap-guide/)
 * [mafft](https://mafft.cbrc.jp/alignment/software/)
-* pysam
+* [pysam](https://niyunyun-pysam-fork.readthedocs.io/en/latest/index.html)
 
 The R packages getopt, ape and fastcluster are also required.
 
