@@ -81,26 +81,23 @@ The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs
 ## Installation
 
 
-The best place to get metaMATE is to install from [the PyPI package](https://pypi.org/project/metaMATE/). For the newest version of metamate use the source [GitHub](https://github.com/tjcreedy/metamate).
+The best place to get metaMATE is to install from bioconda. Alternatively, use the source [GitHub]([https://github.com/tjcreedy/metamate](https://github.com/tjcreedy/metamate/releases/tag/v0.4.0)).
 
 
 metaMATE was developed and tested on Ubuntu Linux. It has not been tested anywhere else, but will probably work on most Linux systems, and likely Mac OS as well. No idea about Windows.
 
 
-Note that just installing from the PyPI package is not sufficient to run metaMATE, it also requires some system dependencies and R packages.
-
-
 ### Dependencies
 
 
-metaMATE requires python3 and the python3 libraries biopython and scipy. These should automatically be installed if using the pip installer above.
+metaMATE requires python3 and the python3 libraries biopython and scipy. These should automatically be installed if using the conda installation.
 
 
 metaMATE requires the following executables to be available on the command line:
 * Rscript (part of [R](https://cran.r-project.org/))
 * BBmap
 * [mafft](https://mafft.cbrc.jp/alignment/software/)
-
+* pysam
 
 The R packages getopt, ape and fastcluster are also required.
 
@@ -108,7 +105,15 @@ The R packages getopt, ape and fastcluster are also required.
 ### Quick install
 
 
-Make sure you have all of the system dependencies: Python3 (3.6+), pip, [MAFFT](https://mafft.cbrc.jp/alignment/software/linux.html), [BBmap](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/), [R](https://cran.r-project.org/). It is highly recommended to use metamate in a dedicated conda environment to avoid dependency issues. If you're on ubuntu linux, you can run:
+It is highly recommended to use metamate in a dedicated conda environment to avoid dependency issues. If you're on ubuntu linux, you can run:
+
+
+```
+conda create -n metamate_env -c bioconda metamate
+
+```
+
+or if you prefer to use the source code:
 
 ```
 conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython
@@ -130,7 +135,7 @@ sudo -H python3 -m pip install metaMATE
 
 If the above fails, ensure that the python version that `python3` refers to in your current environment is >=3.6 (`python3 --version`).
 
-Finally, ensure the necessary R libraries are installed:
+Finally, ensure the necessary R libraries are installed (not necessary with the conda installation):
 
 ```
 Rscript -e "install.packages(c('getopt', 'ape', 'fastcluster'), repos = 'https://cloud.r-project.org')"
