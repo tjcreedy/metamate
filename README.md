@@ -113,6 +113,13 @@ conda create -n metamate_env -c bioconda metamate
 
 ```
 
+if that doesn't work for you because of dependency issues try to upgrade to the newest conda version and use this command:
+
+```
+conda create -n metamate_env metamate -c bioconda -c conda-forge 
+
+```
+
 or if you prefer to use the source code:
 
 ```
