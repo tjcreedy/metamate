@@ -1,0 +1,49 @@
+#####
+#
+#   This is an example metaMATE specifications file.
+#   Use this file to detail how per-ASV read frequencies should be assessed.
+#
+#   Note that any lines starting with # or that are completely blank are ignored
+#   Any spaces or newlines in other lines are ignored
+#
+#####
+#
+# DEFAULT SPECIFICATIONS
+#
+#   From Andujar et al 2020
+#
+#   standard (i)
+
+[library; n; 1-100/100]
+
+#   standard (ii)
+
++ [total; n; 1-250/250]
+
++ [total; p; 0.00001-0.01/200]
+
++ [library; p; 0.00001-0.01/300]
+
+
+#   standard (iii-v)
+
++ [library|clade; p; 0.0001-0.5/100]
+
+#   alternative (iii-v)
+
+# + [library|taxon; p; 0.00025-0.35/50]
+
+#   synergy (i)/(ii)
+
+# + [library; n; 3-100/50]
+# * [library; p; 0.00025-0.01/50]
+
+#   synergy (i)/(iii)
+
++ [library; n; 1-40/40]
+* [library|clade; p; 0.00001-0.5/100]
+
+#   synergy (ii)/(iii)
+
++ [library; p; 0.00025-0.01/150]
+* [library|clade; p; 0.00001-0.5/150]
