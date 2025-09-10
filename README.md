@@ -109,23 +109,16 @@ It is highly recommended to use metamate in a dedicated conda environment to avo
 
 
 ```
-conda create -n metamate_env -c bioconda metamate
-
-```
-
-if that doesn't work for you because of dependency issues try to upgrade to the newest conda version and use this command:
-
-```
-conda create -n metamate_env metamate -c bioconda -c conda-forge 
-
-```
-
-or if you prefer to use the source code:
-
-```
 conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython
+```
+
+Then, after activating the environment:
 
 ```
+conda install metamate
+Rscript -e "install.packages(c('getopt', 'ape', 'fastcluster', 'cluster'), repos = 'https://cloud.r-project.org')"
+```
+
 
 Alternatively, you can use pip to install the dependencies and metamate (careful, as the pip version of metamate is not the most recent one):
 
