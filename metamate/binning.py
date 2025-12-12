@@ -16,7 +16,7 @@ from Bio import SeqIO, AlignIO
 from Bio.Seq import Seq
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
-from Bio.Align.Applications import MafftCommandline
+
 
 
 # Function definitions
@@ -38,6 +38,34 @@ def parse_taxa(taxafile, names):
             "Error: haplotype names in taxon file do not completely match haplotype names in ASV"
             " file")
     return taxa
+
+
+    if set(names) != allnames:
+        sys.exit(
+            "Error: haplotype names in taxon file do not completely match haplotype names in ASV"
+            " file")
+    return taxa
+
+
+def parse_uc(uc_path):
+    """
+    Parse a vsearch .uc file to map ASVs to their OTU centroids.
+    Returns a dictionary: {ASV_ID: Centroid_ID}
+    """
+    otus = {}
+    with open(uc_path, 'r') as f:
+        for line in f:
+            if line.startswith("H") or line.startswith("S"):
+                parts = line.strip().split("\t")
+                query = parts[8]
+                target = parts[9]
+                if line.startswith("S"):
+                    otus[query] = query # Centroid maps to itself
+                elif line.startswith("H"):
+                    otus[query] = target
+            elif line.startswith("C"):
+                 pass
+    return otus
 
 
 def dummy_grouping(names):
@@ -255,29 +283,36 @@ def parse_readmap(master, mappath):
     return countsbylibrary, {'total': asvcounts}
 
 
-def detect_aligned(fasta, n):
+def detect_aligned(fasta):
+    """
+    Detects if a fasta file is aligned by checking if all sequences have the same length.
+    """
     with open(fasta) as fh:
-        head, t = '', ''
-        c = 0
-        while c <= n:
-            head += t
-            t = next(fh, None)
-            if t:
-                if t[0] == '>': c += 1
-            else:
-                break
-    try:
-        AlignIO.read(io.StringIO(head), "fasta")
-        return True
-    except ValueError:
-        return False
+        # Get first sequence length
+        iterator = SimpleFastaParser(fh)
+        try:
+            _, first_seq = next(iterator)
+            first_len = len(first_seq)
+        except StopIteration:
+            return False # Empty file
+
+        # Compare length with all other sequences
+        for _, seq in iterator:
+            if len(seq) != first_len:
+                return False
+                
+    return True
 
 
 def do_alignment(fasta, threads):
     # Run MAFFT alignment
-    align_cmd = MafftCommandline(input=fasta, retree=1, maxiterate=0, thread=int(threads))
-    align_so, align_se = align_cmd()
-    align = AlignIO.read(io.StringIO(align_so), "fasta")
+    cmd = ['mafft', '--retree', '1', '--maxiterate', '0', '--thread', str(int(threads)), fasta]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+         sys.exit(f"Error running mafft: {e}")
+         
+    align = AlignIO.read(io.StringIO(result.stdout), "fasta")
 
     return align
 
@@ -383,7 +418,7 @@ def parse_asvs(args, skipalign, skipmessage, basepath):
     aligned = dict()
 
     # Detect alignment
-    isaligned = detect_aligned(args.asvs, 1000)
+    isaligned = detect_aligned(args.asvs)
 
     # Parse in ASVs and align if necessary
     if isaligned and not args.realign:

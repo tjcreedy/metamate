@@ -23,6 +23,7 @@ The development of this tool was supported by the iBioGen project, funded by the
   + [Reference-matching arguments](#reference-matching-arguments)
   + [Length-based arguments](#length-based-arguments)
   + [Translation-based arguments](#translation-based-arguments)
+  + [OTU mode arguments](#otu-mode-arguments)
   + [`dump`-specific arguments](#dump-specific-arguments)
 * [Examples](#Examples)
   + [`find`](#find-examples)
@@ -416,6 +417,25 @@ If `-r/--readingframe` is not specified, metaMATE will automatically detect the 
 
 If `-r/--readingframe` is not specified, metaMATE will automatically detect the reading frame. Higher values of this argument increase the minimum number of stops that must be encountered in all reading frames before a reading frame can be selected. In cases of very small datasets, this value may need to be reduced from the default of 100.
 
+### OTU mode arguments
+
+`find`: *optional* | `dump`: *optional*
+
+metaMATE can operate on Operational Taxonomic Units (OTUs) instead of ASVs. In this mode, ASVs are first classified as authentic or non-authentic based on the provided reference sets (`-R/--references`, etc) and length/translation checks. Then, OTUs are classified based on their constituent ASVs: an OTU is considered authentic if it contains any authentic ASVs, and non-authentic if it contains only non-authentic ASVs. Finally, the filtering is performed on the OTUs using the provided OTU abundance table.
+
+#### `--uc path`
+
+`path` to a USEARCH-format cluster file mapping ASVs to OTUs. This is required to enable OTU mode.
+
+#### `--otu_fasta path`
+
+`path` to a FASTA file containing the OTU representative sequences.
+
+#### `--otu_table path`
+
+`path` to a CSV file containing the OTU abundance table (OTUs as rows, libraries as columns, or vice-versa).
+
+
 ### `dump`-specific arguments
 
 #### `-C/--resultcache path`
@@ -471,6 +491,14 @@ This final example overwrites many of these sorts of defaults:
 metamate find -A 6_coleoptera_fftnsi.fasta -T 6_coleoptera_UPGMA.nwk -d 0.15 -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --refmatchlength 400 -expectedlength 418 --basesvariation 6 --onlyvarybycodon -s 5 -o outputdir 
 ```
 The input ASV alignment and tree are the same, but clades will be delimited at 15% divergence rather than the default 20%. Verified-authentic ASVs will be determined by matches against two references, the references fasta file (against which passing hits must be 98% similar over at least 400 bp), and the nt dataset (which uses the default similarity and length settings). The expected length is unchanged, but we now specify a more complicated way of determining verified-non-authentic ASVs: any ASVs that are less than 6 bases of variation around 418 **and** do not vary by exactly 3 bases from 418. Thus any reads that are not 412, 415, 418, 421 or 424 bp will be designated as verified-non-authentic. Finally, the translation table has been supplied using the short option `-s` rather than the long option `--table`.
+
+To run `find` in OTU mode, you simply add the relevant arguments:
+
+```
+metamate find -A 6_coleoptera.fasta -L 0_merge/*.fastq -S specifications.txt -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir --uc 6_coleoptera.uc --otu_fasta 6_coleoptera_otus.fasta --otu_table 6_coleoptera_otutable.csv
+```
+This will run the standard ASV-based classification for authentic/non-authentic sequences, then aggregate these to OTUs using the `.uc` file, and proceed with filtering using the OTU counts and sequences.
+
 
 ### `dump` examples
 

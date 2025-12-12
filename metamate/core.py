@@ -21,9 +21,9 @@ from functools import partial, reduce
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
-from metamate import filterlength
-from metamate import filtertranslate
-from metamate import filterreference
+from . import filterlength
+from . import filtertranslate
+from . import filterreference
 
 
 def count_categories(catdict, metric):
@@ -211,8 +211,9 @@ def parse_specs(args, null=float('nan')):
         sys.exit("Unrecognised args.mode")
 
     # Check
-    if not args.taxgroups and any("taxon" in e for e in spectext):
-        sys.exit("Error, taxon specified as a binning strategy but no taxon file supplied")
+    if not args.taxgroups and "taxon" in spectext:
+        sys.stderr.write("Warning: 'taxon' specified in binning strategy but no taxon file supplied. "
+                         "Ignoring schemes including 'taxon'.\n")
 
     # Clean up and parse for additive and multiplicative specs
     spectext = re.sub(' ', '', spectext)
@@ -224,8 +225,21 @@ def parse_specs(args, null=float('nan')):
     termset = set()
     for specl in specslist:
         out = dict()
+        
+        # Check for taxon requirement in this additive term
+        valid_term = True
+        resolved_specs = []
         for spec in specl:
             res = resolve_spec(spec)
+            if not args.taxgroups and 'taxon' in res[1]:
+                valid_term = False
+                break
+            resolved_specs.append(res)
+
+        if not valid_term:
+            continue
+
+        for res in resolved_specs:
             termset.update(res[1])
             specdict[res[0]] = res[1:3]
             out[res[0]] = res[3]
@@ -304,7 +318,11 @@ def get_validated(raw, args, basepath, totalcounts):
     # Create translation based control list
     sys.stdout.write("Identifying validated non-authentic ASVs based on translation...")
 
-    nontargettrans = filtertranslate.check_stops_multi(raw['asvs'], args, fail=True)
+    try:
+        nontargettrans = filtertranslate.check_stops_multi(raw['asvs'], args, fail=True)
+    except BaseException as e:
+        sys.stdout.write(f" Warning: Translation filter failed ({e}), skipping...\n")
+        nontargettrans = []
 
     sys.stdout.write(f"found {len(nontargettrans)} candidates\n")
 
@@ -502,6 +520,9 @@ def write_stats_and_cache(specs, outdir, prinq):
     hh = open(os.path.join(outdir, "hashcache"), 'w')
 
     # Write header
+    if specs.get('otu_mode'):
+        ch.write("# otu_mode=True\n")
+    
     head = ("accuracy_score precision_score recall_score "
             "asvs_total verifiedauthentic_total_observed "
             "verifiednonauthentic_total_observed "
@@ -686,6 +707,8 @@ def parse_resultcache(path, asvs, resultsets=None):
     store = []
     for i, line in enumerate(fh):
         # i, line = next(enumerate(fh))
+        if line.startswith('#'):
+            continue
         vals = line.strip().split('\t')
         err = f"Error: {path} line {i + 1}"
         if len(vals) < 2:
@@ -708,3 +731,16 @@ def parse_resultcache(path, asvs, resultsets=None):
     fh.close()
 
     return store
+
+
+def check_cache_otu_mode(path):
+    """Check if the cache was created in OTU mode."""
+    mode = False
+    try:
+        with gzip.open(path, 'rt') as fh:
+            line = fh.readline()
+            if line.startswith('# otu_mode=True'):
+                mode = True
+    except Exception:
+        pass
+    return mode

@@ -12,12 +12,14 @@ import math
 import textwrap as _textwrap
 import multiprocessing
 
+from collections import defaultdict
 from functools import partial
 from shutil import which
+from Bio import SeqIO
 
-from metamate import core
-from metamate import binning
-from metamate import filterlength
+from . import core
+from . import binning
+from . import filterlength
 
 
 # Class definitions
@@ -136,6 +138,18 @@ def getcliargs(arglist=None):
     taxbin = coreparser.add_argument_group('taxon binning')
     taxbin.add_argument("-G", "--taxgroups",
                         help="path to a two-column csv file specifying the taxon for each ASV",
+                        metavar="path", type=str)
+
+    # OTU binning variables
+    otubin = coreparser.add_argument_group('otu binning')
+    otubin.add_argument("--uc",
+                        help="path to a .uc file (vsearch output) mapping ASVs to OTUs",
+                        metavar="path", type=str)
+    otubin.add_argument("--otu_fasta",
+                        help="path to a fasta file containing OTU centroid sequences",
+                        metavar="path", type=str)
+    otubin.add_argument("--otu_table",
+                        help="path to a table (CSV/TSV) containing OTU counts per library",
                         metavar="path", type=str)
 
     # Set up finding subparser
@@ -262,10 +276,16 @@ def getcliargs(arglist=None):
     if args.mode == 'find':
 
         # Ensure a value is supplied to libraries
-        if ((not args.libraries and not args.readmap)
+        otu_args = [args.uc, args.otu_fasta, args.otu_table]
+        otu_mode = any(otu_args)
+        args.otu_mode = otu_mode
+        if otu_mode and not all(otu_args):
+            parser.error("if any of --uc, --otu_fasta, or --otu_table are provided, ALL must be provided")
+            
+        if not otu_mode and ((not args.libraries and not args.readmap)
                 or (args.libraries and args.readmap)):
             parser.error("one and only one of -L/--libraries or -M/--readmap is required for "
-                         "error finding")
+                         "error finding (unless running in OTU mode)")
         # Ensure the metric supplied is valid
         if args.scoremetric not in ['accuracy', 'precision', 'recall']:
             parser.error("-q/--scoremetric must be one of 'accuracy', 'precision' or 'recall'")
@@ -301,6 +321,17 @@ def getcliargs(arglist=None):
             parser.error("both -C/--resultcache and -i/--resultindex are required if either is "
                          "specified")
 
+        if args.resultcache:
+            cache_otu_mode = core.check_cache_otu_mode(args.resultcache)
+            otu_args = [args.uc, args.otu_fasta, args.otu_table]
+            
+            if cache_otu_mode:
+                if not all(otu_args):
+                     parser.error("The provided result cache was created in OTU mode. You MUST provide the OTU arguments (`--uc`, `--otu_fasta`, `--otu_table`) to dump these results correctly.")
+            else:
+                 # Warn if OTU args provided for non-OTU cache?
+                 pass
+
         # Check outputs
         if args.mode == 'find' or args.specification:
             if os.path.exists(args.output):
@@ -311,7 +342,7 @@ def getcliargs(arglist=None):
             else:
                 os.makedirs(args.output)
         else:  # Must be args.mode == 'dump' and --resultindex of 1 or more values
-            paths = core.make_resultset_paths(args.output, args.resultindex).values()
+            paths = core.make_resultset_paths(os.path.join(args.output, "dump"), args.resultindex).values()
             exists = [os.path.exists(p) for p in paths]
             if any(exists) and not args.overwrite:
                 if len(args.resultindex) > 1:
@@ -334,8 +365,10 @@ def main():
     # Check for required programs
     check_tools()
 
-    # Get inputs
+    # Get command line arguments
     args = getcliargs()
+
+    # Check for bad arguments
     # args = getcliargs('find '
     #                   '-A /home/thomas/QMRmeta/2_aln.fasta '
     #                   '-R /home/thomas/QMRmeta/907_Qinling_barcode_by_NAPselect.fasta '
@@ -362,20 +395,38 @@ def main():
 
     if args.mode == 'dump' and args.specification is None:
         tempbasepath = os.path.join('.', 'asvtemp')
-        raw, aligned = binning.parse_asvs(args, True, '', tempbasepath)
+        
+        # Check for OTU mode
+        otu_args = [args.uc, args.otu_fasta, args.otu_table]
+        otu_mode = any(otu_args)
+        
+        if otu_mode:
+            if not all(otu_args):
+                print("Error: In dump mode, if any OTU arguments are provided (`--uc`, `--otu_fasta`, `--otu_table`), ALL must be provided to output OTU sequences.")
+                sys.exit(1)
+            sys.stdout.write("Dump mode: OTU filtering enabled. Loading OTU sequences.\n")
+            raw = {}
+            # Load OTU sequences directly
+            raw['asvs'] = SeqIO.to_dict(SeqIO.parse(args.otu_fasta, "fasta"))
+            raw['path'] = args.otu_fasta
+            aligned = {} # Not used in dump
+        else:
+            raw, aligned = binning.parse_asvs(args, True, '', tempbasepath)
+
         core.write_resultset_asvs(set(raw['asvs'].keys()), args.resultindex, args.resultcache,
-                                  raw['path'], args.output, args.mode)
+                                  raw['path'], os.path.join(args.output, "dump"), args.mode)
         if os.path.exists(tempbasepath + "unaligned.fasta"):
             os.remove(tempbasepath + "unaligned.fasta")
         sys.stdout.write("\nCompleted dump\n\n")
-        exit()
+        sys.stdout.flush()
+        sys.exit(0)
 
     ###########################################
     # READ AND PARSE FILTERING SPECIFICATIONS #
     ###########################################
 
     specs, terms, nterm, nthresh, thresholds = core.parse_specs(args, 0)
-
+    specs['otu_mode'] = args.otu_mode
     sys.stdout.write(f"Parsed {nterm} additive specification term"
                      f"{'s' if nterm > 1 else ''}, comprising "
                      f"{len(specs['name'])} bin strateg"
@@ -424,7 +475,11 @@ def main():
         sys.stdout.write("Matching library reads to ASVs to generate library ASV counts.\n")
         counts = binning.count_asvs_in_libraries(raw['asvs'], args.libraries)
     else:
-        sys.exit("Error: no library read count information supplied")
+        if args.otu_mode:
+             sys.stdout.write("OTU mode active!\n")
+             counts = ({}, {'total': {asv: 1 for asv in raw['asvs']}})
+        else:
+             sys.exit("Error: no library read count information supplied")
 
     librarycounts, totalcounts = counts
     librarysizes = [len(asvs) for lib, asvs in librarycounts.items()]
@@ -447,6 +502,77 @@ def main():
     target, nontarget = [{}, {}]
     if args.mode == 'find':
         target, nontarget = core.get_validated(raw, args, baseinpath, totalcounts)
+
+    ####################
+    # APPLY OTU FILTER #
+    ####################
+
+    if args.otu_mode:
+        sys.stdout.write("Applying OTU-level filtering using external OTU data...\n")
+        
+        # 1. Parse .uc file
+        sys.stdout.write(f"Parsing UC file: {args.uc}\n")
+        otus = binning.parse_uc(args.uc)
+        
+        # 2. Classify OTUs
+        otu_to_asvs = defaultdict(list)
+        for asv, otu in otus.items():
+            otu_to_asvs[otu].append(asv)
+            
+        new_target = set()
+        new_nontarget = set()
+        asv_summary = []
+        
+        for otu, asv_list in otu_to_asvs.items():
+            is_authentic = any(asv in target for asv in asv_list)
+            is_nonauthentic = all(asv in nontarget for asv in asv_list)
+            
+            otu_status = "Unclassified"
+            if is_authentic:
+                new_target.add(otu)
+                otu_status = "Authentic"
+            elif is_nonauthentic:
+                new_nontarget.add(otu)
+                otu_status = "Non-Authentic"
+            
+            for asv in asv_list:
+                asv_status = "Unclassified"
+                if asv in target:
+                    asv_status = "RefMatch"
+                elif asv in nontarget:
+                    asv_status = "NonAuthentic"
+                asv_summary.append([asv, otu, asv_status, otu_status])
+                
+        # 3. Switch Data
+        sys.stdout.write(f"Loading OTU sequences from {args.otu_fasta}\n")
+        raw['asvs'] = SeqIO.to_dict(SeqIO.parse(args.otu_fasta, "fasta"))
+        raw['path'] = args.otu_fasta
+        
+        sys.stdout.write(f"Loading OTU counts from {args.otu_table}\n")
+        librarycounts, totalcounts = binning.parse_readmap(raw['asvs'], args.otu_table)
+        
+        # Update target/nontarget
+        target = new_target
+        nontarget = new_nontarget
+        
+        # Reset clades and taxa for OTUs (as they were calculated for ASVs)
+        clades = binning.dummy_grouping(raw['asvs'].keys())
+        taxa = binning.dummy_grouping(raw['asvs'].keys())
+        
+        # Write Summary File
+        summary_path = os.path.join(args.output, "otu_summary.csv")
+        with open(summary_path, 'w') as f:
+            f.write("ASV,OTU,ASV_Status,OTU_Status\n")
+            for row in asv_summary:
+                f.write(",".join(row) + "\n")
+        sys.stdout.write(f"Written OTU summary to {summary_path}\n")
+        
+        sys.stdout.write(f"OTU Filtering Complete. Proceeding with {len(raw['asvs'])} OTUs.\n")
+        sys.stdout.write(f"  Authentic OTUs: {len(target)}\n")
+        sys.stdout.write(f"  Non-Authentic OTUs: {len(nontarget)}\n")
+        
+        
+
 
     ####################
     # CONSOLIDATE DATA #
@@ -534,7 +660,7 @@ def main():
 
         # OUTPUT
 
-        core.write_retained_asvs(raw['path'], args.output + ".fasta", rejects)
+        core.write_retained_asvs(raw['path'], os.path.join(args.output, "dump_filtered.fasta"), rejects)
         sys.stdout.write("\nCompleted dump\n\n")
 
 
