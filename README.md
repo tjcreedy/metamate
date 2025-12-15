@@ -110,7 +110,7 @@ It is highly recommended to use metamate in a dedicated conda environment to avo
 
 
 ```
-conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython metamate==0.5.0
+conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython metamate=0.5.0
 ```
 
 Then, after activating the environment:
