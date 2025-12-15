@@ -11,9 +11,9 @@ The development of this tool was supported by the iBioGen project, funded by the
 ## Table of contents
 * [Introduction](#Introduction)
   + [Input data](#input-data-required)
-  + [`find`](#find-introduction)
-  + [`dump`](#dump-introduction)
-  + [`filter-adaptive`](#filter-adaptive-introduction)
+  + [`find`](#find-mode)
+  + [`dump`](#dump-mode)
+  + [`filter-adaptive`](#filter-adaptive-mode)
 * [Installation](#installation)
 * [Usage](#usage)
   + [Specifications](#specifications)
@@ -61,7 +61,7 @@ The multi-sample aspect is crucial, as the main novelty and power of metaMATE co
 
 Reference sequences allow metaMATE to identify some of the input ASVs as verified authentic, that is to say definitely *not* NUMTs. The reference sequences are not expected to be comprehensive, nor are all references necessarily expected to occur, but the more ASVs that can be designated as verified authentic, the better metaMATE is able to estimate the impact on filtering and the more accurate the selection of filtering thresholds can be. If necessary, references can be drawn from global databases, such as BOLD or GenBank, or curated versions of these such as MIDORI, but [we suggest](#reference-matching-arguments) that the hit thresholds be more stringent in this case.
 
-### `find` introduction
+### `find` mode
 
 The purpose of `find` mode is to comprehensively assess a range of frequency filtering specifications to analyse the impact of these on determining NUMTs. By default, `find` doesn't actually output filtered ASV sequences; instead, it outputs comprehensive information about the effect of each term and threshold set on the number of ASVs filtered and, crucially, the numbers of validated ASVs retained or rejected by each threshold set. This information can then be used to guide a `dump` run to actually output filtered ASV sequences without putative NUMTs.
 
@@ -78,11 +78,11 @@ A default `find` run carries out five main tasks:
 
 This report can then be easily interrogated by the user according to project-specific requirements to balance rejection and retention. 
 
-### `dump` introduction
+### `dump` mode
 
 The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs. It does this by enacting a single desired threshold set, either by providing the results from a `find` run and selecting the desired threshold set, or by providing an ASV set, other necessary inputs, and a single threshold specification. In this latter case, metaMATE runs a slimmed-down version of a `find` run, skipping step 2, running step 4 only once (rather than once for every combination of thresholds), and skipping step 5. This functionality is provided for enhanced versatility of the tool for differing applications, but it is recommended that for the most accuracy, `dump` is used on the analysed outputs from a `find` run.
 
-### `filter-adaptive` introduction
+### `filter-adaptive` mode
 
 The purpose of `filter-adaptive` mode is to perform per-sample filtering based on the distribution of known authentic and non-authentic ASVs. Instead of applying a global or stratified hard threshold, this mode calculates a filtering threshold for each sample (library) individually. This threshold is determined by the abundance distribution of ASVs identified as non-authentic (verified non-authentic) within that sample. This allows for dynamic noise removal that adjusts to the sequencing depth and error profile of each sample.
 
