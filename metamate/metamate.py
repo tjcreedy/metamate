@@ -431,7 +431,10 @@ def getcliargs(arglist=None):
             else:
                 os.makedirs(args.output)
         else:  # Must be args.mode == 'dump' and --resultindex of 1 or more values
-            paths = core.make_resultset_paths(os.path.join(args.output, "dump"), args.resultindex).values()
+            base_path = args.output
+            if not os.path.splitext(base_path)[1]:
+                 base_path = os.path.join(args.output, "dump")
+            paths = core.make_resultset_paths(base_path, args.resultindex).values()
             exists = [os.path.exists(p) for p in paths]
             if any(exists) and not args.overwrite:
                 if len(args.resultindex) > 1:
@@ -502,8 +505,11 @@ def main():
         else:
             raw, aligned = binning.parse_asvs(args, True, '', tempbasepath)
 
+        base_path = args.output
+        if not os.path.splitext(base_path)[1]:
+             base_path = os.path.join(args.output, "dump")
         core.write_resultset_asvs(set(raw['asvs'].keys()), args.resultindex, args.resultcache,
-                                  raw['path'], os.path.join(args.output, "dump"), args.mode)
+                                  raw['path'], base_path, args.mode)
         if os.path.exists(tempbasepath + "unaligned.fasta"):
             os.remove(tempbasepath + "unaligned.fasta")
         sys.stdout.write("\nCompleted dump\n\n")

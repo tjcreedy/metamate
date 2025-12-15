@@ -13,6 +13,7 @@ The development of this tool was supported by the iBioGen project, funded by the
   + [Input data](#input-data-required)
   + [`find`](#find-introduction)
   + [`dump`](#dump-introduction)
+  + [`filter-adaptive`](#filter-adaptive-introduction)
 * [Installation](#installation)
 * [Usage](#usage)
   + [Specifications](#specifications)
@@ -25,9 +26,11 @@ The development of this tool was supported by the iBioGen project, funded by the
   + [Translation-based arguments](#translation-based-arguments)
   + [OTU mode arguments](#otu-mode-arguments)
   + [`dump`-specific arguments](#dump-specific-arguments)
+  + [`filter-adaptive`-specific arguments](#filter-adaptive-specific-arguments)
 * [Examples](#Examples)
   + [`find`](#find-examples)
   + [`dump`](#dump-examples)
+  + [`filter-adaptive`](#filter-adaptive-examples)
 * [Outputs](#outputs)
 * [Details](#details)
   + [Validation](#validation)
@@ -79,6 +82,10 @@ This report can then be easily interrogated by the user according to project-spe
 
 The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs. It does this by enacting a single desired threshold set, either by providing the results from a `find` run and selecting the desired threshold set, or by providing an ASV set, other necessary inputs, and a single threshold specification. In this latter case, metaMATE runs a slimmed-down version of a `find` run, skipping step 2, running step 4 only once (rather than once for every combination of thresholds), and skipping step 5. This functionality is provided for enhanced versatility of the tool for differing applications, but it is recommended that for the most accuracy, `dump` is used on the analysed outputs from a `find` run.
 
+### `filter-adaptive` introduction
+
+The purpose of `filter-adaptive` mode is to perform per-sample filtering based on the distribution of known authentic and non-authentic ASVs. Instead of applying a global or stratified hard threshold, this mode calculates a filtering threshold for each sample (library) individually. This threshold is determined by the abundance distribution of ASVs identified as non-authentic (verified non-authentic) within that sample. This allows for dynamic noise removal that adjusts to the sequencing depth and error profile of each sample.
+
 ## Installation
 
 
@@ -110,7 +117,7 @@ It is highly recommended to use metamate in a dedicated conda environment to avo
 
 
 ```
-conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython metamate=0.5.0
+conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython seqkit metamate=0.5.1
 ```
 
 Then, after activating the environment:
@@ -449,6 +456,20 @@ Each value of `n` should be 0 or a positive integer referring to an result set i
 
 `'[c; m; t]'` should be one or more text strings specifying terms to apply when frequency filtering. These are explained in detail below, but in brief, each term is in the format `[category(/ies); metric; threshold(s)]` where category is one or a combination of "total", "library", "clade" or "taxon", metric is one of "n" or "p", and threshold is a single value. In `dump` mode, terms are always considered simultaneously and only one threshold is permitted per term. For example, `[library|clade, p, 0.05]` would designate as NUMTs any ASVs that occurred as fewer than 5% of the reads within members of its clade within all library in which it occured.
 
+### `filter-adaptive`-specific arguments
+
+`filter-adaptive` uses the same reference, length, and translation arguments as `find` to identify verified authentic and non-authentic ASVs. In addition, it uses the following arguments to control the filtering behavior:
+
+#### `--percentile [0-1]`
+
+The percentile of the verified non-authentic ASV abundance distribution to use as the filtering threshold. For example, `0.95` (default) selects a threshold that would filter out 95% of the verified non-authentic ASVs in the sample. All ASVs with abundance below this threshold in that sample are removed.
+
+#### `--criteria [verified_removed|estimated_removed]`
+
+The criteria used to calculate the threshold.
+* `verified_removed` (default): The threshold is strictly based on the distribution of ASVs identified as non-authentic via likelihood/translation/reference checks.
+* `estimated_removed` (experimental): Attempts to estimate the distribution of errors by extrapolating the verified (non)-authentic ASV abundance distribution.
+
 ## Examples
 
 The following commands detail example runs of metaMATE using metabarcoding data provided in the [GitHub tests directory](https://github.com/tjcreedy/metamate/tree/master/tests/data). The README in that directory details how this data was generated. Where a specifications file is used, this refers to the [default specifications available on the GitHub](https://github.com/tjcreedy/metamate/blob/master/specifications.txt)
@@ -517,6 +538,13 @@ The main differences between this and a `find` run are:
 `dump` mode resolves any binning strategies, building a tree if needed for clade-based strategies, and then applies the specified thresholds, writing all ASVs that pass the thresholds to a file in the output directory. This method is provided for rapid filtering on a known dataset.
 
 *Important note:* using `dump` by specifying thresholds is unlikely to return the same set of ASVs for the same input data and threshold specification than using `find`, outputting a resultcache and running this in `dump`, because of the lack of validated ASVs. [See below](#output-asv-fasta-format-file) for more details.
+
+### `filter-adaptive` examples
+
+```
+metamate filter-adaptive -A 6_coleoptera.fasta -L 0_merge/*.fastq -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir --percentile 0.97
+```
+This command runs the adaptive filter. It first identifies verified authentic and non-authentic ASVs using the reference and length/translation parameters (similar to `find`). Then, for each library, it calculates a threshold such that 97% of the verified non-authentic ASVs in that library are removed. The resulting filtered ASV table and FASTA are written to `outputdir`.
 
 ## Outputs
 

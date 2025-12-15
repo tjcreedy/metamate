@@ -393,7 +393,11 @@ def counts_from_spec(specs, data):
     counts = dict()
 
     # Work through specifications
-    for name, spec, metric in zip(*specs.values()):
+    names = specs.get('name', [])
+    sps = specs.get('spec', [])
+    metrics = specs.get('metric', [])
+
+    for name, spec, metric in zip(names, sps, metrics):
         # name, spec, metric = list(zip(*specs.values()))[1]
         # Check if partitioned and do counting
         if len(spec) == 1:
@@ -682,7 +686,10 @@ def make_resultset_paths(name, resultsets):
     if len(resultsets) > 1:
         paths = {rs: f"{name}_resultset{rs}.fasta" for rs in resultsets}
     else:
-        paths = {resultsets[0]: f"{name}.fasta"}
+        if os.path.splitext(name)[1]:
+            paths = {resultsets[0]: name}
+        else:
+            paths = {resultsets[0]: f"{name}.fasta"}
     return paths
 
 
