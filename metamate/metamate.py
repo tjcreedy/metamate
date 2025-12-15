@@ -269,11 +269,98 @@ def getcliargs(arglist=None):
                                  "If provided via CLI, each [] string must be quoted",
                             metavar="'[C(s);M;T]'", type=str, nargs='*')
 
+    # Set up adaptive filter subparser
+    adaptparser = subparsers.add_parser("filter-adaptive", parents=[coreparser],
+                                        help="filter per-sample based on distribution of non-authentic ASVs")
+    adaptparser._optionals.title = "adaptive filtering arguments"
+    
+    # Validation args (same as findparser) - duplicating necessary groups/args
+    # Reusing findparser groups directly would be cleaner if possible but they are bound to findparser
+    # So we re-add the necessary arguments.
+    
+    # Reference matching parameters
+    refmatch = adaptparser.add_argument_group("reference-matching-based target "
+                                              "identification")
+    refmatch.add_argument("-R", "--references",
+                          help="path to a fasta of known correct reference sequences",
+                          metavar="path", type=str)
+    refmatch.add_argument("--refmatchlength",
+                          help="the minimum alignment length to consider a match when "
+                               "comparing ASVs against reference sequences (default is 80%% of "
+                               "[calculated value of] -n/--minimumlength)",
+                          type=int, metavar="n")
+    refmatch.add_argument("--ignoreambigASVs",
+                          help="ASVs that match the same reference will not be considered vaASV "
+                          "(default is to count the most abundant one as verified authentic).",
+                          action="store_true", default=False)
+    refmatch.add_argument("--keeptemporaryfiles",
+                          help="don't delete the temporary bbmap result "
+                          "files generated during reference matching",
+                          action="store_true", default=False)
+
+    # Length parameters
+    lengths = adaptparser.add_argument_group("length-based non-target identification")
+    lengths.add_argument("-n", "--minimumlength",
+                         help="designate ASVs that are shorter than this value as non-target",
+                         type=int, default=0, metavar="n")
+    lengths.add_argument("-x", "--maximumlength",
+                         help="designate ASVs that are longer than this value as non-target",
+                         type=int, default=float('Inf'), metavar="n")
+    lengths.add_argument("-l", "--expectedlength",
+                         help="the expected length of the sequences",
+                         type=int, metavar="n")
+    lengths.add_argument("-b", "--basesvariation",
+                         help="the number of bases of variation from the expected length outside "
+                              "which ASVs should be designated as non-target",
+                         type=int, metavar="n")
+    lengths.add_argument("-p", "--percentvariation",
+                         help="the percentage variation from the expected length outside which "
+                              "ASVs should be designated as non-target",
+                         type=float,
+                         action=Range, minimum=0, maximum=100)
+    lengths.add_argument("-c", "--codonsvariation",
+                         help="the number of codons of variation from the expected length outside "
+                              "which ASVs should be designated as non-target",
+                         type=int, metavar="n")
+    lengths.add_argument("--onlyvarybycodon",
+                         help="designate ASVs that fall within other length thresholds but do not "
+                              "vary by a multiple of 3 bases from the expected length as "
+                              "non-target",
+                         action="store_true", default=False)
+
+    # Translation parameters
+    transl = adaptparser.add_argument_group("translation-based non-target identification")
+    transl.add_argument("-s", "--table",
+                        help="the number referring to the translation table to use for "
+                             "translation filtering",
+                        metavar="path", default=5)
+    transl.add_argument("-r", "--readingframe",
+                        help="coding frame of sequences, if known",
+                        type=int, choices={1, 2, 3})
+    transl.add_argument("--detectionconfidence",
+                        help="confidence level for detection of reading frame (default 0.95)",
+                        type=float, default=0.95,
+                        action=Range, minimum=0, maximum=1)
+    transl.add_argument("--detectionminstops",
+                        help="minimum number of stops to encounter for detection (default 100, "
+                             "may need to decrease for few input ASVs)",
+                        type=int, default=100, metavar="n")
+
+    # Adaptive specific args
+    adaptparser.add_argument("--percentile",
+                             help="percentile of non-authentic ASVs to filter out (default 0.95)",
+                             type=float, default=0.95,
+                             action=Range, minimum=0, maximum=1)
+    adaptparser.add_argument("--criteria",
+                             help="criteria for filtering: 'verified_removed' (default) or 'estimated_removed'",
+                             choices=['verified_removed', 'estimated_removed'],
+                             default='verified_removed')
+
     args = parser.parse_args(arglist) if arglist else parser.parse_args()
 
 
     # Check for all required variables
-    if args.mode == 'find':
+    if args.mode in ['find', 'filter-adaptive']:
 
         # Ensure a value is supplied to libraries
         otu_args = [args.uc, args.otu_fasta, args.otu_table]
@@ -286,9 +373,11 @@ def getcliargs(arglist=None):
                 or (args.libraries and args.readmap)):
             parser.error("one and only one of -L/--libraries or -M/--readmap is required for "
                          "error finding (unless running in OTU mode)")
-        # Ensure the metric supplied is valid
-        if args.scoremetric not in ['accuracy', 'precision', 'recall']:
+        
+        # Only check metric if in find mode
+        if args.mode == 'find' and args.scoremetric not in ['accuracy', 'precision', 'recall']:
             parser.error("-q/--scoremetric must be one of 'accuracy', 'precision' or 'recall'")
+            
         # Ensure at least one reference is supplied
         if not args.references:
             parser.error("-R/--references is required for "
@@ -303,7 +392,7 @@ def getcliargs(arglist=None):
         # create output folder if it does not exist yet
         if not os.path.exists(args.output):
             os.makedirs(args.output)
-
+ 
     elif args.mode == 'dump':
         ressum = sum([args.resultcache is not None,
                       args.resultindex is not None])
@@ -500,7 +589,7 @@ def main():
     ##########################
 
     target, nontarget = [{}, {}]
-    if args.mode == 'find':
+    if args.mode in ['find', 'filter-adaptive']:
         target, nontarget = core.get_validated(raw, args, baseinpath, totalcounts)
 
     ####################
@@ -588,9 +677,10 @@ def main():
     ###################
 
     # Generate category counts for each specification
-    sys.stdout.write("Generating binned counts\n")
-
-    counts = core.counts_from_spec(specs, data)
+    counts = {}
+    if args.mode != 'filter-adaptive':
+        sys.stdout.write("Generating binned counts\n")
+        counts = core.counts_from_spec(specs, data)
 
     ####################
     # SCORE AND OUTPUT #
@@ -662,6 +752,25 @@ def main():
 
         core.write_retained_asvs(raw['path'], os.path.join(args.output, "dump_filtered.fasta"), rejects)
         sys.stdout.write("\nCompleted dump\n\n")
+
+    elif args.mode == 'filter-adaptive':
+        sys.stdout.write(f"Running adaptive filtering (percentile: {args.percentile}, criteria: {args.criteria})\n")
+        
+        # adaptive filtering doesn't use the standard specs parsing/counts logic
+        # instead it operates on the library counts directly
+        
+        output_csv = os.path.join(args.output, "filter-adaptive_table.csv")
+        output_fasta = os.path.join(args.output, "filter-adaptive.fasta")
+        output_summary = os.path.join(args.output, "filter-adaptive_summary.csv")
+        
+        core.adaptive_filter(raw['asvs'], librarycounts, target, nontarget, 
+                             args.percentile, args.criteria, 
+                             output_csv, output_fasta, output_summary)
+        
+        sys.stdout.write(f"\nCompleted adaptive filter\n")
+        sys.stdout.write(f"Abundance table written to: {output_csv}\n")
+        sys.stdout.write(f"FASTA written to: {output_fasta}\n")
+        sys.stdout.write(f"Summary table written to: {output_summary}\n\n")
 
 
 # TODO add resume points?

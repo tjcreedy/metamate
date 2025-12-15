@@ -207,8 +207,11 @@ def parse_specs(args, null=float('nan')):
         fh.close()
     elif args.mode == 'dump':
         spectext = '*'.join([re.sub(r'\'', '', s) for s in args.specification])
+    elif args.mode == 'filter-adaptive':
+        # Dummy specs for adaptive mode
+        return {'name': []}, set(), 0, 0, []
     else:
-        sys.exit("Unrecognised args.mode")
+        sys.exit(f"Unrecognised args.mode: {args.mode}")
 
     # Check
     if not args.taxgroups and "taxon" in spectext:
@@ -717,12 +720,12 @@ def parse_resultcache(path, asvs, resultsets=None):
         try:
             setn = int(setn)
         except:
-            sys.exit(f"{err} starting value \'{setn}\' is not an integer")
+            sys.exit(f"{err} starting value '{setn}' is not an integer")
         if resultsets and setn not in resultsets:
             continue
         action = vals.pop(0)
         if action not in {'reject', 'retain'}:
-            sys.exit(f"{err} second value \'{action}\' is not 'reject' or 'retain'")
+            sys.exit(f"{err} second value '{action}' is not 'reject' or 'retain'")
         missing = [a for a in vals if a not in asvs]
         if len(missing) > 0:
             sys.exit(f"{err} ASVs {', '.join(missing)} are not present or identifiable in the "
@@ -744,3 +747,197 @@ def check_cache_otu_mode(path):
     except Exception:
         pass
     return mode
+
+
+def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria, output_csv, output_fasta, output_summary):
+    """
+    Perform per-sample filtering based on the distribution of non-authentic ASVs.
+    
+    Args:
+        asvs: dictionary of ASV identifiers (metadata/sequences)
+        librarycounts: dictionary mapping library names to dictionaries of {asv: count}
+        target: set of authentic ASVs
+        nontarget: set of non-authentic ASVs
+        percentile: percentile to target (e.g. 0.95)
+        criteria: 'verified_removed' or 'estimated_removed'
+        output_csv: path to write filtered abundance table
+        output_fasta: path to write valid ASV sequences
+        output_summary: path to write summary statistics table
+    """
+    
+    valid_thresholds = []
+    sample_thresholds = {}
+    
+    # 1. Calculate per-sample thresholds
+    skipped_samples = [] # Samples where we couldn't calculate a threshold
+    
+    for lib, counts in librarycounts.items():
+        # Get counts for this library
+        
+        # Identify non-targets in this library
+        lib_nontargets = [count for asv, count in counts.items() if asv in nontarget]
+        
+        threshold = None
+        
+        if criteria == 'verified_removed':
+            if len(lib_nontargets) > 0:
+                # Calculate percentile of verified non-authentic abundances
+                # If we want to remove X% of non-authentic ASVs, we find the Xth percentile value.
+                # All ASVs with count < threshold will be removed (check numpy.percentile behavior)
+                # numpy.percentile with 95 means 95% of data is below result.
+                # So if we want to remove 95%, we use percentile * 100.
+                threshold = numpy.percentile(lib_nontargets, percentile * 100)
+            else:
+                 # No verified non-authentic ASVs to base threshold on
+                 pass
+                 
+        elif criteria == 'estimated_removed':
+             # Get unique counts to speed up the process
+             unique_counts = sorted(list(set(counts.values())))
+             
+             best_diff = float('inf')
+             best_t = None
+             
+             # Prepare total stats for this library to save re-calculation 
+             lib_total_asvs = len(counts)
+             
+             if lib_total_asvs < 10: # Minimum data check
+                  pass
+             else:
+                 # Check if we have enough authentic/non-authentic markers
+                 lib_target_set = set(counts.keys()).intersection(target)
+                 lib_nontarget_set = set(counts.keys()).intersection(nontarget)
+                 
+                 if len(lib_target_set) > 0 and len(lib_nontarget_set) > 0:
+                     for t in unique_counts:
+                         # Simulate filtering at threshold t
+                         # Retained: >= t
+                         # Rejected: < t
+                         
+                         retained_keys = [k for k, v in counts.items() if v >= t]
+                         # rejected_keys = [k for k, v in counts.items() if v < t]
+                         
+                         retained_target_n = len(set(retained_keys).intersection(target))
+                         retained_nontarget_n = len(set(retained_keys).intersection(nontarget))
+                         
+                         retained_asvs_n = len(retained_keys)
+                         
+                         # Global stats for this library needed for estimation
+                         target_n = len(lib_target_set)
+                         nontarget_n = len(lib_nontarget_set)
+                         
+                         # Run estimation
+                         est = estimate_true_values(lib_total_asvs, retained_asvs_n, retained_target_n, target_n, retained_nontarget_n, nontarget_n)
+                         
+                         true_nontarget = est[1]
+                         true_retained_nontarget = est[3]
+                         
+                         if true_nontarget != 'NA' and true_nontarget > 0:
+                             # Calculate removed proportion
+                             removed_prop = 1.0 - (true_retained_nontarget / true_nontarget)
+                             
+                             diff = abs(removed_prop - percentile)
+                             if diff < best_diff:
+                                 best_diff = diff
+                                 best_t = t
+                     
+                     threshold = best_t
+
+        if threshold is not None:
+             valid_thresholds.append(threshold)
+             sample_thresholds[lib] = threshold
+        else:
+             skipped_samples.append(lib)
+             
+             
+    # 2. Handle Fallback
+    fallback_threshold = 0
+    if valid_thresholds:
+        fallback_threshold = numpy.mean(valid_thresholds)
+        sys.stdout.write(f"Calculated valid thresholds for {len(valid_thresholds)} samples. Mean: {fallback_threshold:.2f}\n")
+    else:
+        sys.stdout.write("Warning: No valid thresholds calculated using specified criteria. Defaulting to 1 (keep all with count >= 1).\n")
+        fallback_threshold = 1
+        
+    for lib in skipped_samples:
+        sample_thresholds[lib] = fallback_threshold
+        
+    # 3. Apply Filtering and Collect Summary Stats
+    filtered_library_counts = {}
+    retained_asvs_set = set()
+    summary_data = [] # List of tuples/dicts to write to summary CSV
+    
+    for lib, counts in librarycounts.items():
+        thresh = sample_thresholds[lib]
+        
+        # Pre-filter stats
+        asvs_present = set(counts.keys())
+        total_asvs_pre = len(asvs_present)
+        va_present = asvs_present.intersection(target)
+        vna_present = asvs_present.intersection(nontarget)
+        va_count_pre = len(va_present)
+        vna_count_pre = len(vna_present)
+        
+        # Apply filter
+        new_counts = {asv: c for asv, c in counts.items() if c >= thresh}
+        filtered_library_counts[lib] = new_counts
+        
+        # Post-filter stats
+        retained_keys = set(new_counts.keys())
+        total_asvs_post = len(retained_keys)
+        # va_retained = retained_keys.intersection(va_present) # Equivalent to intersection(target)
+        # vna_retained = retained_keys.intersection(vna_present) # Equivalent to intersection(nontarget)
+        va_count_post = len(retained_keys.intersection(target))
+        vna_count_post = len(retained_keys.intersection(nontarget))
+        
+        retained_asvs_set.update(retained_keys)
+        
+        summary_data.append({
+            "Sample": lib,
+            "Threshold": round(thresh, 2),
+            "Total_ASVs_Pre": total_asvs_pre,
+            "Verified_Authentic_Pre": va_count_pre,
+            "Verified_NonAuthentic_Pre": vna_count_pre,
+            "Total_ASVs_Post": total_asvs_post,
+            "Verified_Authentic_Post": va_count_post,
+            "Verified_NonAuthentic_Post": vna_count_post
+        })
+        
+    # 4. Write CSV
+    all_retained_asvs = sorted(list(retained_asvs_set))
+    
+    with open(output_csv, 'w') as f:
+         # Header
+         f.write("Sample,Threshold," + ",".join(all_retained_asvs) + "\n")
+         
+         for lib, counts in filtered_library_counts.items():
+             thresh = sample_thresholds.get(lib, fallback_threshold)
+             row = [lib, str(round(thresh, 2))]
+             for asv in all_retained_asvs:
+                 row.append(str(counts.get(asv, 0)))
+             f.write(",".join(row) + "\n")
+             
+    # 5. Write FASTA
+    # In metamate.py: raw['asvs'] = SeqIO.to_dict(SeqIO.parse(args.asvs, "fasta"))
+    
+    with open(output_fasta, 'w') as f:
+        for asv_name in all_retained_asvs:
+            if asv_name in asvs:
+                 record = asvs[asv_name]
+                 # If it is Bio.SeqRecord
+                 f.write(f">{asv_name}\n{str(record.seq)}\n") # simplified
+            else:
+                 pass
+                 
+    # 6. Write Summary Table
+    with open(output_summary, 'w') as f:
+        headers = ["Sample", "Threshold", "Total_ASVs_Pre", "Verified_Authentic_Pre", "Verified_NonAuthentic_Pre", 
+                   "Total_ASVs_Post", "Verified_Authentic_Post", "Verified_NonAuthentic_Post"]
+        f.write(",".join(headers) + "\n")
+        
+        # Sort summary data by sample name for niceness
+        summary_data.sort(key=lambda x: x["Sample"])
+        
+        for row in summary_data:
+            line_vals = [str(row[h]) for h in headers]
+            f.write(",".join(line_vals) + "\n")
