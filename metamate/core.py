@@ -886,7 +886,7 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
         vna_count_pre = len(vna_present)
         
         # Apply filter
-        new_counts = {asv: c for asv, c in counts.items() if c >= thresh}
+        new_counts = {asv: c for asv, c in counts.items() if c >= thresh or asv in target}
         filtered_library_counts[lib] = new_counts
         
         # Post-filter stats
