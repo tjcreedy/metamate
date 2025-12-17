@@ -120,9 +120,10 @@ It is highly recommended to use metamate in a dedicated conda environment to avo
 conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython seqkit metamate=0.5.1
 ```
 
-Then, after activating the environment:
+Then,
 
 ```
+conda activate metamate_env
 Rscript -e "install.packages(c('getopt', 'ape', 'fastcluster', 'cluster'), repos = 'https://cloud.r-project.org')"
 ```
 
