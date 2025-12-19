@@ -522,15 +522,16 @@ def main():
 
     specs, terms, nterm, nthresh, thresholds = core.parse_specs(args, 0)
     specs['otu_mode'] = args.otu_mode
-    sys.stdout.write(f"Parsed {nterm} additive specification term"
-                     f"{'s' if nterm > 1 else ''}, comprising "
-                     f"{len(specs['name'])} bin strateg"
-                     f"{'ies' if len(specs['name']) > 1 else 'y'}")
-    if args.mode == 'find':
-        sys.stdout.write(f" and totalling {nthresh} unique threshold "
-                         f"set{'s' if nthresh > 1 else ''}.\n")
-    else:
-        sys.stdout.write('.\n')
+    if args.mode != 'filter-adaptive':
+        sys.stdout.write(f"Parsed {nterm} additive specification term"
+                         f"{'s' if nterm > 1 else ''}, comprising "
+                         f"{len(specs['name'])} bin strateg"
+                         f"{'ies' if len(specs['name']) > 1 else 'y'}")
+        if args.mode == 'find':
+            sys.stdout.write(f" and totalling {nthresh} unique threshold "
+                             f"set{'s' if nthresh > 1 else ''}.\n")
+        else:
+            sys.stdout.write('.\n')
 
     ###############
     # FIND CLADES #

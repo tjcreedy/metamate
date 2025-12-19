@@ -56,11 +56,25 @@ def refmatch_BBMap(querypath, workingdir, minlen, threads, ref_fasta, totalcount
         
     input_fasta = querypath
     
+    # Create temporary sanitized reference
+    sanitized_ref = os.path.join(workingdir, "sanitized_ref.fasta")
+    
+    # Store mapping just in case, though we only need uniqueness
+    ref_map = {} 
+    
+    with open(ref_fasta, "r") as handle, open(sanitized_ref, "w") as out_handle:
+        for i, record in enumerate(SeqIO.parse(handle, "fasta")):
+            new_id = f"Ref_{i}"
+            ref_map[new_id] = record.id
+            record.id = new_id
+            record.description = new_id
+            SeqIO.write(record, out_handle, "fasta")
+            
     if use_pacbio:
         # Long Read Mode
         mem_gb = get_max_mem()
         bbmap_command = (f"mapPacBio.sh -Xmx{mem_gb}g usemodulo ambig=random semiperfectmode "
-                         f"vslow maxsites=100 ref={ref_fasta} in={input_fasta} out={BBMap_out} "
+                         f"vslow maxsites=100 ref={sanitized_ref} in={input_fasta} out={BBMap_out} "
                          f"threads={threads} nodisk")
     else:
         # Standard Mode with Length Filtering
@@ -81,8 +95,8 @@ def refmatch_BBMap(querypath, workingdir, minlen, threads, ref_fasta, totalcount
              bbmap_command = None
         else:
             input_fasta = filtered_fasta
-            bbmap_command = (f"bbmap.sh ambig=random vslow semiperfectmode maxsites=100 "
-                             f"ref={ref_fasta} in={input_fasta} out={BBMap_out} "
+            bbmap_command = (f"bbmap.sh usemodulo ambig=random vslow semiperfectmode maxsites=100 "
+                             f"ref={sanitized_ref} in={input_fasta} out={BBMap_out} "
                              f"threads={threads} nodisk")
 
     if bbmap_command:
