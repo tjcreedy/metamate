@@ -682,6 +682,58 @@ def write_retained_asvs(infile, outfile, rejects):
                 outfa.write(f">{head}\n{seq}\n")
 
 
+def enforce_validation_fasta(fasta_path, source_path, target, nontarget):
+    """Post-process a FASTA: add missing authentic ASVs, remove non-authentic ASVs."""
+    # Read current output
+    current = {}
+    with open(fasta_path, 'r') as f:
+        for head, seq in SimpleFastaParser(f):
+            current[head] = seq
+
+    # Remove non-authentics
+    for name in nontarget:
+        current.pop(name, None)
+
+    # Add missing authentics from source
+    with open(source_path, 'r') as f:
+        for head, seq in SimpleFastaParser(f):
+            if head in target and head not in current:
+                current[head] = seq
+
+    # Rewrite
+    with open(fasta_path, 'w') as f:
+        for head, seq in current.items():
+            f.write(f">{head}\n{seq}\n")
+
+
+def load_validation_from_control(controlpath):
+    """Load target and nontarget sets from a control file."""
+    target, nontarget = [], []
+    with open(controlpath, 'r') as f:
+        for line in f:
+            cat, asv = line.rstrip().split('\t')
+            if cat == 'refpass':
+                target.append(asv)
+            else:
+                nontarget.append(asv)
+    return set(target), set(nontarget)
+
+
+def load_validation_from_otu_summary(summarypath):
+    """Load target and nontarget OTU sets from an otu_summary.csv file."""
+    target, nontarget = set(), set()
+    with open(summarypath, 'r') as f:
+        header = f.readline()
+        for line in f:
+            parts = line.rstrip().split(',')
+            otu, otu_status = parts[1], parts[3]
+            if otu_status == 'Authentic':
+                target.add(otu)
+            elif otu_status == 'Non-Authentic':
+                nontarget.add(otu)
+    return target, nontarget
+
+
 def make_resultset_paths(name, resultsets):
     if len(resultsets) > 1:
         paths = {rs: f"{name}_resultset{rs}.fasta" for rs in resultsets}
@@ -885,8 +937,8 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
         va_count_pre = len(va_present)
         vna_count_pre = len(vna_present)
         
-        # Apply filter
-        new_counts = {asv: c for asv, c in counts.items() if c >= thresh or asv in target}
+        # Apply filter (threshold only; enforcement is applied as post-processing)
+        new_counts = {asv: c for asv, c in counts.items() if c >= thresh}
         filtered_library_counts[lib] = new_counts
         
         # Post-filter stats

@@ -11,7 +11,7 @@ import sys
 import warnings
 import argparse
 import scipy.stats
-import copy
+
 import textwrap as _textwrap
 
 from Bio import SeqIO
@@ -89,15 +89,17 @@ def detect_frame(seqrecords, table, pthresh=0.95, minstops=100):
     return counts.index(min(counts)) + 1
 
 
-def stopcount(seqrecord, table, frame=(1, 2, 3)):
+def stopcount(seqrecord, table, frame=(1, 2, 3), reverse=False):
     # Check input types
     run_frame = (frame,) if not isinstance(frame, (tuple, list)) else frame
+    # Get the sequence, reverse complement if requested
+    seq_to_use = seqrecord.seq.reverse_complement() if reverse else seqrecord.seq
     # Run counting
     counts = []
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)
         for i in run_frame:
-            seq = seqrecord.seq[(i - 1):]
+            seq = seq_to_use[(i - 1):]
             counts.append(seq.translate(table=table).count("*"))
     # Return string or list depending on length
     if len(counts) > 1:
@@ -106,18 +108,20 @@ def stopcount(seqrecord, table, frame=(1, 2, 3)):
         return counts[0]
 
 
-def check_stops_multi(seqdict, args, fail=False):
-    # Find reading frame
-    if args.readingframe:
-        frame = args.readingframe
-    else:
-        frame = detect_frame(seqdict, args.table, args.detectionconfidence,
-                             args.detectionminstops)
+def min_stopcount(seqrecord, table):
+    """Return the minimum stop codon count across all 6 reading frames
+    (3 forward + 3 reverse complement)."""
+    fwd_counts = stopcount(seqrecord, table, frame=(1, 2, 3))
+    rev_counts = stopcount(seqrecord, table, frame=(1, 2, 3), reverse=True)
+    return min(fwd_counts + rev_counts)
 
-    # Filter
+
+def check_stops_multi(seqdict, args, fail=False):
+    # Filter each sequence by checking all 6 reading frames and using
+    # the minimum stop codon count
     out = []
     for name, seq in seqdict.items():
-        stops = stopcount(seq, args.table, frame) > 0
+        stops = min_stopcount(seq, args.table) > 0
         if (not stops and not fail) or (stops and fail):
             out.append(name)
 
@@ -172,30 +176,6 @@ def getcliargs(arglist=None):
 def main():
     # Get options
     args = getcliargs()
-    # args = getcliargs(['-i', 'tests/data/3_derep.fasta', '-t', '5', '-o', 'test', '-y', 'separate'])
-    # Check for bad options
-    if ((args.detectionconfidence != 0.95 or args.detectionminstops != 100) and args.readingframe):
-        sys.stdout.write("Warning: specifying a detection confidence or detection minstops is "
-                         "useless if the reading frame is known, this will be ignored\n")
-    # Load sequences
-    ntseqs = list(SeqIO.parse(args.input, "fasta"))
-
-    # Find frame
-    if args.readingframe:
-        frame = args.readingframe
-    else:
-        frame = detect_frame(ntseqs, args.table, args.detectionconfidence, args.detectionminstops)
-        sys.stdout.write(f"Reading frame {frame} detected\n")
-        sys.stdout.flush()
-    # Translate sequences
-    aaseqs = []
-    for ntr in ntseqs:
-        # seqr = ntseqs[0]
-        aar = copy.deepcopy(ntr)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', BiopythonWarning)
-            aar.seq = ntr.seq[frame - 1:].translate(table=args.table)
-        aaseqs.append(aar)
 
     # Output depending on options
     passcount = 0
@@ -205,7 +185,7 @@ def main():
             with open(f"{args.output}_pass.fa", "w") as passout, open(
                     f"{args.output}_fail.fa", "w") as failout:
                 for head, seq in SimpleFastaParser(infasta):
-                    if stopcount(SeqRecord(Seq(seq)), args.table, frame) == 0:
+                    if min_stopcount(SeqRecord(Seq(seq)), args.table) == 0:
                         passout.write(f">{head}\n{seq}\n")
                         passcount += 1
                     else:
@@ -214,7 +194,7 @@ def main():
         else:
             with open(args.output, "w") as outfasta:
                 for head, seq in SimpleFastaParser(infasta):
-                    if stopcount(SeqRecord(Seq(seq)), args.table, frame) == 0:
+                    if min_stopcount(SeqRecord(Seq(seq)), args.table) == 0:
                         head += '_pass' if args.outtype == 'both' else ''
                         if args.outtype in ['both', 'pass']:
                             outfasta.write(f">{head}\n{seq}\n")
@@ -227,7 +207,7 @@ def main():
 
     # Print report
     sys.stdout.write(f"{passcount} of {passcount + failcount} sequences passed translation "
-                     f"filtering\n")
+                     f"filtering (checked all 6 reading frames per sequence)\n")
 
 
 if __name__ == "__main__":

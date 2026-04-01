@@ -121,6 +121,14 @@ def getcliargs(arglist=None):
     corearg.add_argument("-t", "--threads",
                          help="number of threads to use (default 1)",
                          default=1, metavar="n", type=int)
+    corearg.add_argument("--enforcevalidation",
+                         help="automatically remove all validated non-authentic ASVs and retain "
+                              "all validated authentic ASVs in the final output, regardless of "
+                              "threshold-based filtering (default: enabled). Use "
+                              "--no-enforcevalidation to disable and output only threshold-based "
+                              "filtering results",
+                         action=argparse.BooleanOptionalAction,
+                         default=True)
 
     # Clade finder variables
     cladbin = coreparser.add_argument_group('clade binning')
@@ -510,6 +518,40 @@ def main():
              base_path = os.path.join(args.output, "dump")
         core.write_resultset_asvs(set(raw['asvs'].keys()), args.resultindex, args.resultcache,
                                   raw['path'], base_path, args.mode)
+
+        # Post-process: enforce validation on the output FASTAs
+        if args.enforcevalidation:
+            cache_dir = os.path.dirname(os.path.abspath(args.resultcache))
+            asv_basename = os.path.splitext(os.path.basename(args.asvs))[0]
+            paths = core.make_resultset_paths(base_path, args.resultindex)
+
+            if otu_mode:
+                otu_summary_path = os.path.join(cache_dir, "otu_summary.csv")
+                if os.path.exists(otu_summary_path):
+                    ev_target, ev_nontarget = core.load_validation_from_otu_summary(otu_summary_path)
+                    for fasta_path in paths.values():
+                        if os.path.exists(fasta_path):
+                            core.enforce_validation_fasta(fasta_path, raw['path'],
+                                                          ev_target, ev_nontarget)
+                    sys.stdout.write(f"Enforced validation: {len(ev_target)} authentic OTUs "
+                                     f"included, {len(ev_nontarget)} non-authentic OTUs removed\n")
+                else:
+                    sys.stdout.write(f"Warning: OTU summary not found at {otu_summary_path}, "
+                                     f"skipping validation enforcement\n")
+            else:
+                controlpath = os.path.join(cache_dir, asv_basename + "_control.txt")
+                if os.path.exists(controlpath):
+                    ev_target, ev_nontarget = core.load_validation_from_control(controlpath)
+                    for fasta_path in paths.values():
+                        if os.path.exists(fasta_path):
+                            core.enforce_validation_fasta(fasta_path, raw['path'],
+                                                          ev_target, ev_nontarget)
+                    sys.stdout.write(f"Enforced validation: {len(ev_target)} authentic ASVs "
+                                     f"included, {len(ev_nontarget)} non-authentic ASVs removed\n")
+                else:
+                    sys.stdout.write(f"Warning: control file not found at {controlpath}, "
+                                     f"skipping validation enforcement\n")
+
         if os.path.exists(tempbasepath + "unaligned.fasta"):
             os.remove(tempbasepath + "unaligned.fasta")
         sys.stdout.write("\nCompleted dump\n\n")
@@ -595,7 +637,7 @@ def main():
     # DESIGNATE CONTROL SETS #
     ##########################
 
-    target, nontarget = [{}, {}]
+    target, nontarget = [set(), set()]
     if args.mode in ['find', 'filter-adaptive']:
         target, nontarget = core.get_validated(raw, args, baseinpath, totalcounts)
 
@@ -757,7 +799,34 @@ def main():
 
         # OUTPUT
 
-        core.write_retained_asvs(raw['path'], os.path.join(args.output, "dump_filtered.fasta"), rejects)
+        dump_fasta = os.path.join(args.output, "dump_filtered.fasta")
+        core.write_retained_asvs(raw['path'], dump_fasta, rejects)
+
+        # Post-process: enforce validation if control/summary file is available
+        if args.enforcevalidation:
+            if hasattr(args, 'otu_mode') and args.otu_mode:
+                otu_summary_path = os.path.join(args.output, "otu_summary.csv")
+                if os.path.exists(otu_summary_path):
+                    ev_target, ev_nontarget = core.load_validation_from_otu_summary(otu_summary_path)
+                    core.enforce_validation_fasta(dump_fasta, raw['path'],
+                                                  ev_target, ev_nontarget)
+                    sys.stdout.write(f"Enforced validation: {len(ev_target)} authentic OTUs "
+                                     f"included, {len(ev_nontarget)} non-authentic OTUs removed\n")
+                else:
+                    sys.stdout.write(f"Warning: OTU summary not found at {otu_summary_path}, "
+                                     f"skipping validation enforcement\n")
+            else:
+                controlpath = baseinpath + "_control.txt"
+                if os.path.exists(controlpath):
+                    ev_target, ev_nontarget = core.load_validation_from_control(controlpath)
+                    core.enforce_validation_fasta(dump_fasta, raw['path'],
+                                                  ev_target, ev_nontarget)
+                    sys.stdout.write(f"Enforced validation: {len(ev_target)} authentic ASVs "
+                                     f"included, {len(ev_nontarget)} non-authentic ASVs removed\n")
+                else:
+                    sys.stdout.write(f"Warning: control file not found at {controlpath}, "
+                                     f"skipping validation enforcement\n")
+
         sys.stdout.write("\nCompleted dump\n\n")
 
     elif args.mode == 'filter-adaptive':
@@ -770,10 +839,35 @@ def main():
         output_fasta = os.path.join(args.output, "filter-adaptive.fasta")
         output_summary = os.path.join(args.output, "filter-adaptive_summary.csv")
         
-        core.adaptive_filter(raw['asvs'], librarycounts, target, nontarget, 
-                             args.percentile, args.criteria, 
+        core.adaptive_filter(raw['asvs'], librarycounts, target, nontarget,
+                             args.percentile, args.criteria,
                              output_csv, output_fasta, output_summary)
-        
+
+        # Post-process: enforce validation on output FASTA
+        if args.enforcevalidation:
+            if args.otu_mode:
+                otu_summary_path = os.path.join(args.output, "otu_summary.csv")
+                if os.path.exists(otu_summary_path):
+                    ev_target, ev_nontarget = core.load_validation_from_otu_summary(otu_summary_path)
+                    core.enforce_validation_fasta(output_fasta, raw['path'],
+                                                  ev_target, ev_nontarget)
+                    sys.stdout.write(f"Enforced validation: {len(ev_target)} authentic OTUs "
+                                     f"included, {len(ev_nontarget)} non-authentic OTUs removed\n")
+                else:
+                    sys.stdout.write(f"Warning: OTU summary not found at {otu_summary_path}, "
+                                     f"skipping validation enforcement\n")
+            else:
+                controlpath = baseinpath + "_control.txt"
+                if os.path.exists(controlpath):
+                    ev_target, ev_nontarget = core.load_validation_from_control(controlpath)
+                    core.enforce_validation_fasta(output_fasta, raw['path'],
+                                                  ev_target, ev_nontarget)
+                    sys.stdout.write(f"Enforced validation: {len(ev_target)} authentic ASVs "
+                                     f"included, {len(ev_nontarget)} non-authentic ASVs removed\n")
+                else:
+                    sys.stdout.write(f"Warning: control file not found at {controlpath}, "
+                                     f"skipping validation enforcement\n")
+
         sys.stdout.write(f"\nCompleted adaptive filter\n")
         sys.stdout.write(f"Abundance table written to: {output_csv}\n")
         sys.stdout.write(f"FASTA written to: {output_fasta}\n")
