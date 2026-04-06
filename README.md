@@ -112,46 +112,38 @@ The R packages getopt, ape and fastcluster are also required.
 
 ### Quick install
 
+metaMATE can be installed via pixi using the following commands:
 
-It is highly recommended to use metamate in a dedicated conda environment to avoid dependency issues. If you're on ubuntu linux, you can run:
+```
+pixi init metamate_workspace
+cd metamate_workspace/
+pixi workspace channel add conda-forge
+pixi workspace channel add bioconda
+pixi add metamate
+```
+After which, metamate can be executed with:
+```
+pixi run metamate -h  
+```
+
+
+Alternatively, metaMATE can be installed in a dedicated conda environment. If you're on ubuntu linux, you can run:
 
 
 ```
 conda create -n metamate_env -c conda-forge -c bioconda python=3.10 pip r-base pysam bbmap mafft scipy numpy biopython seqkit metamate=0.5.2
 ```
 
-Then,
+
+Finally, ensure the necessary R libraries are installed:
 
 ```
 conda activate metamate_env
 Rscript -e "install.packages(c('getopt', 'ape', 'fastcluster', 'cluster'), repos = 'https://cloud.r-project.org')"
 ```
 
-
-Alternatively, you can use pip to install the dependencies and metamate (careful, as the pip version of metamate is not the most recent one):
-
-```
-sudo apt install python3 python3-pip mafft r-base
-python3 -m pip install metaMATE
-```
-
-or
-
-```
-sudo -H python3 -m pip install metaMATE
-```
-
-If the above fails, ensure that the python version that `python3` refers to in your current environment is >=3.6 (`python3 --version`).
-
-Finally, ensure the necessary R libraries are installed:
-
-```
-Rscript -e "install.packages(c('getopt', 'ape', 'fastcluster', 'cluster'), repos = 'https://cloud.r-project.org')"
-```
-You should run this with `sudo` if you want metaMATE to be available to all users without each user having to run this command. If you are installing metaMATE without `sudo` and the above command fails, it is because you don't have a personal R package library to install into. The easiest way to fix this is to open up an interactive R session by running `R`, then running the `install.packages` command within that session - you will be prompted to create a personal library.
-
-
 Done!
+
 
 ## Usage
 
