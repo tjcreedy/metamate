@@ -99,12 +99,22 @@ def refmatch_BBMap(querypath, workingdir, minlen, threads, ref_fasta, totalcount
                              f"ref={sanitized_ref} in={input_fasta} out={BBMap_out} "
                              f"threads={threads} nodisk")
 
+    bbmap_stderr = ""
+    bbmap_returncode = 0
     if bbmap_command:
         sys.stdout.write(f"Running alignment command: {bbmap_command}\n")
-        bbmap_process = subprocess.Popen(bbmap_command, shell = True, 
-                                        stdout = subprocess.PIPE, 
+        bbmap_process = subprocess.Popen(bbmap_command, shell = True,
+                                        stdout = subprocess.PIPE,
                                         stderr = subprocess.PIPE)
-        bbmap_process.wait()
+        _, stderr_bytes = bbmap_process.communicate()
+        bbmap_stderr = stderr_bytes.decode("utf-8", errors="replace")
+        bbmap_returncode = bbmap_process.returncode
+
+    memory_error = (
+        "OutOfMemoryError" in bbmap_stderr
+        or "out of memory" in bbmap_stderr.lower()
+        or bbmap_returncode == 137  # SIGKILL (OOM killer)
+    )
 
     # Get result
     dict_length_pass = {}
@@ -117,13 +127,28 @@ def refmatch_BBMap(querypath, workingdir, minlen, threads, ref_fasta, totalcount
             for read in bamfile:
                 # pick only the query sequences that were aligned
                 if read.reference_name != None:
-                    if read.query_alignment_length >= minlen:  
+                    if read.query_alignment_length >= minlen:
                         #  generate a dict to sort out query sequences that matched with the same reference sequence
-                        dict_length_pass[read.query_name] = read.reference_name          
+                        dict_length_pass[read.query_name] = read.reference_name
             bamfile.close()
         except ValueError:
             # Handle case where file exists but might be empty or invalid (e.g. no header)
             sys.stderr.write(f"Warning: Could not parse SAM file {BBMap_out}. Assuming no matches.\n")
+
+    if len(dict_length_pass) == 0:
+        if memory_error:
+            sys.stderr.write(
+                "ERROR: BBMap alignment produced no matches and a memory error was detected.\n"
+                "The run was likely terminated due to insufficient memory (-Xmx limit reached).\n"
+                "Try reducing the number of threads, increasing available RAM, or splitting the input.\n"
+            )
+        else:
+            sys.stderr.write(
+                "ERROR: BBMap alignment produced no matches against the reference.\n"
+                "Either no query sequences matched the reference, or the alignment was terminated early due to memory limits.\n"
+                "Check that the reference and query files are correct and that sufficient memory is available.\n"
+            )
+        sys.exit(1)
 
     if args.ignoreambigASVs:
         out = [v[0] for v in [[k for k in dict_length_pass if dict_length_pass[k] == v] for v in set(dict_length_pass.values())] if len(v) == 1]

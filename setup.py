@@ -1,4 +1,5 @@
 import setuptools
+from metamate import __version__
 
 #from distutils.command.install import INSTALL_SCHEMES
 
@@ -6,8 +7,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="metaMATE", # Replace with your own username
-    version="v0.4.3",
+    name="metaMATE",
+    version=__version__,
     author="Thomas J. Creedy",
     author_email="thomas.creedy@gmail.com",
     description="metaMATE: validated removal of pseudogenes and sequencing "

@@ -20,6 +20,8 @@ from Bio import SeqIO
 from . import core
 from . import binning
 from . import filterlength
+from . import __version__
+import csv
 
 
 # Class definitions
@@ -81,6 +83,7 @@ def getcliargs(arglist=None):
         description="arguments can be passed on the command line or in a file, one per line, and "
                     "the file specified as @args.txt on the commandline",
         fromfile_prefix_chars='@')
+    parser.add_argument("--version", action="version", version=f"metaMATE {__version__}")
     parser._positionals.title = "mode to run"
     parser._optionals.title = "optional arguments"
 
@@ -457,6 +460,53 @@ def getcliargs(arglist=None):
     return args
 
 
+def subset_table(fasta_path, table_path, output_path):
+    """Filter an abundance table to retain only rows whose
+    first-column ID appears in the given FASTA file."""
+    # Parse FASTA sequence IDs
+    fasta_ids = set()
+    with open(fasta_path) as f:
+        for line in f:
+            if line.startswith(">"):
+                fasta_ids.add(line.strip().lstrip(">"))
+
+    sys.stdout.write(f"Subsetting table: {len(fasta_ids)} sequences in FASTA\n")
+
+    # Detect separator
+    with open(table_path) as f:
+        firstline = f.readline().strip()
+    if '\t' in firstline:
+        sep = '\t'
+    elif ',' in firstline:
+        sep = ','
+    else:
+        sys.stderr.write(f"Warning: cannot detect separator in {table_path}, assuming tab\n")
+        sep = '\t'
+
+    # Read table, filter rows by first column
+    with open(table_path, newline="") as f:
+        reader = csv.reader(f, delimiter=sep)
+        header = next(reader)
+        kept_rows = []
+        skipped = 0
+        for row in reader:
+            if row[0] in fasta_ids:
+                kept_rows.append(row)
+            else:
+                skipped += 1
+
+    sys.stdout.write(f"  OTUs kept: {len(kept_rows)}, removed: {skipped}\n")
+
+    # Write filtered table using same separator
+    with open(output_path, "w", newline="") as f:
+        writer = csv.writer(f, delimiter=sep)
+        writer.writerow(header)
+        for row in kept_rows:
+            writer.writerow(row)
+
+    sys.stdout.write(f"  Filtered table written to: {output_path}\n")
+
+
 def main():
     #######################
     # INITIAL PREPARATION #
@@ -551,6 +601,13 @@ def main():
                 else:
                     sys.stdout.write(f"Warning: control file not found at {controlpath}, "
                                      f"skipping validation enforcement\n")
+
+            # Subset the original table to match the filtered FASTA(s)
+            if args.readmap:
+                for fasta_path in paths.values():
+                    if os.path.exists(fasta_path):
+                        table_out = os.path.splitext(fasta_path)[0] + "_table_filtered.txt"
+                        subset_table(fasta_path, args.readmap, table_out)
 
         if os.path.exists(tempbasepath + "unaligned.fasta"):
             os.remove(tempbasepath + "unaligned.fasta")
@@ -827,6 +884,15 @@ def main():
                     sys.stdout.write(f"Warning: control file not found at {controlpath}, "
                                      f"skipping validation enforcement\n")
 
+            # Subset the original table to match the filtered FASTA
+            original_table = args.readmap if args.readmap else libcountpath
+            if os.path.exists(original_table):
+                table_out = os.path.splitext(dump_fasta)[0] + "_table_filtered.txt"
+                subset_table(dump_fasta, original_table, table_out)
+            else:
+                sys.stderr.write(f"Warning: count table not found at {original_table}, "
+                                 f"skipping table subsetting.\n")
+
         sys.stdout.write("\nCompleted dump\n\n")
 
     elif args.mode == 'filter-adaptive':
@@ -867,6 +933,15 @@ def main():
                 else:
                     sys.stdout.write(f"Warning: control file not found at {controlpath}, "
                                      f"skipping validation enforcement\n")
+
+            # Subset the original table to match the filtered FASTA
+            original_table = args.readmap if args.readmap else libcountpath
+            if os.path.exists(original_table):
+                table_out = os.path.splitext(output_fasta)[0] + "_table_filtered.txt"
+                subset_table(output_fasta, original_table, table_out)
+            else:
+                sys.stderr.write(f"Warning: count table not found at {original_table}, "
+                                 f"skipping table subsetting.\n")
 
         sys.stdout.write(f"\nCompleted adaptive filter\n")
         sys.stdout.write(f"Abundance table written to: {output_csv}\n")
