@@ -460,9 +460,15 @@ def getcliargs(arglist=None):
     return args
 
 
-def subset_table(fasta_path, table_path, output_path):
+def subset_table(fasta_path, table_path, output_path, filtered_library_counts=None):
     """Filter an abundance table to retain only rows whose
-    first-column ID appears in the given FASTA file."""
+    first-column ID appears in the given FASTA file.
+
+    If `filtered_library_counts` is provided (mapping sample -> {id: count}),
+    additionally zero out any cell whose value did not survive per-sample
+    threshold filtering. This assumes the table has IDs as rows and samples
+    as columns (header[0] is the row-ID column, header[1:] are sample names).
+    """
     # Parse FASTA sequence IDs
     fasta_ids = set()
     with open(fasta_path) as f:
@@ -496,6 +502,25 @@ def subset_table(fasta_path, table_path, output_path):
                 skipped += 1
 
     sys.stdout.write(f"  OTUs kept: {len(kept_rows)}, removed: {skipped}\n")
+
+    # Optionally zero out cells eliminated by per-sample threshold filter.
+    cells_zeroed = 0
+    if filtered_library_counts is not None:
+        sample_names = header[1:]
+        missing_samples = [s for s in sample_names if s not in filtered_library_counts]
+        if missing_samples:
+            sys.stderr.write(
+                f"  Warning: header sample names not found in filtered counts "
+                f"({', '.join(missing_samples)}); their columns will be zeroed.\n"
+            )
+        for row in kept_rows:
+            row_id = row[0]
+            for j, sample in enumerate(sample_names, start=1):
+                kept_count = filtered_library_counts.get(sample, {}).get(row_id, 0)
+                if kept_count == 0 and row[j] not in ("", "0"):
+                    row[j] = "0"
+                    cells_zeroed += 1
+        sys.stdout.write(f"  cells zeroed by per-sample threshold: {cells_zeroed}\n")
 
     # Write filtered table using same separator
     with open(output_path, "w", newline="") as f:
@@ -602,12 +627,15 @@ def main():
                     sys.stdout.write(f"Warning: control file not found at {controlpath}, "
                                      f"skipping validation enforcement\n")
 
-            # Subset the original table to match the filtered FASTA(s)
-            if args.readmap:
+            # Subset the original table to match the filtered FASTA(s).
+            # In OTU mode the FASTAs contain OTU centroid IDs, so subset the OTU
+            # table; otherwise subset the ASV-level readmap.
+            original_table = args.otu_table if otu_mode else args.readmap
+            if original_table:
                 for fasta_path in paths.values():
                     if os.path.exists(fasta_path):
                         table_out = os.path.splitext(fasta_path)[0] + "_table_filtered.txt"
-                        subset_table(fasta_path, args.readmap, table_out)
+                        subset_table(fasta_path, original_table, table_out)
 
         if os.path.exists(tempbasepath + "unaligned.fasta"):
             os.remove(tempbasepath + "unaligned.fasta")
@@ -884,8 +912,13 @@ def main():
                     sys.stdout.write(f"Warning: control file not found at {controlpath}, "
                                      f"skipping validation enforcement\n")
 
-            # Subset the original table to match the filtered FASTA
-            original_table = args.readmap if args.readmap else libcountpath
+            # Subset the original table to match the filtered FASTA. In OTU mode,
+            # subset the OTU table; otherwise use the ASV-level readmap (see note in
+            # the filter-adaptive branch).
+            if args.otu_mode:
+                original_table = args.otu_table
+            else:
+                original_table = args.readmap if args.readmap else libcountpath
             if os.path.exists(original_table):
                 table_out = os.path.splitext(dump_fasta)[0] + "_table_filtered.txt"
                 subset_table(dump_fasta, original_table, table_out)
@@ -905,9 +938,11 @@ def main():
         output_fasta = os.path.join(args.output, "filter-adaptive.fasta")
         output_summary = os.path.join(args.output, "filter-adaptive_summary.csv")
         
-        core.adaptive_filter(raw['asvs'], librarycounts, target, nontarget,
-                             args.percentile, args.criteria,
-                             output_csv, output_fasta, output_summary)
+        filtered_library_counts = core.adaptive_filter(
+            raw['asvs'], librarycounts, target, nontarget,
+            args.percentile, args.criteria,
+            output_csv, output_fasta, output_summary,
+            enforcevalidation=args.enforcevalidation)
 
         # Post-process: enforce validation on output FASTA
         if args.enforcevalidation:
@@ -934,11 +969,19 @@ def main():
                     sys.stdout.write(f"Warning: control file not found at {controlpath}, "
                                      f"skipping validation enforcement\n")
 
-            # Subset the original table to match the filtered FASTA
-            original_table = args.readmap if args.readmap else libcountpath
+            # Subset the original table to match the filtered FASTA.
+            # In OTU mode, subset the OTU table (rows are OTU centroid IDs); otherwise
+            # use the ASV-level readmap. Falling back to args.readmap in OTU mode would
+            # subset an ASV table by OTU centroid IDs, dropping all non-centroid member
+            # ASV reads from each surviving OTU.
+            if args.otu_mode:
+                original_table = args.otu_table
+            else:
+                original_table = args.readmap if args.readmap else libcountpath
             if os.path.exists(original_table):
                 table_out = os.path.splitext(output_fasta)[0] + "_table_filtered.txt"
-                subset_table(output_fasta, original_table, table_out)
+                subset_table(output_fasta, original_table, table_out,
+                             filtered_library_counts=filtered_library_counts)
             else:
                 sys.stderr.write(f"Warning: count table not found at {original_table}, "
                                  f"skipping table subsetting.\n")

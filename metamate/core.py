@@ -808,7 +808,7 @@ def check_cache_otu_mode(path):
     return mode
 
 
-def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria, output_csv, output_fasta, output_summary):
+def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria, output_csv, output_fasta, output_summary, enforcevalidation=True):
     """
     Perform per-sample filtering based on the distribution of non-authentic ASVs.
     
@@ -937,8 +937,13 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
         va_count_pre = len(va_present)
         vna_count_pre = len(vna_present)
         
-        # Apply filter (threshold only; enforcement is applied as post-processing)
-        new_counts = {asv: c for asv, c in counts.items() if c >= thresh}
+        # Apply filter (threshold + optional target rescue when enforcevalidation is
+        # on, so authentic ASVs/OTUs keep their input counts even below the per-sample
+        # threshold).
+        if enforcevalidation:
+            new_counts = {asv: c for asv, c in counts.items() if c >= thresh or asv in target}
+        else:
+            new_counts = {asv: c for asv, c in counts.items() if c >= thresh}
         filtered_library_counts[lib] = new_counts
         
         # Post-filter stats
@@ -1000,3 +1005,5 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
         for row in summary_data:
             line_vals = [str(row[h]) for h in headers]
             f.write(",".join(line_vals) + "\n")
+
+    return filtered_library_counts
