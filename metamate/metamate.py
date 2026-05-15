@@ -938,14 +938,15 @@ def main():
         output_fasta = os.path.join(args.output, "filter-adaptive.fasta")
         output_summary = os.path.join(args.output, "filter-adaptive_summary.csv")
         
-        filtered_library_counts = core.adaptive_filter(
+        filtered_library_counts, sample_thresholds, fallback_threshold, retained_asvs = core.adaptive_filter(
             raw['asvs'], librarycounts, target, nontarget,
             args.percentile, args.criteria,
-            output_csv, output_fasta, output_summary,
+            output_fasta, output_summary,
             enforcevalidation=args.enforcevalidation)
 
         # Post-process: enforce validation on output FASTA
         if args.enforcevalidation:
+            ev_nontarget = set()
             if args.otu_mode:
                 otu_summary_path = os.path.join(args.output, "otu_summary.csv")
                 if os.path.exists(otu_summary_path):
@@ -968,6 +969,12 @@ def main():
                 else:
                     sys.stdout.write(f"Warning: control file not found at {controlpath}, "
                                      f"skipping validation enforcement\n")
+
+            core.write_adaptive_csv(filtered_library_counts, retained_asvs - ev_nontarget,
+                                    sample_thresholds, fallback_threshold, output_csv)
+        else:
+            core.write_adaptive_csv(filtered_library_counts, retained_asvs,
+                                    sample_thresholds, fallback_threshold, output_csv)
 
             # Subset the original table to match the filtered FASTA.
             # In OTU mode, subset the OTU table (rows are OTU centroid IDs); otherwise

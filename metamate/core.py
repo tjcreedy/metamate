@@ -808,7 +808,20 @@ def check_cache_otu_mode(path):
     return mode
 
 
-def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria, output_csv, output_fasta, output_summary, enforcevalidation=True):
+def write_adaptive_csv(filtered_library_counts, retained_asvs, sample_thresholds, fallback_threshold, output_csv):
+    """Write the adaptive-filter abundance table CSV from a caller-supplied ASV set."""
+    all_retained_asvs = sorted(retained_asvs)
+    with open(output_csv, 'w') as f:
+        f.write("Sample,Threshold," + ",".join(all_retained_asvs) + "\n")
+        for lib, counts in filtered_library_counts.items():
+            thresh = sample_thresholds.get(lib, fallback_threshold)
+            row = [lib, str(round(thresh, 2))]
+            for asv in all_retained_asvs:
+                row.append(str(counts.get(asv, 0)))
+            f.write(",".join(row) + "\n")
+
+
+def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria, output_fasta, output_summary, enforcevalidation=True):
     """
     Perform per-sample filtering based on the distribution of non-authentic ASVs.
     
@@ -873,7 +886,7 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
                          # Retained: >= t
                          # Rejected: < t
                          
-                         retained_keys = [k for k, v in counts.items() if v >= t]
+                         retained_keys = [k for k, v in counts.items() if v > t]
                          # rejected_keys = [k for k, v in counts.items() if v < t]
                          
                          retained_target_n = len(set(retained_keys).intersection(target))
@@ -941,17 +954,18 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
         # on, so authentic ASVs/OTUs keep their input counts even below the per-sample
         # threshold).
         if enforcevalidation:
-            new_counts = {asv: c for asv, c in counts.items() if c >= thresh or asv in target}
+            new_counts = {asv: c for asv, c in counts.items() if c > thresh or asv in target}
         else:
-            new_counts = {asv: c for asv, c in counts.items() if c >= thresh}
+            new_counts = {asv: c for asv, c in counts.items() if c > thresh}
         filtered_library_counts[lib] = new_counts
         
         # Post-filter stats
         retained_keys = set(new_counts.keys())
         total_asvs_post = len(retained_keys)
-        # va_retained = retained_keys.intersection(va_present) # Equivalent to intersection(target)
-        # vna_retained = retained_keys.intersection(vna_present) # Equivalent to intersection(nontarget)
-        va_count_post = len(retained_keys.intersection(target))
+        # For summary: count authentics that passed the threshold on their own, without rescue,
+        # so the column reflects filtering stringency rather than always equalling the pre count.
+        threshold_survivors = {asv for asv, c in counts.items() if c > thresh}
+        va_count_post = len(threshold_survivors.intersection(target))
         vna_count_post = len(retained_keys.intersection(nontarget))
         
         retained_asvs_set.update(retained_keys)
@@ -967,25 +981,11 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
             "Verified_NonAuthentic_Post": vna_count_post
         })
         
-    # 4. Write CSV
-    all_retained_asvs = sorted(list(retained_asvs_set))
-    
-    with open(output_csv, 'w') as f:
-         # Header
-         f.write("Sample,Threshold," + ",".join(all_retained_asvs) + "\n")
-         
-         for lib, counts in filtered_library_counts.items():
-             thresh = sample_thresholds.get(lib, fallback_threshold)
-             row = [lib, str(round(thresh, 2))]
-             for asv in all_retained_asvs:
-                 row.append(str(counts.get(asv, 0)))
-             f.write(",".join(row) + "\n")
-             
-    # 5. Write FASTA
+    # 4. Write FASTA
     # In metamate.py: raw['asvs'] = SeqIO.to_dict(SeqIO.parse(args.asvs, "fasta"))
     
     with open(output_fasta, 'w') as f:
-        for asv_name in all_retained_asvs:
+        for asv_name in sorted(retained_asvs_set):
             if asv_name in asvs:
                  record = asvs[asv_name]
                  # If it is Bio.SeqRecord
@@ -1006,4 +1006,4 @@ def adaptive_filter(asvs, librarycounts, target, nontarget, percentile, criteria
             line_vals = [str(row[h]) for h in headers]
             f.write(",".join(line_vals) + "\n")
 
-    return filtered_library_counts
+    return filtered_library_counts, sample_thresholds, fallback_threshold, retained_asvs_set
