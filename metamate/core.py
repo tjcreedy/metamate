@@ -344,12 +344,21 @@ def get_validated(raw, args, basepath, totalcounts):
     wd = filterreference.make_temp_bbmapwd(args.output, "bbmap")
     allcandidates = []
 
-    sys.stdout.write(f"Identifying validated authentic ASVs based on {args.references}...")
+    # Combine the primary reference with an optional second (e.g. more local)
+    # reference; refmatch then treats them as a single reference set.
+    references2 = getattr(args, 'references2', None)
+    referencepath = filterreference.combine_references([args.references, references2], wd)
+
+    if references2:
+        sys.stdout.write(f"Identifying validated authentic ASVs based on {args.references} "
+                         f"and {references2}...")
+    else:
+        sys.stdout.write(f"Identifying validated authentic ASVs based on {args.references}...")
     sys.stdout.flush()
 
     # mp, ml = [args.refmatchpercent, args.refmatchlength]
-   
-    candidates = filterreference.refmatch_BBMap(raw['path'], wd, args.refmatchlength, args.threads, args.references, totalcounts, args)
+
+    candidates = filterreference.refmatch_BBMap(raw['path'], wd, args.refmatchlength, args.threads, referencepath, totalcounts, args)
 
     allcandidates.extend(candidates)
     

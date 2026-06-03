@@ -110,6 +110,7 @@ This enforcement is applied to both the output FASTA and the output abundance ta
 * **`-A/--asvs`** *(required)* — FASTA of the unique sequences to filter.
 * **per-sample reads** *(required, exactly one)* — `-M/--readmap` (a count table) **or** `-L/--libraries` (per-library read files / a single annotated file). Not required in OTU mode (see below), where counts come from `--otu_table`.
 * **`-R/--references`** *(required)* — FASTA of reference sequences used to designate verified-authentic ASVs.
+* **`--references2`** *(optional)* — a second FASTA of reference sequences (e.g. a smaller, more local reference that better matches the query sequences); it is concatenated with `-R/--references` and the combined set is used for matching.
 * **a length specification** *(required)* — enough length arguments to compute the acceptable range, e.g. `--expectedlength 418 --percentvar 0`, or `-n/--minimumlength` and `-x/--maximumlength`. ASVs outside the range are verified non-authentic. See [length-based arguments](#length-based-arguments).
 * **`-s/--table`** *(required; default `5`)* — NCBI translation table for the stop-codon check.
 * **`-o/--output`** *(required)* — output directory.
@@ -383,7 +384,11 @@ These arguments control matching against a reference fasta for the purposes of d
 
 #### `-R/--references path`
 
-`path` should be the path to a fasta file (`-R/--references`) of sequences that represent known species that are likely to occur in the dataset. Both arguments are available for cases where multiple reference sources are desired, with different parameterisation of hits, but only one is required. For example, you may have a set of sanger-sequenced barcodes from your project's morphospecies, and which have been carefully curated to ensure accuracy and no NUMTs, against which you want to allow matches of 99% to allow for some minor sanger sequencing error and true haplotypes. You may also want to find 100% matches to a local copy of GenBank nt. You would supply the former to `-R` and the latter to `-D`. A BBMap search against these sequences will be used to designate a set of ASVs as verified-authentic. 
+`path` should be the path to a fasta file (`-R/--references`) of sequences that represent known species that are likely to occur in the dataset. A BBMap search against these sequences will be used to designate a set of ASVs as verified-authentic.
+
+#### `--references2 path`
+
+`path` should be the path to an optional second fasta file of reference sequences. This is useful when you have one large reference dataset and a second, more local reference that better matches the query sequences. When supplied, the two references are concatenated and the combined set is used for matching; the same matching parameters (e.g. `--refmatchlength`) apply to both. For example, you might supply a curated copy of GenBank nt to `-R/--references` and a set of carefully curated sanger-sequenced barcodes from your own project's morphospecies to `--references2`.
 
 #### `--refmatchlength n`
 

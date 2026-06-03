@@ -22,6 +22,29 @@ def make_temp_bbmapwd(path, name):
         os.makedirs(outputdirectory)
     return(outputdirectory)
 
+def combine_references(refpaths, workingdir):
+    """Concatenate one or more reference fastas into a single file.
+
+    ``refpaths`` may contain ``None`` entries (e.g. an unset optional second
+    reference); these are skipped. When only one usable path remains it is
+    returned unchanged. Otherwise the references are concatenated into a single
+    fasta in ``workingdir`` and that path is returned, so downstream matching
+    treats them as one combined reference set.
+    """
+    paths = [p for p in refpaths if p]
+    for p in paths:
+        if not os.path.exists(p):
+            sys.exit(f"Error: reference file {p} does not exist")
+    if len(paths) == 1:
+        return paths[0]
+    combined = os.path.join(workingdir, "combined_references.fasta")
+    with open(combined, "w") as out_handle:
+        for path in paths:
+            with open(path, "r") as handle:
+                for record in SeqIO.parse(handle, "fasta"):
+                    SeqIO.write(record, out_handle, "fasta")
+    return combined
+
 def get_seq_lengths(fasta_path):
     handle = open(fasta_path, 'rU')
     sequence_lengths = {}

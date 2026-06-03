@@ -45,6 +45,43 @@ class ParseUcTests(unittest.TestCase):
         })
 
 
+class DetectAlignedTests(unittest.TestCase):
+    """``binning.detect_aligned`` reports a fasta as aligned only when *every*
+    sequence shares the same length. It must scan all records, not just the
+    first few -- an earlier version only looked at the first ``n`` sequences
+    and so missed divergence that appeared later in the file."""
+
+    def _write_fasta(self, records):
+        tmp = tempfile.mkdtemp()
+        path = os.path.join(tmp, "asvs.fasta")
+        with open(path, "w") as f:
+            for name, seq in records:
+                f.write(f">{name}\n{seq}\n")
+        return path
+
+    def test_equal_length_sequences_are_aligned(self):
+        path = self._write_fasta([
+            ("a", "ACGT--ACGT"),
+            ("b", "ACGTACGTAC"),
+            ("c", "AC--GTACGT"),
+        ])
+        self.assertTrue(binning.detect_aligned(path))
+
+    def test_divergence_only_at_end_is_not_aligned(self):
+        # 50 identical-length records, then one longer record at the very end.
+        # This is exactly the case the old first-n-only check would miss.
+        records = [(f"s{i}", "ACGT" * 5) for i in range(50)]
+        records.append(("last", "ACGT" * 6))
+        path = self._write_fasta(records)
+        self.assertFalse(binning.detect_aligned(path))
+
+    def test_empty_file_is_not_aligned(self):
+        tmp = tempfile.mkdtemp()
+        path = os.path.join(tmp, "empty.fasta")
+        open(path, "w").close()
+        self.assertFalse(binning.detect_aligned(path))
+
+
 class ParseReadmapTests(unittest.TestCase):
     """``binning.parse_readmap`` reads a sample-by-ASV count table, auto-detects
     the separator and orientation, drops zero counts, and returns

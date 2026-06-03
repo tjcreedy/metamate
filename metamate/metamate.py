@@ -193,6 +193,12 @@ def getcliargs(arglist=None):
     refmatch.add_argument("-R", "--references",
                           help="path to a fasta of known correct reference sequences",
                           metavar="path", type=str)
+    refmatch.add_argument("--references2",
+                          help="path to an optional second fasta of reference sequences "
+                               "(e.g. a smaller, more local reference that better matches the "
+                               "query sequences); it is concatenated with -R/--references and "
+                               "the combined set is used for matching",
+                          metavar="path", type=str)
     refmatch.add_argument("--refmatchlength",
                           help="the minimum alignment length to consider a match when "
                                "comparing ASVs against reference sequences (default is 80%% of "
@@ -294,6 +300,12 @@ def getcliargs(arglist=None):
                                               "identification")
     refmatch.add_argument("-R", "--references",
                           help="path to a fasta of known correct reference sequences",
+                          metavar="path", type=str)
+    refmatch.add_argument("--references2",
+                          help="path to an optional second fasta of reference sequences "
+                               "(e.g. a smaller, more local reference that better matches the "
+                               "query sequences); it is concatenated with -R/--references and "
+                               "the combined set is used for matching",
                           metavar="path", type=str)
     refmatch.add_argument("--refmatchlength",
                           help="the minimum alignment length to consider a match when "
