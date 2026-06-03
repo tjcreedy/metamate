@@ -63,7 +63,7 @@ def resolve_length_spec(args, parser):
             bpvar = round(args.percentvariation / 100 * args.expectedlength)
             nargs += 1
         if args.codonsvariation is not None:
-            bpvar = 3 * args.basesvariation
+            bpvar = 3 * args.codonsvariation
             nargs += 1
         nargerr = ('specify one of -b/--basesvariation, '
                    '-p/--percentvariation, -c/--codonsvariation')

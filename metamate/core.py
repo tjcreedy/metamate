@@ -694,10 +694,15 @@ def enforce_validation_fasta(fasta_path, source_path, target, nontarget):
     for name in nontarget:
         current.pop(name, None)
 
-    # Add missing authentics from source
+    # Add missing authentics from source, but never re-add anything that is also
+    # non-authentic. In ASV mode `target` (= refpass) can overlap `nontarget`
+    # (lengthfail/stopfail), so without this exclusion the loop below would
+    # re-introduce the very sequences step A just removed. In OTU mode the two
+    # sets are already disjoint, so this is a no-op.
+    add_target = target - nontarget
     with open(source_path, 'r') as f:
         for head, seq in SimpleFastaParser(f):
-            if head in target and head not in current:
+            if head in add_target and head not in current:
                 current[head] = seq
 
     # Rewrite

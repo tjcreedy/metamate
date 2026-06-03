@@ -86,6 +86,37 @@ The purpose of `dump` mode is to output a set of filtered ASVs without any NUMTs
 
 The purpose of `filter-adaptive` mode is to perform per-sample filtering based on the distribution of known authentic and non-authentic ASVs. Instead of applying a global or stratified hard threshold, this mode calculates a filtering threshold for each sample (library) individually. This threshold is determined by the abundance distribution of ASVs identified as non-authentic (verified non-authentic) within that sample. This allows for dynamic noise removal that adjusts to the sequencing depth and error profile of each sample.
 
+#### How the threshold is chosen
+
+An ASV is retained in a library if its read count in that library is **strictly greater than** the per-sample threshold. Two methods are available for choosing that threshold, via `--criteria`:
+
+* **`verified_removed` (default)** — the threshold is set directly at the requested `--percentile` (default `0.95`) of the read counts of the **verified non-authentic** ASVs present in that library. With the default percentile this is the count below which 95% of that library's verified non-authentic ASVs fall.
+* **`estimated_removed` (experimental)** — rather than using only the verified non-authentic ASVs, metaMATE estimates the library's *true* authentic/non-authentic composition (including the unclassified ASVs) from the rates at which verified authentic and verified non-authentic ASVs survive each candidate threshold, and then picks the observed count whose **estimated** proportion of non-authentic ASVs removed is closest to `--percentile`. This requires a library to contain at least 10 ASVs and at least one verified authentic *and* one verified non-authentic ASV; libraries that don't meet this use the fallback (below). Use this when you want the percentile to refer to the estimated total error rather than only to the verified non-authentic set.
+
+In both cases, a library that yields no usable threshold (e.g. it contains no verified non-authentic ASVs, or is too small for `estimated_removed`) falls back to the mean of the thresholds calculated for the other libraries (or `1` if no library produced one).
+
+#### Validation enforcement
+
+By default (`--enforcevalidation`, on unless you pass `--no-enforcevalidation`):
+* every **verified authentic** ASV is retained even if its count is below the per-sample threshold ("rescue"), and
+* every **verified non-authentic** ASV is removed even if its count is above the threshold.
+
+This enforcement is applied to both the output FASTA and the output abundance table, so the two always describe the same set of sequences. With `--no-enforcevalidation`, only the raw per-sample threshold is applied (no rescue, no forced removal).
+
+#### Input requirements
+
+`filter-adaptive` runs the same validation step as `find`, so it needs the inputs to define both control groups, plus per-sample read counts:
+
+* **`-A/--asvs`** *(required)* — FASTA of the unique sequences to filter.
+* **per-sample reads** *(required, exactly one)* — `-M/--readmap` (a count table) **or** `-L/--libraries` (per-library read files / a single annotated file). Not required in OTU mode (see below), where counts come from `--otu_table`.
+* **`-R/--references`** *(required)* — FASTA of reference sequences used to designate verified-authentic ASVs.
+* **a length specification** *(required)* — enough length arguments to compute the acceptable range, e.g. `--expectedlength 418 --percentvar 0`, or `-n/--minimumlength` and `-x/--maximumlength`. ASVs outside the range are verified non-authentic. See [length-based arguments](#length-based-arguments).
+* **`-s/--table`** *(required; default `5`)* — NCBI translation table for the stop-codon check.
+* **`-o/--output`** *(required)* — output directory.
+* optional: `--percentile`, `--criteria`, `--enforcevalidation`/`--no-enforcevalidation`, and the [OTU mode arguments](#otu-mode-arguments). Clade (`-T`/`-d`) and taxon (`-G`) binning arguments are accepted but **not used** by `filter-adaptive`, which never bins by clade or taxon.
+
+If a `<asv-basename>_control.txt` from a previous run is present in the output directory (and `--overwrite` is not given), metaMATE resumes from it and skips re-running reference matching and length/translation checks. A small, ready-to-run example dataset (including such a control file, and covering both `--criteria` settings and OTU mode) is provided in [`tests/data/filter_adaptive/`](tests/data/filter_adaptive/).
+
 ## Installation
 
 
@@ -418,21 +449,28 @@ If `-r/--readingframe` is not specified, metaMATE will automatically detect the 
 
 ### OTU mode arguments
 
-`find`: *optional* | `dump`: *optional*
+`find`: *optional* | `dump`: *optional* | `filter-adaptive`: *optional*
 
-metaMATE can operate on Operational Taxonomic Units (OTUs) instead of ASVs. In this mode, ASVs are first classified as authentic or non-authentic based on the provided reference sets (`-R/--references`, etc) and length/translation checks. Then, OTUs are classified based on their constituent ASVs: an OTU is considered authentic if it contains any authentic ASVs, and non-authentic if it contains only non-authentic ASVs. Finally, the filtering is performed on the OTUs using the provided OTU abundance table.
+metaMATE can operate on Operational Taxonomic Units (OTUs) instead of ASVs. In this mode, ASVs are first classified as authentic or non-authentic based on the provided reference sets (`-R/--references`, etc) and length/translation checks. Then, OTUs are classified based on their constituent ASVs:
+* an OTU is **Authentic** if it contains *any* authentic ASV (even if it also contains non-authentic ASVs);
+* otherwise it is **Non-Authentic** if *all* of its ASVs are non-authentic;
+* otherwise it is **Unclassified** (it belongs to neither control group and is subject only to threshold filtering).
+
+Filtering is then performed on the OTUs using the provided OTU abundance table, and the per-ASV/per-OTU classifications are written to `otu_summary.csv` in the output directory.
+
+OTU mode is enabled by supplying the three OTU arguments below. **If any one of `--uc`, `--otu_fasta` or `--otu_table` is given, all three are required.** The ASV-level inputs are still needed because classification runs on the ASVs first: you must still supply `-A/--asvs`, `-R/--references`, a length specification and `-s/--table`. You do **not** need `-L/--libraries` or `-M/--readmap` in OTU mode — per-library counts come from `--otu_table`. The IDs in `--otu_table` and the headers in `--otu_fasta` must be the OTU centroid IDs used as the cluster representatives in `--uc`.
 
 #### `--uc path`
 
-`path` to a USEARCH-format cluster file mapping ASVs to OTUs. This is required to enable OTU mode.
+`path` to a USEARCH/VSEARCH-format `.uc` cluster file mapping ASVs to OTUs (the `S`/`H` records map each member ASV to its centroid). This is required to enable OTU mode.
 
 #### `--otu_fasta path`
 
-`path` to a FASTA file containing the OTU representative sequences.
+`path` to a FASTA file containing the OTU centroid/representative sequences (headers = centroid IDs).
 
 #### `--otu_table path`
 
-`path` to a CSV file containing the OTU abundance table (OTUs as rows, libraries as columns, or vice-versa).
+`path` to a CSV/TSV OTU abundance table. The first column holds the OTU centroid IDs; the orientation (OTUs as rows and libraries as columns, or vice-versa) is auto-detected.
 
 
 ### `dump`-specific arguments
@@ -451,17 +489,17 @@ Each value of `n` should be 0 or a positive integer referring to an result set i
 
 ### `filter-adaptive`-specific arguments
 
-`filter-adaptive` uses the same reference, length, and translation arguments as `find` to identify verified authentic and non-authentic ASVs. In addition, it uses the following arguments to control the filtering behavior:
+`filter-adaptive` uses the same reference, length, and translation arguments as `find` to identify verified authentic and non-authentic ASVs ([see the input requirements above](#input-requirements)). In addition, it uses the following arguments to control the filtering behaviour:
 
 #### `--percentile [0-1]`
 
-The percentile of the verified non-authentic ASV abundance distribution to use as the filtering threshold. For example, `0.95` (default) selects a threshold that would filter out 95% of the verified non-authentic ASVs in the sample. All ASVs with abundance below this threshold in that sample are removed.
+The target proportion of non-authentic ASVs to remove in each library, used to choose the per-sample threshold (default `0.95`). Under `--criteria verified_removed` this is the percentile of the *verified* non-authentic ASV count distribution; under `estimated_removed` it is the proportion of the *estimated* total non-authentic ASVs. ASVs whose count is at or below the resulting threshold are removed (subject to validation enforcement). [See "How the threshold is chosen" above](#how-the-threshold-is-chosen).
 
 #### `--criteria [verified_removed|estimated_removed]`
 
-The criteria used to calculate the threshold.
-* `verified_removed` (default): The threshold is strictly based on the distribution of ASVs identified as non-authentic via likelihood/translation/reference checks.
-* `estimated_removed` (experimental): Attempts to estimate the distribution of errors by extrapolating the verified (non)-authentic ASV abundance distribution.
+How the per-sample threshold is calculated (described in full under [How the threshold is chosen](#how-the-threshold-is-chosen)):
+* `verified_removed` (default): the threshold is the `--percentile` of the read counts of the ASVs *verified* as non-authentic (by length/translation/reference checks) in that library.
+* `estimated_removed` (experimental): metaMATE estimates the library's true authentic/non-authentic composition from the survival rates of the verified groups and chooses the threshold whose estimated proportion of non-authentic ASVs removed is closest to `--percentile`. Requires ≥10 ASVs and ≥1 verified authentic and ≥1 verified non-authentic ASV in the library, otherwise that library uses the fallback threshold.
 
 ## Examples
 
@@ -535,9 +573,23 @@ The main differences between this and a `find` run are:
 ### `filter-adaptive` examples
 
 ```
-metamate filter-adaptive -A 6_coleoptera.fasta -L 0_merge/*.fastq -G 6_coleoptera_taxon.csv -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir --percentile 0.97
+metamate filter-adaptive -A 6_coleoptera.fasta -L 0_merge/*.fastq -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir --percentile 0.97
 ```
-This command runs the adaptive filter. It first identifies verified authentic and non-authentic ASVs using the reference and length/translation parameters (similar to `find`). Then, for each library, it calculates a threshold such that 97% of the verified non-authentic ASVs in that library are removed. The resulting filtered ASV table and FASTA are written to `outputdir`.
+This command runs the adaptive filter. It first identifies verified authentic and non-authentic ASVs using the reference and length/translation parameters (similar to `find`). Then, for each library, it calculates a threshold such that 97% of the verified non-authentic ASVs in that library are removed. By default, verified authentic ASVs are retained and verified non-authentic ASVs are removed regardless of the threshold; the resulting filtered ASV FASTA, abundance table and per-sample summary are written to `outputdir`. (`-G` is accepted but unused here, as `filter-adaptive` does not bin by taxon.)
+
+To instead choose each threshold from the *estimated* total error rather than only the verified non-authentic ASVs, add `--criteria estimated_removed`:
+```
+metamate filter-adaptive -A 6_coleoptera.fasta -L 0_merge/*.fastq -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir --percentile 0.97 --criteria estimated_removed
+```
+
+To apply only the per-sample thresholds, without forcing verified authentics in or verified non-authentics out, add `--no-enforcevalidation`.
+
+To run on OTUs instead of ASVs, supply the OTU files (and drop `-L`/`-M`, since counts come from the OTU table):
+```
+metamate filter-adaptive -A 6_coleoptera.fasta -R dummy_references.fasta --expectedlength 418 --percentvar 0 --table 5 -o outputdir --uc 6_coleoptera.uc --otu_fasta 6_coleoptera_otus.fasta --otu_table 6_coleoptera_otutable.csv
+```
+
+A tiny, self-contained dataset that runs all of these without BBMap/MAFFT/R (with documented expected outputs) is in [`tests/data/filter_adaptive/`](tests/data/filter_adaptive/).
 
 ## Outputs
 
@@ -602,6 +654,15 @@ If the input ASVs were aligned, metaMATE unaligns (degaps) them and outputs the 
 ### UPGMA tree
 
 Unless a tree is supplied, metaMATE uses the aligned ASVs to build a UPGMA tree using the script `make_tree.R` supplied as part of metaMATE. This is a newick-format tree that can be opened by any newick parser or tree viewing software.
+
+### Adaptive filter outputs (`filter-adaptive` only)
+
+`filter-adaptive` always writes three files to the output directory:
+* `filter-adaptive.fasta` — the retained sequences (ASVs, or OTU centroids in OTU mode). With validation enforced (the default) this contains the threshold survivors plus rescued verified authentics, minus all verified non-authentics.
+* `filter-adaptive_table.csv` — the per-sample abundance table of the retained sequences, with a `Threshold` column giving each sample's threshold. Its rows/columns match `filter-adaptive.fasta`.
+* `filter-adaptive_summary.csv` — per-sample statistics: the threshold and the pre/post counts of total, verified-authentic and verified-non-authentic sequences. `Verified_Authentic_Post` counts only authentics that passed the threshold on their own (rescued ones are excluded), so it reflects filtering stringency.
+
+In OTU mode it additionally writes `otu_summary.csv` (per-ASV and per-OTU classifications). The `*_control.txt` (and, when `-L/-M` is used, `*_ASVcounts.csv`) validation/count files are written as for `find`, and are reused to resume a later run.
 
 ## Details
 

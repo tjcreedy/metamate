@@ -1,0 +1,6 @@
+lengthfail	short1
+lengthfail	both1
+stopfail	stop1
+refpass	ref1
+refpass	ref2
+refpass	both1

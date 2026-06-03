@@ -1,0 +1,12 @@
+S	0	60	*	+	*	*	*	ref1	*
+H	0	60	99.0	+	0	0	*	ref2	ref1
+S	0	63	*	+	*	*	*	both1	*
+H	0	30	99.0	+	0	0	*	short1	both1
+S	0	60	*	+	*	*	*	stop1	*
+S	0	60	*	+	*	*	*	noise1	*
+H	0	60	99.0	+	0	0	*	noise2	noise1
+H	0	60	99.0	+	0	0	*	noise3	noise1
+H	0	60	99.0	+	0	0	*	noise4	noise1
+H	0	60	99.0	+	0	0	*	noise5	noise1
+H	0	60	99.0	+	0	0	*	noise6	noise1
+H	0	60	99.0	+	0	0	*	noise7	noise1
